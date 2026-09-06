@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 
 interface AuditLog {
   id: string;
@@ -179,8 +179,8 @@ export default function AuditLogsClient() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {logs.map((log) => (
-                    <>
-                      <tr key={log.id} className="hover:bg-slate-50 transition-colors">
+                    <React.Fragment key={log.id}>
+                      <tr className="hover:bg-slate-50 transition-colors">
                         <td className="px-4 py-3">
                           <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded border ${getActionColor(log.action)}`}>
                             {formatAction(log.action)}
@@ -216,7 +216,7 @@ export default function AuditLogsClient() {
                         </td>
                       </tr>
                       {expandedId === log.id && (
-                        <tr key={`${log.id}-expanded`} className="bg-slate-50">
+                        <tr className="bg-slate-50">
                           <td colSpan={5} className="px-4 py-4">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                               <div>
@@ -231,7 +231,7 @@ export default function AuditLogsClient() {
                           </td>
                         </tr>
                       )}
-                    </>
+                    </React.Fragment>
                   ))}
                 </tbody>
               </table>

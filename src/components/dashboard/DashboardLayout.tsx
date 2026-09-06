@@ -89,8 +89,12 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
             <ul className="space-y-1">
               <li>
                 <Link
-                  href={pathname}
-                  className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md bg-teal-700 text-white shadow-sm"
+                  href={user.role === "DOCTOR" ? "/doctor" : "/staff"}
+                  className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                    pathname === "/doctor" || pathname === "/staff"
+                      ? "bg-teal-700 text-white shadow-sm"
+                      : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                  }`}
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path
@@ -103,27 +107,59 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
                   Dashboard
                 </Link>
               </li>
+              <li>
+                <Link
+                  href="/patients"
+                  className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                    pathname === "/patients" || (pathname.startsWith("/patients") && pathname !== "/patients/new")
+                      ? "bg-teal-700 text-white shadow-sm"
+                      : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  Patients Directory
+                </Link>
+              </li>
+              {(user.role === "RECEPTIONIST" || user.role === "STAFF" || user.role === "ADMIN") && (
+                <li>
+                  <Link
+                    href="/patients/new"
+                    className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                      pathname === "/patients/new"
+                        ? "bg-teal-700 text-white shadow-sm"
+                        : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                    }`}
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Register Patient
+                  </Link>
+                </li>
+              )}
             </ul>
           </div>
 
-          {/* Hospital Modules Placeholder (Phases 2-5) */}
+          {/* Hospital Modules */}
           <div>
             <div className="px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2 flex items-center justify-between">
-              <span>Hospital Modules</span>
+              <span>Upcoming Modules</span>
               <span className="text-[9px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded">
                 Later Phases
               </span>
             </div>
             <ul className="space-y-1 text-slate-400 text-sm">
               {[
-                { name: "Patient Registration", phase: "Phase 2" },
-                { name: "Appointments & OPD", phase: "Phase 2" },
-                { name: "Doctor Consultations", phase: "Phase 2" },
-                { name: "Emergency & Triage", phase: "Phase 3" },
-                { name: "Admissions & Wards", phase: "Phase 3" },
-                { name: "Medication & MAR", phase: "Phase 3" },
-                { name: "Pharmacy & Labs", phase: "Phase 4" },
-                { name: "Billing & Reports", phase: "Phase 5" },
+                { name: "Appointments & OPD", phase: "Phase 4" },
+                { name: "Doctor Consultations", phase: "Phase 4" },
+                { name: "Emergency & Triage", phase: "Phase 5" },
+                { name: "Admissions & Wards", phase: "Phase 5" },
+                { name: "Medication & MAR", phase: "Phase 5" },
+                { name: "Pharmacy & Labs", phase: "Phase 6" },
+                { name: "Billing & Reports", phase: "Phase 7" },
               ].map((item) => (
                 <li key={item.name}>
                   <div className="flex items-center justify-between px-3 py-1.5 rounded text-xs text-slate-400 cursor-not-allowed opacity-60">

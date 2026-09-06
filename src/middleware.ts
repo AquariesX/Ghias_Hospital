@@ -45,6 +45,15 @@ function isRoleAuthorizedForPath(role: string, pathname: string): boolean {
   if (pathname.startsWith("/staff")) {
     return role === "NURSE" || role === "RECEPTIONIST" || role === "STAFF";
   }
+  if (pathname.startsWith("/patients")) {
+    return (
+      role === "ADMIN" ||
+      role === "RECEPTIONIST" ||
+      role === "STAFF" ||
+      role === "DOCTOR" ||
+      role === "NURSE"
+    );
+  }
   return true;
 }
 
@@ -56,7 +65,8 @@ export async function middleware(request: NextRequest) {
   const isProtectedPath =
     pathname.startsWith("/admin") ||
     pathname.startsWith("/doctor") ||
-    pathname.startsWith("/staff");
+    pathname.startsWith("/staff") ||
+    pathname.startsWith("/patients");
 
   const isLoginPath = pathname === "/login";
   const isRootPath = pathname === "/";

@@ -3,6 +3,8 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin-auth";
 import { createAuditLog } from "@/lib/audit";
+import { hashPassword } from "@/lib/password";
+import { UserRole, UserStatus } from "@prisma/client";
 
 const PAGE_SIZE = 10;
 
@@ -28,7 +30,26 @@ const createStaffSchema = z.object({
   nurseDepartment: z.enum(["OPD", "EMERGENCY"]).optional().nullable(),
   departmentId: z.string().uuid().optional().nullable(),
   userId: z.string().uuid().optional().nullable(),
+
+  // Dashboard & Portal Access Fields
+  createPortalAccount: z.boolean().default(true),
+  password: z.string().min(6, "Password must be at least 6 characters").optional().or(z.literal("")).nullable(),
+  username: z.string().min(3, "Username must be at least 3 characters").max(50).optional().or(z.literal("")).nullable(),
 });
+
+function mapStaffRoleToUserRole(staffRole: string): UserRole {
+  switch (staffRole) {
+    case "RECEPTIONIST":
+      return UserRole.RECEPTIONIST;
+    case "HEAD_NURSE":
+    case "STAFF_NURSE":
+      return UserRole.NURSE;
+    case "ADMINISTRATOR":
+      return UserRole.ADMIN;
+    default:
+      return UserRole.STAFF;
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -64,7 +85,7 @@ export async function GET(request: NextRequest) {
         take: PAGE_SIZE,
         include: {
           department: { select: { id: true, name: true, code: true } },
-          user: { select: { id: true, email: true } },
+          user: { select: { id: true, email: true, username: true, role: true } },
         },
       }),
     ]);
@@ -100,10 +121,41 @@ export async function POST(request: NextRequest) {
 
     const data = parsed.data;
 
-    // Email uniqueness
+    // Email uniqueness in staff table
     const existing = await prisma.staff.findUnique({ where: { email: data.email } });
     if (existing) {
       return NextResponse.json({ error: "A staff member with this email already exists" }, { status: 409 });
+    }
+
+    const shouldCreateUser = data.createPortalAccount && !!data.password?.trim();
+
+    // If portal account is to be created, check user table email/username collisions
+    if (shouldCreateUser) {
+      const existingUser = await prisma.user.findUnique({ where: { email: data.email } });
+      if (existingUser) {
+        return NextResponse.json(
+          {
+            error: "A system user account with this email address already exists",
+            details: { email: ["Email is already registered for a portal user"] },
+          },
+          { status: 409 }
+        );
+      }
+
+      if (data.username?.trim()) {
+        const existingUsername = await prisma.user.findUnique({
+          where: { username: data.username.trim() },
+        });
+        if (existingUsername) {
+          return NextResponse.json(
+            {
+              error: "A system user account with this username already exists",
+              details: { username: ["Username is already taken"] },
+            },
+            { status: 409 }
+          );
+        }
+      }
     }
 
     // Generate next staff number
@@ -122,24 +174,48 @@ export async function POST(request: NextRequest) {
     // Clear nurseDepartment if not a nurse role
     const isNurse = data.role === "HEAD_NURSE" || data.role === "STAFF_NURSE";
 
-    const staff = await prisma.staff.create({
-      data: {
-        staffNumber,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        role: data.role,
-        phone: data.phone,
-        email: data.email,
-        qualification: data.qualification || null,
-        shift: data.shift || null,
-        status: data.status,
-        nurseDepartment: isNurse ? (data.nurseDepartment || null) : null,
-        departmentId: data.departmentId || null,
-        userId: data.userId || null,
-      },
-      include: {
-        department: { select: { id: true, name: true } },
-      },
+    // Hash password if portal account is enabled
+    const passwordHash = shouldCreateUser && data.password ? await hashPassword(data.password) : null;
+
+    const { staff, user } = await prisma.$transaction(async (tx) => {
+      let createdUser = null;
+
+      if (shouldCreateUser && passwordHash) {
+        createdUser = await tx.user.create({
+          data: {
+            email: data.email,
+            username: data.username?.trim() || null,
+            passwordHash,
+            firstName: data.firstName,
+            lastName: data.lastName,
+            role: mapStaffRoleToUserRole(data.role),
+            status: data.status === "INACTIVE" ? UserStatus.INACTIVE : UserStatus.ACTIVE,
+          },
+        });
+      }
+
+      const newStaff = await tx.staff.create({
+        data: {
+          staffNumber,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          role: data.role,
+          phone: data.phone,
+          email: data.email,
+          qualification: data.qualification || null,
+          shift: data.shift || null,
+          status: data.status,
+          nurseDepartment: isNurse ? (data.nurseDepartment || null) : null,
+          departmentId: data.departmentId || null,
+          userId: createdUser ? createdUser.id : (data.userId || null),
+        },
+        include: {
+          department: { select: { id: true, name: true } },
+          user: { select: { id: true, email: true, username: true, role: true } },
+        },
+      });
+
+      return { staff: newStaff, user: createdUser };
     });
 
     await createAuditLog({
@@ -153,6 +229,8 @@ export async function POST(request: NextRequest) {
         staffNumber: staff.staffNumber,
         name: `${staff.firstName} ${staff.lastName}`,
         role: staff.role,
+        hasPortalAccount: !!user,
+        portalRole: user?.role,
       }),
     });
 

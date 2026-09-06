@@ -3,6 +3,8 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin-auth";
 import { createAuditLog } from "@/lib/audit";
+import { hashPassword } from "@/lib/password";
+import { UserRole, UserStatus } from "@prisma/client";
 
 const updateStaffSchema = z.object({
   firstName: z.string().min(1).max(100).optional(),
@@ -19,7 +21,24 @@ const updateStaffSchema = z.object({
   nurseDepartment: z.enum(["OPD", "EMERGENCY"]).optional().nullable(),
   departmentId: z.string().uuid().optional().nullable(),
   userId: z.string().uuid().optional().nullable(),
+
+  // Password update / Portal access setup
+  password: z.string().min(6, "Password must be at least 6 characters").optional().or(z.literal("")).nullable(),
 });
+
+function mapStaffRoleToUserRole(staffRole: string): UserRole {
+  switch (staffRole) {
+    case "RECEPTIONIST":
+      return UserRole.RECEPTIONIST;
+    case "HEAD_NURSE":
+    case "STAFF_NURSE":
+      return UserRole.NURSE;
+    case "ADMINISTRATOR":
+      return UserRole.ADMIN;
+    default:
+      return UserRole.STAFF;
+  }
+}
 
 export async function GET(
   request: NextRequest,
@@ -33,7 +52,7 @@ export async function GET(
       where: { id },
       include: {
         department: true,
-        user: { select: { id: true, email: true, username: true } },
+        user: { select: { id: true, email: true, username: true, role: true } },
       },
     });
 
@@ -65,7 +84,11 @@ export async function PUT(
       );
     }
 
-    const existing = await prisma.staff.findUnique({ where: { id } });
+    const existing = await prisma.staff.findUnique({
+      where: { id },
+      include: { user: true },
+    });
+
     if (!existing) {
       return NextResponse.json({ error: "Staff member not found" }, { status: 404 });
     }
@@ -77,19 +100,95 @@ export async function PUT(
       }
     }
 
-    const isNurse =
-      (parsed.data.role ?? existing.role) === "HEAD_NURSE" ||
-      (parsed.data.role ?? existing.role) === "STAFF_NURSE";
+    const effectiveRole = parsed.data.role ?? existing.role;
+    const effectiveEmail = parsed.data.email ?? existing.email;
+    const effectiveFirstName = parsed.data.firstName ?? existing.firstName;
+    const effectiveLastName = parsed.data.lastName ?? existing.lastName;
+    const effectiveStatus = parsed.data.status ?? existing.status;
 
-    const updated = await prisma.staff.update({
-      where: { id },
-      data: {
-        ...parsed.data,
-        nurseDepartment: isNurse ? (parsed.data.nurseDepartment ?? existing.nurseDepartment) : null,
-      },
-      include: {
-        department: { select: { id: true, name: true } },
-      },
+    const isNurse = effectiveRole === "HEAD_NURSE" || effectiveRole === "STAFF_NURSE";
+
+    const passwordToSet = parsed.data.password?.trim() || null;
+    const passwordHash = passwordToSet ? await hashPassword(passwordToSet) : null;
+
+    const updated = await prisma.$transaction(async (tx) => {
+      let linkedUserId = existing.userId;
+
+      if (passwordHash) {
+        if (existing.userId) {
+          // Update existing user credentials and sync role/name
+          await tx.user.update({
+            where: { id: existing.userId },
+            data: {
+              passwordHash,
+              email: effectiveEmail,
+              firstName: effectiveFirstName,
+              lastName: effectiveLastName,
+              role: mapStaffRoleToUserRole(effectiveRole),
+              status: effectiveStatus === "INACTIVE" ? UserStatus.INACTIVE : UserStatus.ACTIVE,
+            },
+          });
+        } else {
+          // Check if user with this email exists
+          const userWithEmail = await tx.user.findUnique({ where: { email: effectiveEmail } });
+          if (userWithEmail) {
+            linkedUserId = userWithEmail.id;
+            await tx.user.update({
+              where: { id: userWithEmail.id },
+              data: {
+                passwordHash,
+                firstName: effectiveFirstName,
+                lastName: effectiveLastName,
+                role: mapStaffRoleToUserRole(effectiveRole),
+                status: effectiveStatus === "INACTIVE" ? UserStatus.INACTIVE : UserStatus.ACTIVE,
+              },
+            });
+          } else {
+            const newUser = await tx.user.create({
+              data: {
+                email: effectiveEmail,
+                passwordHash,
+                firstName: effectiveFirstName,
+                lastName: effectiveLastName,
+                role: mapStaffRoleToUserRole(effectiveRole),
+                status: effectiveStatus === "INACTIVE" ? UserStatus.INACTIVE : UserStatus.ACTIVE,
+              },
+            });
+            linkedUserId = newUser.id;
+          }
+        }
+      } else if (existing.userId) {
+        // Keep user in sync if email, name, role or status changed
+        await tx.user.update({
+          where: { id: existing.userId },
+          data: {
+            email: effectiveEmail,
+            firstName: effectiveFirstName,
+            lastName: effectiveLastName,
+            role: mapStaffRoleToUserRole(effectiveRole),
+            status: effectiveStatus === "INACTIVE" ? UserStatus.INACTIVE : UserStatus.ACTIVE,
+          },
+        });
+      }
+
+      // Exclude password from staff model update
+      const staffUpdateData = { ...parsed.data };
+      delete staffUpdateData.password;
+
+      const staffUpdated = await tx.staff.update({
+        where: { id },
+        data: {
+          ...staffUpdateData,
+          userId: linkedUserId,
+          nurseDepartment: isNurse ? (parsed.data.nurseDepartment ?? existing.nurseDepartment) : null,
+        },
+        include: {
+          department: { select: { id: true, name: true } },
+          user: { select: { id: true, email: true, username: true, role: true } },
+        },
+      });
+
+      return staffUpdated;
     });
 
     await createAuditLog({
@@ -100,7 +199,11 @@ export async function PUT(
       entity: "Staff",
       entityId: id,
       oldValue: JSON.stringify({ name: `${existing.firstName} ${existing.lastName}`, status: existing.status }),
-      newValue: JSON.stringify({ name: `${updated.firstName} ${updated.lastName}`, status: updated.status }),
+      newValue: JSON.stringify({
+        name: `${updated.firstName} ${updated.lastName}`,
+        status: updated.status,
+        passwordUpdated: !!passwordHash,
+      }),
     });
 
     return NextResponse.json({ data: updated });

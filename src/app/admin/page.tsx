@@ -35,6 +35,8 @@ export default async function AdminDashboardPage() {
 
   // Real database stats
   const [
+    patientCount,
+    activePatientCount,
     doctorCount,
     activeDoctorCount,
     staffCount,
@@ -43,10 +45,13 @@ export default async function AdminDashboardPage() {
     activeDepartmentCount,
     userCount,
     activeUserCount,
+    recentPatients,
     recentDoctors,
     recentStaff,
     recentAuditLogs,
   ] = await Promise.all([
+    prisma.patient.count(),
+    prisma.patient.count({ where: { status: "ACTIVE" } }),
     prisma.doctor.count(),
     prisma.doctor.count({ where: { status: "ACTIVE" } }),
     prisma.staff.count(),
@@ -55,6 +60,21 @@ export default async function AdminDashboardPage() {
     prisma.department.count({ where: { status: "ACTIVE" } }),
     prisma.user.count(),
     prisma.user.count({ where: { status: "ACTIVE" } }),
+    prisma.patient.findMany({
+      take: 5,
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        patientNumber: true,
+        mrNumber: true,
+        phone: true,
+        bloodGroup: true,
+        status: true,
+        createdAt: true,
+      },
+    }),
     prisma.doctor.findMany({
       take: 5,
       orderBy: { createdAt: "desc" },
@@ -80,6 +100,15 @@ export default async function AdminDashboardPage() {
   ]);
 
   const stats = [
+    {
+      label: "Total Patients",
+      value: patientCount,
+      sub: `${activePatientCount} active`,
+      href: "/patients",
+      color: "text-emerald-700",
+      bg: "bg-emerald-50",
+      border: "border-emerald-200",
+    },
     {
       label: "Total Doctors",
       value: doctorCount,
@@ -143,18 +172,97 @@ export default async function AdminDashboardPage() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
           {stats.map((stat) => (
             <Link key={stat.label} href={stat.href}>
-              <div className={`bg-white border ${stat.border} rounded-lg p-5 hover:shadow-sm transition-shadow cursor-pointer`}>
+              <div className={`bg-white border ${stat.border} rounded-lg p-4 hover:shadow-sm transition-shadow cursor-pointer`}>
                 <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
                   {stat.label}
                 </p>
-                <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
+                <p className={`text-2xl sm:text-3xl font-bold ${stat.color}`}>{stat.value}</p>
                 <p className="text-xs text-slate-400 mt-1">{stat.sub}</p>
               </div>
             </Link>
           ))}
+        </div>
+
+        {/* Recent Patients */}
+        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-slate-800">Recent Registered Patients</h2>
+              <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                Phase 3 Live
+              </span>
+            </div>
+            <Link
+              href="/patients"
+              className="text-xs font-medium text-teal-700 hover:text-teal-900 transition-colors"
+            >
+              View directory →
+            </Link>
+          </div>
+          {recentPatients.length === 0 ? (
+            <div className="py-8 text-center text-xs text-slate-400">No patients registered yet</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50/75 border-b border-slate-100 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  <tr>
+                    <th className="py-2.5 px-4">Patient Name</th>
+                    <th className="py-2.5 px-4">Patient #</th>
+                    <th className="py-2.5 px-4">MR #</th>
+                    <th className="py-2.5 px-4">Phone</th>
+                    <th className="py-2.5 px-4">Status</th>
+                    <th className="py-2.5 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {recentPatients.map((p) => (
+                    <tr key={p.id} className="hover:bg-slate-50/80 transition">
+                      <td className="py-3 px-4 font-medium text-slate-900">
+                        {p.firstName} {p.lastName}
+                      </td>
+                      <td className="py-3 px-4 font-mono text-xs text-slate-700">
+                        {p.patientNumber}
+                      </td>
+                      <td className="py-3 px-4 font-mono text-xs text-slate-700">
+                        {p.mrNumber || "—"}
+                      </td>
+                      <td className="py-3 px-4 text-xs text-slate-600">
+                        {p.phone}
+                      </td>
+                      <td className="py-3 px-4">
+                        <StatusBadge status={p.status} />
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <Link
+                          href={`/patients/${p.id}`}
+                          className="text-xs font-semibold text-teal-600 hover:text-teal-800"
+                        >
+                          View Record →
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+            <Link
+              href="/patients/new"
+              className="text-xs font-medium text-teal-700 hover:text-teal-900 transition-colors"
+            >
+              + Register New Patient
+            </Link>
+            <Link
+              href="/patients"
+              className="text-xs text-slate-500 hover:text-slate-700"
+            >
+              Search by Name / MR / CNIC →
+            </Link>
+          </div>
         </div>
 
         {/* Recent Doctors + Recent Staff */}
@@ -290,12 +398,14 @@ export default async function AdminDashboardPage() {
         </div>
 
         {/* Quick Links */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {[
+            { label: "Register Patient", href: "/patients/new", icon: "🏥" },
+            { label: "Patients Directory", href: "/patients", icon: "📋" },
             { label: "Add Doctor", href: "/admin/doctors/new", icon: "👨‍⚕️" },
             { label: "Add Staff", href: "/admin/staff/new", icon: "👤" },
-            { label: "Add Department", href: "/admin/departments/new", icon: "🏥" },
-            { label: "View Users", href: "/admin/users", icon: "🔐" },
+            { label: "Add Department", href: "/admin/departments/new", icon: "🏢" },
+            { label: "System Users", href: "/admin/users", icon: "🔐" },
           ].map((item) => (
             <Link
               key={item.label}

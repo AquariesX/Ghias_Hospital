@@ -38,8 +38,32 @@ export function isAuthorizedForPath(role: UserRole | string, pathname: string): 
     return role === "NURSE" || role === "RECEPTIONIST" || role === "STAFF";
   }
 
+  if (pathname.startsWith("/patients")) {
+    return canViewPatients(role);
+  }
+
   // General routes
   return true;
+}
+
+/**
+ * Checks if a user role can manage (create/edit) patients
+ */
+export function canManagePatients(role: UserRole | string): boolean {
+  return role === "ADMIN" || role === "RECEPTIONIST" || role === "STAFF";
+}
+
+/**
+ * Checks if a user role can view patient directory and profiles
+ */
+export function canViewPatients(role: UserRole | string): boolean {
+  return (
+    role === "ADMIN" ||
+    role === "RECEPTIONIST" ||
+    role === "STAFF" ||
+    role === "DOCTOR" ||
+    role === "NURSE"
+  );
 }
 
 /**
