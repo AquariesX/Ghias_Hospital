@@ -1,92 +1,313 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
-import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import AdminLayout from "@/components/admin/AdminLayout";
+import prisma from "@/lib/prisma";
+import StatusBadge from "@/components/ui/StatusBadge";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Admin Dashboard — GIAS Hospital" };
+
+function formatAction(action: string): string {
+  return action
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function timeAgo(date: Date): string {
+  const secs = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
+  if (secs < 60) return "just now";
+  if (secs < 3600) return `${Math.floor(secs / 60)}m ago`;
+  if (secs < 86400) return `${Math.floor(secs / 3600)}h ago`;
+  return `${Math.floor(secs / 86400)}d ago`;
+}
+
+function formatStaffRole(role: string): string {
+  return role.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
 export default async function AdminDashboardPage() {
   const user = await getCurrentUser();
 
-  if (!user) {
-    redirect("/login");
-  }
+  if (!user) redirect("/login");
+  if (user.role !== "ADMIN") redirect("/login");
 
-  if (user.role !== "ADMIN") {
-    redirect("/login");
-  }
+  // Real database stats
+  const [
+    doctorCount,
+    activeDoctorCount,
+    staffCount,
+    activeStaffCount,
+    departmentCount,
+    activeDepartmentCount,
+    userCount,
+    activeUserCount,
+    recentDoctors,
+    recentStaff,
+    recentAuditLogs,
+  ] = await Promise.all([
+    prisma.doctor.count(),
+    prisma.doctor.count({ where: { status: "ACTIVE" } }),
+    prisma.staff.count(),
+    prisma.staff.count({ where: { status: "ACTIVE" } }),
+    prisma.department.count(),
+    prisma.department.count({ where: { status: "ACTIVE" } }),
+    prisma.user.count(),
+    prisma.user.count({ where: { status: "ACTIVE" } }),
+    prisma.doctor.findMany({
+      take: 5,
+      orderBy: { createdAt: "desc" },
+      include: { department: { select: { name: true } } },
+    }),
+    prisma.staff.findMany({
+      take: 5,
+      orderBy: { createdAt: "desc" },
+      include: { department: { select: { name: true } } },
+    }),
+    prisma.auditLog.findMany({
+      take: 6,
+      orderBy: { timestamp: "desc" },
+      select: {
+        id: true,
+        action: true,
+        entity: true,
+        userName: true,
+        userRole: true,
+        timestamp: true,
+      },
+    }),
+  ]);
+
+  const stats = [
+    {
+      label: "Total Doctors",
+      value: doctorCount,
+      sub: `${activeDoctorCount} active`,
+      href: "/admin/doctors",
+      color: "text-blue-700",
+      bg: "bg-blue-50",
+      border: "border-blue-200",
+    },
+    {
+      label: "Total Staff",
+      value: staffCount,
+      sub: `${activeStaffCount} active`,
+      href: "/admin/staff",
+      color: "text-teal-700",
+      bg: "bg-teal-50",
+      border: "border-teal-200",
+    },
+    {
+      label: "Departments",
+      value: departmentCount,
+      sub: `${activeDepartmentCount} active`,
+      href: "/admin/departments",
+      color: "text-purple-700",
+      bg: "bg-purple-50",
+      border: "border-purple-200",
+    },
+    {
+      label: "System Users",
+      value: userCount,
+      sub: `${activeUserCount} active`,
+      href: "/admin/users",
+      color: "text-slate-700",
+      bg: "bg-slate-50",
+      border: "border-slate-200",
+    },
+  ];
 
   return (
-    <DashboardLayout user={user}>
-      <div className="max-w-5xl mx-auto space-y-6">
+    <AdminLayout user={user}>
+      <div className="max-w-6xl mx-auto space-y-6">
         {/* Welcome Banner */}
-        <div className="bg-white p-6 sm:p-8 rounded-lg border border-slate-200 shadow-xs">
-          <div className="flex items-center gap-3 mb-2">
-            <span className="w-3 h-3 rounded-full bg-purple-600 inline-block"></span>
-            <span className="text-xs font-bold uppercase tracking-wider text-purple-700">
-              Admin Control Panel
-            </span>
-          </div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            Welcome to GIAS Hospital
-          </h1>
-          <p className="text-slate-600 mt-1">
-            You are logged in as: <strong className="text-slate-900">ADMIN</strong> ({user.firstName} {user.lastName})
-          </p>
-          <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded bg-purple-50 text-purple-800 text-xs font-medium border border-purple-200">
-            <span>Hospital Administration &amp; System Governance Portal</span>
-          </div>
-        </div>
-
-        {/* Phase 1 Status Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
-              Active Milestone
-            </p>
-            <p className="text-base font-bold text-slate-900">
-              Phase 1: Foundation &amp; Auth
-            </p>
-            <p className="text-xs text-emerald-600 font-medium mt-2 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-              PostgreSQL &amp; Prisma Active
-            </p>
-          </div>
-
-          <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
-              Authentication Security
-            </p>
-            <p className="text-base font-bold text-slate-900">
-              JWT + HTTP-Only Session
-            </p>
-            <p className="text-xs text-slate-500 mt-2">
-              Bcrypt Hashing (10 rounds) &amp; RBAC
-            </p>
-          </div>
-
-          <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
-              Last Login Timestamp
-            </p>
-            <p className="text-sm font-semibold text-slate-800">
-              {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : "First Login"}
-            </p>
-            <p className="text-xs text-slate-500 mt-2">
-              User Status: <span className="text-emerald-700 font-medium">{user.status}</span>
-            </p>
+        <div className="bg-white border border-slate-200 rounded-lg p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-teal-700 mb-1">
+                Admin Control Panel
+              </p>
+              <h1 className="text-xl font-bold text-slate-900">
+                Welcome back, {user.firstName} {user.lastName}
+              </h1>
+              <p className="text-sm text-slate-500 mt-0.5">
+                GIAS Hospital Management System — Phase 2: Admin Module
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-xs text-emerald-700 font-medium">System Online</span>
+            </div>
           </div>
         </div>
 
-        {/* Development Notice */}
-        <div className="bg-slate-50 border border-slate-200 rounded-lg p-5">
-          <h2 className="text-sm font-semibold text-slate-800 mb-1">
-            System Notice: Foundation Phase Complete
-          </h2>
-          <p className="text-xs text-slate-600 leading-relaxed">
-            Phase 1 establishes the Next.js foundation, PostgreSQL connectivity, Prisma ORM 7 integration, secure authentication, and role-based access control. Clinical and administrative hospital modules (Patient Registration, Appointments, Consultations, Wards, Pharmacy, Billing) will be implemented in subsequent phases.
-          </p>
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {stats.map((stat) => (
+            <Link key={stat.label} href={stat.href}>
+              <div className={`bg-white border ${stat.border} rounded-lg p-5 hover:shadow-sm transition-shadow cursor-pointer`}>
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
+                  {stat.label}
+                </p>
+                <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
+                <p className="text-xs text-slate-400 mt-1">{stat.sub}</p>
+              </div>
+            </Link>
+          ))}
+        </div>
+
+        {/* Recent Doctors + Recent Staff */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          {/* Recent Doctors */}
+          <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+              <h2 className="text-sm font-semibold text-slate-800">Recent Doctors</h2>
+              <Link
+                href="/admin/doctors"
+                className="text-xs font-medium text-teal-700 hover:text-teal-900 transition-colors"
+              >
+                View all →
+              </Link>
+            </div>
+            {recentDoctors.length === 0 ? (
+              <div className="py-8 text-center text-xs text-slate-400">No doctors registered yet</div>
+            ) : (
+              <ul className="divide-y divide-slate-50">
+                {recentDoctors.map((doc) => (
+                  <li key={doc.id}>
+                    <Link
+                      href={`/admin/doctors/${doc.id}`}
+                      className="flex items-center justify-between px-5 py-3 hover:bg-slate-50 transition-colors"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-slate-900 truncate">
+                          Dr. {doc.firstName} {doc.lastName}
+                        </p>
+                        <p className="text-xs text-slate-500 truncate">
+                          {doc.doctorNumber} · {doc.specialization}
+                        </p>
+                        <p className="text-xs text-slate-400 truncate">
+                          {doc.department.name}
+                        </p>
+                      </div>
+                      <StatusBadge status={doc.status} />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="px-5 py-3 bg-slate-50 border-t border-slate-100">
+              <Link
+                href="/admin/doctors/new"
+                className="text-xs font-medium text-teal-700 hover:text-teal-900 transition-colors"
+              >
+                + Add New Doctor
+              </Link>
+            </div>
+          </div>
+
+          {/* Recent Staff */}
+          <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+              <h2 className="text-sm font-semibold text-slate-800">Recent Staff</h2>
+              <Link
+                href="/admin/staff"
+                className="text-xs font-medium text-teal-700 hover:text-teal-900 transition-colors"
+              >
+                View all →
+              </Link>
+            </div>
+            {recentStaff.length === 0 ? (
+              <div className="py-8 text-center text-xs text-slate-400">No staff registered yet</div>
+            ) : (
+              <ul className="divide-y divide-slate-50">
+                {recentStaff.map((s) => (
+                  <li key={s.id}>
+                    <Link
+                      href={`/admin/staff/${s.id}`}
+                      className="flex items-center justify-between px-5 py-3 hover:bg-slate-50 transition-colors"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-slate-900 truncate">
+                          {s.firstName} {s.lastName}
+                        </p>
+                        <p className="text-xs text-slate-500 truncate">
+                          {s.staffNumber} · {formatStaffRole(s.role)}
+                        </p>
+                        <p className="text-xs text-slate-400 truncate">
+                          {s.department?.name || "No department"}
+                        </p>
+                      </div>
+                      <StatusBadge status={s.status} />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="px-5 py-3 bg-slate-50 border-t border-slate-100">
+              <Link
+                href="/admin/staff/new"
+                className="text-xs font-medium text-teal-700 hover:text-teal-900 transition-colors"
+              >
+                + Add New Staff
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Recent Audit Log */}
+        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+            <h2 className="text-sm font-semibold text-slate-800">Recent Audit Activity</h2>
+            <Link
+              href="/admin/audit-logs"
+              className="text-xs font-medium text-teal-700 hover:text-teal-900 transition-colors"
+            >
+              View all →
+            </Link>
+          </div>
+          {recentAuditLogs.length === 0 ? (
+            <div className="py-8 text-center text-xs text-slate-400">No audit logs yet</div>
+          ) : (
+            <ul className="divide-y divide-slate-50">
+              {recentAuditLogs.map((log) => (
+                <li key={log.id} className="flex items-center justify-between px-5 py-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-slate-900">{formatAction(log.action)}</p>
+                    <p className="text-xs text-slate-500">
+                      {log.entity} · by {log.userName || "System"}{" "}
+                      <span className="text-slate-400">({log.userRole})</span>
+                    </p>
+                  </div>
+                  <span className="text-xs text-slate-400 flex-shrink-0 ml-4">
+                    {timeAgo(log.timestamp)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Quick Links */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { label: "Add Doctor", href: "/admin/doctors/new", icon: "👨‍⚕️" },
+            { label: "Add Staff", href: "/admin/staff/new", icon: "👤" },
+            { label: "Add Department", href: "/admin/departments/new", icon: "🏥" },
+            { label: "View Users", href: "/admin/users", icon: "🔐" },
+          ].map((item) => (
+            <Link
+              key={item.label}
+              href={item.href}
+              className="bg-white border border-slate-200 rounded-lg p-4 hover:border-teal-300 hover:shadow-sm transition-all text-center"
+            >
+              <div className="text-2xl mb-1.5">{item.icon}</div>
+              <p className="text-xs font-medium text-slate-700">{item.label}</p>
+            </Link>
+          ))}
         </div>
       </div>
-    </DashboardLayout>
+    </AdminLayout>
   );
 }

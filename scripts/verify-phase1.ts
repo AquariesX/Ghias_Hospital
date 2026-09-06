@@ -1,9 +1,9 @@
 import "dotenv/config";
 import prisma from "../src/lib/prisma";
-import { verifyPassword, hashPassword } from "../src/lib/password";
+import { verifyPassword } from "../src/lib/password";
 import { createSessionToken, verifySessionToken, COOKIE_NAME } from "../src/lib/auth";
 import { isAuthorizedForPath, getDashboardPath } from "../src/lib/rbac";
-import { UserRole, UserStatus } from "@prisma/client";
+import { UserRole } from "@prisma/client";
 
 async function runTests() {
   console.log("=================================================");
