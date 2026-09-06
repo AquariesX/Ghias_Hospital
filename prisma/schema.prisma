@@ -1,0 +1,732 @@
+// GIAS Hospital Management System - PostgreSQL Database Schema
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// -----------------------------------------------------------------------------
+// Enums
+// -----------------------------------------------------------------------------
+
+enum UserRole {
+  ADMIN
+  DOCTOR
+  NURSE
+  RECEPTIONIST
+  STAFF
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  INACTIVE
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum BloodGroup {
+  A_POSITIVE
+  A_NEGATIVE
+  B_POSITIVE
+  B_NEGATIVE
+  AB_POSITIVE
+  AB_NEGATIVE
+  O_POSITIVE
+  O_NEGATIVE
+}
+
+enum PatientStatus {
+  ACTIVE
+  CRITICAL
+  DISCHARGED
+}
+
+enum DoctorAvailability {
+  AVAILABLE
+  BUSY
+  ON_LEAVE
+  OFFLINE
+}
+
+enum DoctorStatus {
+  ACTIVE
+  ON_LEAVE
+  INACTIVE
+}
+
+enum StaffRole {
+  HEAD_NURSE
+  STAFF_NURSE
+  RECEPTIONIST
+  LAB_TECHNICIAN
+  RADIOLOGY_TECHNICIAN
+  PHARMACIST
+  SUPPORT_STAFF
+  ACCOUNTANT
+  ADMINISTRATOR
+}
+
+enum NurseDepartment {
+  OPD
+  EMERGENCY
+}
+
+enum StaffStatus {
+  ACTIVE
+  ON_LEAVE
+  SHIFT_OFF
+  INACTIVE
+}
+
+enum DepartmentStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum AppointmentType {
+  REGULAR
+  FOLLOW_UP
+  EMERGENCY
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  WAITING
+  IN_CONSULTATION
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum EmergencyPriority {
+  NORMAL
+  URGENT
+  HIGH
+  CRITICAL
+}
+
+enum AdmissionSource {
+  OPD
+  EMERGENCY
+}
+
+enum AdmissionStatus {
+  ADMITTED
+  UNDER_TREATMENT
+  DISCHARGE_PENDING
+  TRANSFERRED
+  DISCHARGED
+  REFERRED
+  CANCELLED
+}
+
+enum MedicationAdminStatus {
+  GIVEN
+  MISSED
+  REFUSED
+  HELD
+}
+
+// -----------------------------------------------------------------------------
+// Models
+// -----------------------------------------------------------------------------
+
+/// Hospital system user accounts (administrators, clinicians, receptionists, nurses)
+model User {
+  id           String     @id @default(uuid())
+  username     String?    @unique
+  email        String     @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  role         UserRole   @default(RECEPTIONIST)
+  status       UserStatus @default(ACTIVE)
+  lastLoginAt  DateTime?
+
+  // Granular permissions stored as string array
+  permissions  String[]   @default([])
+
+  // Profile associations
+  doctorProfile Doctor?
+  staffProfile  Staff?
+
+  // Audit relationships
+  createdAppointments Appointment[] @relation("AppointmentCreator")
+  createdAdmissions   Admission[]   @relation("AdmissionCreator")
+  auditLogs           AuditLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([username])
+  @@index([role])
+}
+
+/// Clinical and administrative hospital departments
+model Department {
+  id          String           @id @default(uuid())
+  code        String           @unique // e.g. "OPD", "EMERGENCY", "GEN_MED", "CARD", "GYN"
+  name        String           @unique // e.g. "OPD", "Emergency", "General Medicine", "Cardiology"
+  description String?
+  status      DepartmentStatus @default(ACTIVE)
+
+  doctors      Doctor[]
+  staffMembers Staff[]
+  appointments Appointment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+}
+
+/// Clinical physicians with department assignment and consultation fee
+model Doctor {
+  id             String       @id @default(uuid())
+  doctorNumber   String       @unique // e.g. "DOC-00001"
+  firstName      String
+  lastName       String
+  specialization String
+  phone          String
+  email          String       @unique
+  qualifications String?
+  experience     String?
+  roomNumber     String?
+
+  /// Current consultation fee in PKR (e.g. 2000.00).
+  /// Note: When appointments are booked, this fee is snapshotted into the Appointment record.
+  consultationFee Decimal            @db.Decimal(10, 2)
+  availability    DoctorAvailability @default(AVAILABLE)
+  status          DoctorStatus       @default(ACTIVE)
+
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  appointments  Appointment[]
+  admissions    Admission[]
+  consultations Consultation[]
+  prescriptions Prescription[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([doctorNumber])
+  @@index([departmentId])
+  @@index([availability])
+}
+
+/// Hospital nursing, technician, and administrative staff
+model Staff {
+  id            String           @id @default(uuid())
+  staffNumber   String           @unique // e.g. "STF-00001"
+  firstName     String
+  lastName      String
+  role          StaffRole        @default(STAFF_NURSE)
+  phone         String
+  email         String           @unique
+  qualification String?
+  shift         String?          // e.g. "Morning (08:00 - 16:00)"
+  status        StaffStatus      @default(ACTIVE)
+
+  // Dedicated nurse working department (OPD or EMERGENCY)
+  nurseDepartment NurseDepartment?
+
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([staffNumber])
+  @@index([role])
+}
+
+/// Registered hospital patients with demographics and medical metadata
+model Patient {
+  id                String        @id @default(uuid())
+  mrNumber          String?       @unique // e.g. "MR-000123"
+  patientNumber     String        @unique // e.g. "PAT-000001"
+  firstName         String
+  lastName          String
+  gender            Gender
+  dateOfBirth       DateTime      @db.Date
+  phone             String
+  email             String?
+  address           String?
+  bloodGroup        BloodGroup
+  allergies         String[]      @default([])
+  chronicConditions String[]      @default([])
+  status            PatientStatus @default(ACTIVE)
+
+  cnic              String?       // CNIC e.g. "37405-1234567-1"
+  maritalStatus     String?       // Married, Single, Divorced, Widowed
+  relationType      String?       // Father, Mother, Husband, Wife, Guardian
+  relatedPersonName String?       // S/o, D/o, W/o or Spouse Name
+  landline          String?
+
+  // Emergency contact details
+  emergencyContactName     String
+  emergencyContactPhone    String
+  emergencyContactRelation String?
+
+  appointments             Appointment[]
+  admissions               Admission[]
+  consultations            Consultation[]
+  vitalSigns               VitalSign[]
+  prescriptions            Prescription[]
+  medicationAdministrations MedicationAdministration[]
+  nursingNotes             NursingNote[]
+  emergencyTriages         EmergencyTriage[]
+  timelineEvents           TimelineEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([mrNumber])
+  @@index([patientNumber])
+  @@index([cnic])
+  @@index([phone])
+  @@index([status])
+}
+
+/// Patient clinical consultation appointments
+model Appointment {
+  id                String            @id @default(uuid())
+  appointmentNumber String            @unique // e.g. "APT-2026-000001"
+
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Restrict)
+
+  doctorId String
+  doctor   Doctor @relation(fields: [doctorId], references: [id], onDelete: Restrict)
+
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+
+  appointmentType AppointmentType   @default(REGULAR)
+  appointmentDate DateTime          @db.Date
+  appointmentTime String            // e.g. "10:30 AM"
+
+  /// Immutable snapshot of the doctor's consultation fee at the moment the appointment is booked.
+  consultationFee Decimal           @db.Decimal(10, 2)
+
+  reason String
+  status AppointmentStatus         @default(SCHEDULED)
+  notes  String?                   @db.Text
+
+  // Emergency appointment triage attributes
+  isEmergency                Boolean            @default(false)
+  emergencyPriority          EmergencyPriority?
+  emergencyReason            String?
+  immediateAttentionRequired Boolean            @default(false)
+
+  // Consultation linkage
+  consultation Consultation?
+
+  // Hospital staff user who scheduled the appointment
+  createdById String
+  createdBy   User   @relation("AppointmentCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([appointmentNumber])
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([departmentId])
+  @@index([appointmentDate])
+  @@index([status])
+  @@index([appointmentType])
+}
+
+/// Clinical Consultation encounter recorded by Doctor
+model Consultation {
+  id                 String       @id @default(uuid())
+  consultationNumber String       @unique // e.g. "CNS-2026-000001"
+
+  appointmentId String?      @unique
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Restrict)
+
+  doctorId String
+  doctor   Doctor @relation(fields: [doctorId], references: [id], onDelete: Restrict)
+
+  consultationDate DateTime @default(now())
+
+  // Clinical assessment sections
+  presentingComplaints String? @db.Text
+  medicalHistory       String? @db.Text
+  medicationHistory    String? @db.Text
+  familyHistory        String? @db.Text
+  physicalExamination  String? @db.Text
+
+  // Diagnosis
+  provisionalDiagnosis String? @db.Text
+  finalDiagnosis       String? @db.Text
+
+  // Diagnostics & Therapy
+  investigations String? @db.Text
+  treatmentPlan  String? @db.Text
+
+  status String @default("COMPLETED") // IN_PROGRESS, COMPLETED
+
+  prescriptions Prescription[]
+  vitalSigns    VitalSign[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([consultationNumber])
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([consultationDate])
+}
+
+/// Append-only Historical Vital Signs Record
+model VitalSign {
+  id             String        @id @default(uuid())
+  patientId      String
+  patient        Patient       @relation(fields: [patientId], references: [id], onDelete: Restrict)
+
+  admissionId    String?
+  admission      Admission?    @relation(fields: [admissionId], references: [id], onDelete: SetNull)
+
+  consultationId String?
+  consultation   Consultation? @relation(fields: [consultationId], references: [id], onDelete: SetNull)
+
+  encounterType  String?       // "OPD", "EMERGENCY", "INPATIENT"
+
+  systolicBP        Int?
+  diastolicBP       Int?
+  pulse             Int?
+  temperature       Decimal?   @db.Decimal(5, 2)
+  respiratoryRate   Int?
+  oxygenSaturation  Int?       // SpO2 %
+  weight            Decimal?   @db.Decimal(5, 2) // kg
+  height            Decimal?   @db.Decimal(5, 2) // cm
+  bmi               Decimal?   @db.Decimal(5, 2) // auto-calculated
+  painScore         Int?       // 0-10
+  generalCondition  String?    // Stable, Critical, Distress, etc.
+  observations      String?    @db.Text
+
+  recordedById   String?
+  recordedByName String
+  recordedByRole String        // NURSE, DOCTOR, STAFF
+
+  recordedAt DateTime @default(now())
+
+  @@index([patientId])
+  @@index([admissionId])
+  @@index([recordedAt])
+}
+
+/// Doctor's Digital Prescription
+model Prescription {
+  id                 String             @id @default(uuid())
+  prescriptionNumber String             @unique // e.g. "RX-2026-000001"
+
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Restrict)
+
+  doctorId String
+  doctor   Doctor @relation(fields: [doctorId], references: [id], onDelete: Restrict)
+
+  consultationId String?
+  consultation   Consultation? @relation(fields: [consultationId], references: [id], onDelete: SetNull)
+
+  admissionId String?
+  admission   Admission?    @relation(fields: [admissionId], references: [id], onDelete: SetNull)
+
+  diagnosis   String?
+  notes       String?            @db.Text
+  status      String             @default("ACTIVE") // ACTIVE, COMPLETED, DISCONTINUED
+
+  items PrescriptionItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([prescriptionNumber])
+  @@index([patientId])
+  @@index([doctorId])
+}
+
+/// Multi-medicine items inside a prescription
+model PrescriptionItem {
+  id             String       @id @default(uuid())
+  prescriptionId String
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+
+  medicineName String // e.g. "Paracetamol", "Ceftriaxone"
+  dosage       String // e.g. "500 mg", "1 g"
+  frequency    String // e.g. "3 times daily", "Once daily"
+  route        String // e.g. "Oral", "IV", "IM"
+  duration     String // e.g. "5 days"
+  instructions String? // e.g. "After meal"
+
+  administrations MedicationAdministration[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([prescriptionId])
+}
+
+/// Medication Administration Record (MAR) tracked by Nurses
+model MedicationAdministration {
+  id        String  @id @default(uuid())
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Restrict)
+
+  admissionId String?
+  admission   Admission? @relation(fields: [admissionId], references: [id], onDelete: SetNull)
+
+  prescriptionItemId String?
+  prescriptionItem   PrescriptionItem? @relation(fields: [prescriptionItemId], references: [id], onDelete: SetNull)
+
+  medicineName String
+  dosage       String
+  route        String
+  status       MedicationAdminStatus @default(GIVEN) // GIVEN, MISSED, REFUSED, HELD
+
+  administeredAt DateTime @default(now())
+  administeredById String?
+  administeredByName String
+
+  notes String? @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([patientId])
+  @@index([admissionId])
+  @@index([administeredAt])
+}
+
+/// Timestamped Clinical Nursing Notes
+model NursingNote {
+  id        String  @id @default(uuid())
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Restrict)
+
+  admissionId String?
+  admission   Admission? @relation(fields: [admissionId], references: [id], onDelete: SetNull)
+
+  department       String // "OPD", "EMERGENCY", "INPATIENT"
+  observation      String @db.Text
+  patientCondition String @db.Text
+  intervention     String? @db.Text
+  response         String? @db.Text
+  notes            String? @db.Text
+
+  recordedById   String?
+  recordedByName String
+
+  recordedAt DateTime @default(now())
+
+  @@index([patientId])
+  @@index([admissionId])
+  @@index([recordedAt])
+}
+
+/// Emergency Triage Assessment
+model EmergencyTriage {
+  id             String            @id @default(uuid())
+  patientId      String
+  patient        Patient           @relation(fields: [patientId], references: [id], onDelete: Restrict)
+
+  chiefComplaint String            @db.Text
+  priority       EmergencyPriority @default(NORMAL) // CRITICAL, URGENT, NORMAL
+  painScore      Int?              // 0-10
+  generalCondition String?
+  observations   String?           @db.Text
+
+  systolicBP       Int?
+  diastolicBP      Int?
+  pulse            Int?
+  temperature      Decimal?          @db.Decimal(5, 2)
+  oxygenSaturation Int?
+  respiratoryRate  Int?
+
+  triagedById   String?
+  triagedByName String
+
+  triagedAt DateTime @default(now())
+
+  @@index([patientId])
+  @@index([priority])
+  @@index([triagedAt])
+}
+
+/// Hospital patient admissions (Inpatient & Emergency admissions)
+model Admission {
+  id                    String          @id @default(uuid())
+  admissionNumber       String          @unique // e.g. "ADM-2026-000001"
+
+  patientId             String
+  patient               Patient         @relation(fields: [patientId], references: [id], onDelete: Restrict)
+
+  doctorId              String?
+  doctor                Doctor?         @relation(fields: [doctorId], references: [id], onDelete: SetNull)
+
+  admissionDate         DateTime        @db.Date
+  admissionTime         String?         // e.g. "01:20 AM"
+
+  admissionSource       AdmissionSource
+  referenceNumber       String?         // OPD MR number or ER reference
+  roomBedNo             String?         // e.g. "Room 204 - Bed 1", "Ward 3 Bed 5", "ICU-02"
+
+  presentingComplaints  String?         @db.Text
+  medicationHistory     String?         @db.Text
+  familyHistory         String?         @db.Text
+  allergies             String[]        @default([])
+
+  generalExamination    String?         @db.Text
+
+  // Baseline vitals at admission
+  pulse                 Int?
+  temperature           Decimal?        @db.Decimal(5, 2)
+  systolicBP            Int?
+  diastolicBP           Int?
+
+  weight                Decimal?        @db.Decimal(5, 2)
+  height                Decimal?        @db.Decimal(5, 2)
+  bmi                   Decimal?        @db.Decimal(5, 2)
+
+  provisionalDiagnosis  String?         @db.Text
+  investigations        String?         @db.Text
+  finalDiagnosis        String?         @db.Text
+
+  nutritionalStatus     String?         @db.Text
+  advisedDiet           String?         @db.Text
+  treatmentPlan         String?         @db.Text
+
+  status                AdmissionStatus @default(ADMITTED)
+
+  dischargeDate         DateTime?       @db.Date
+  dischargeTime         String?
+  dischargeSummary      String?         @db.Text
+  dischargeInstructions String?         @db.Text
+  dischargeMedications  String?         @db.Text
+  followUpInstructions  String?         @db.Text
+  dischargeReferralNote String?         @db.Text
+
+  // Longitudinal relationships
+  vitalSigns                VitalSign[]
+  prescriptions             Prescription[]
+  medicationAdministrations MedicationAdministration[]
+  nursingNotes              NursingNote[]
+  statements                AdmissionStatement[]
+
+  createdById           String?
+  createdBy             User?           @relation("AdmissionCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  @@index([admissionNumber])
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([admissionDate])
+  @@index([status])
+  @@index([admissionSource])
+}
+
+/// Official hospital consent statements/declarations (versioned, non-electronically-signable)
+model HospitalStatement {
+  id                String   @id @default(uuid())
+  code              String   @unique // e.g. "GIAS-CONSENT-URDU-V1"
+  version           String   // e.g. "1.0"
+  titleUrdu         String
+  titleEnglish      String
+  contentUrdu       String   @db.Text
+  contentEnglish    String?  @db.Text
+  isSignable        Boolean  @default(false) // Strictly false as per hospital legal policy
+  disclaimerUrdu    String   @db.Text
+  disclaimerEnglish String   @db.Text
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  admissions        AdmissionStatement[]
+}
+
+/// Link record representing that the hospital statement was recorded during an admission episode
+model AdmissionStatement {
+  id                  String            @id @default(uuid())
+  admissionId         String
+  admission           Admission         @relation(fields: [admissionId], references: [id], onDelete: Cascade)
+  statementId         String
+  statement           HospitalStatement @relation(fields: [statementId], references: [id], onDelete: Restrict)
+
+  // Non-signature declaration audit metadata
+  isNonSignableRecord Boolean           @default(true)
+  presentedAt         DateTime          @default(now())
+  presentedToRelation String?           // Patient, S/o, D/o, W/o or Guardian
+  notes               String?           @db.Text
+
+  createdAt           DateTime          @default(now())
+
+  @@index([admissionId])
+  @@index([statementId])
+}
+
+/// Longitudinal Patient Timeline Events
+model TimelineEvent {
+  id            String   @id @default(uuid())
+  patientId     String
+  patient       Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  title         String
+  description   String?  @db.Text
+  eventType     String   // e.g. "PATIENT_REGISTERED", "APPOINTMENT_SCHEDULED", "PATIENT_ARRIVED", "CONSULTATION_STARTED", "CONSULTATION_COMPLETED", "PRESCRIPTION_CREATED", "PATIENT_ADMITTED", "NURSING_NOTE_ADDED", "MEDICATION_ADMINISTERED", "PATIENT_DISCHARGED"
+  entityId      String?
+  performerName String?
+  performerRole String?
+
+  timestamp     DateTime @default(now())
+
+  @@index([patientId])
+  @@index([timestamp])
+  @@index([eventType])
+}
+
+/// Complete Hospital System Audit Trail
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userName  String?
+  userRole  String?
+
+  action    String   // e.g. "CREATE_DOCTOR", "MARK_WAITING", "START_CONSULTATION", "RECORD_VITALS", "CONFIRM_ADMISSION"
+  entity    String   // "Doctor", "Patient", "Appointment", "Admission", "VitalSign"
+  entityId  String?
+  oldValue  String?  @db.Text
+  newValue  String?  @db.Text
+  ipAddress String?
+
+  timestamp DateTime @default(now())
+
+  @@index([action])
+  @@index([entity])
+  @@index([timestamp])
+}
