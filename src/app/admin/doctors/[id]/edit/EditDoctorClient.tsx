@@ -42,7 +42,7 @@ export default function EditDoctorClient() {
   const [confirmStatus, setConfirmStatus] = useState<string | null>(null);
 
   const [form, setForm] = useState({
-    firstName: "", lastName: "", specialization: "", phone: "", email: "",
+    firstName: "", lastName: "", specialization: "", phone: "", email: "", password: "",
     qualifications: "", experience: "", roomNumber: "", consultationFee: "",
     availability: "AVAILABLE", status: "ACTIVE", departmentId: "",
   });
@@ -71,6 +71,7 @@ export default function EditDoctorClient() {
           specialization: doc.specialization,
           phone: doc.phone,
           email: doc.email,
+          password: "",
           qualifications: doc.qualifications || "",
           experience: doc.experience || "",
           roomNumber: doc.roomNumber || "",
@@ -253,6 +254,23 @@ export default function EditDoctorClient() {
               <label className="block text-xs font-semibold text-slate-700 mb-1">Phone <span className="text-rose-500">*</span></label>
               <input name="phone" value={form.phone} onChange={handleChange} className={inputClass} required />
               <FieldError name="phone" errors={errors} />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Doctor Portal Password
+              </label>
+              <input
+                name="password"
+                type="password"
+                value={form.password}
+                onChange={handleChange}
+                className={inputClass}
+                placeholder="Enter new password to reset doctor portal login (leave blank to keep unchanged)"
+              />
+              <p className="text-[11px] text-slate-500 mt-1">
+                Leave empty to retain the physician&apos;s current password.
+              </p>
+              <FieldError name="password" errors={errors} />
             </div>
           </div>
         </div>

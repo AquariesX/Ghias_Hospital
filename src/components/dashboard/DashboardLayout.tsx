@@ -74,183 +74,250 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
               GIAS HOSPITAL
             </span>
             <span className="text-[10px] uppercase tracking-wider text-teal-400 font-medium block">
-              Management System
+              {user.role === "DOCTOR" ? "Doctor Portal" : "Management System"}
             </span>
           </div>
         </div>
 
         {/* Sidebar Navigation */}
         <nav className="flex-1 px-3 py-5 space-y-6 overflow-y-auto">
-          {/* Main Navigation */}
-          <div>
-            <div className="px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2">
-              Main Menu
-            </div>
-            <ul className="space-y-1">
-              <li>
-                <Link
-                  href={user.role === "DOCTOR" ? "/doctor" : "/staff"}
-                  className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                    pathname === "/doctor" || pathname === "/staff"
-                      ? "bg-teal-700 text-white shadow-sm"
-                      : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                  }`}
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
-                    />
-                  </svg>
-                  Dashboard
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/appointments"
-                  className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                    pathname === "/appointments"
-                      ? "bg-teal-700 text-white shadow-sm"
-                      : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                  }`}
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  Appointments (OPD)
-                </Link>
-              </li>
-              {(user.role === "RECEPTIONIST" || user.role === "STAFF" || user.role === "ADMIN") && (
-                <li>
-                  <Link
-                    href="/appointments/new"
-                    className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                      pathname === "/appointments/new"
-                        ? "bg-teal-700 text-white shadow-sm"
-                        : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                    }`}
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    Book Appointment
-                  </Link>
-                </li>
-              )}
-              {(user.role === "RECEPTIONIST" || user.role === "STAFF" || user.role === "ADMIN") && (
-                <li>
-                  <Link
-                    href="/patients/new"
-                    className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                      pathname === "/patients/new"
-                        ? "bg-teal-700 text-white shadow-sm"
-                        : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                    }`}
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-                        d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                    </svg>
-                    Admit Patient
-                  </Link>
-                </li>
-              )}
-              {(user.role === "DOCTOR" || user.role === "ADMIN") && (
-                <li>
-                  <Link
-                    href="/doctor/queue"
-                    className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                      pathname === "/doctor/queue"
-                        ? "bg-teal-700 text-white shadow-sm"
-                        : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                    }`}
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                    </svg>
-                    Doctor Queue
-                  </Link>
-                </li>
-              )}
-              <li>
-                <Link
-                  href="/patients"
-                  className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                    pathname === "/patients" || (pathname.startsWith("/patients") && pathname !== "/patients/new")
-                      ? "bg-teal-700 text-white shadow-sm"
-                      : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                  }`}
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                  Patients Directory
-                </Link>
-              </li>
-            </ul>
-          </div>
+          {user.role === "DOCTOR" ? (
+            <>
+              {/* Doctor Main Menu */}
+              <div>
+                <div className="px-3 text-[11px] font-semibold uppercase tracking-wider text-teal-400 mb-2">
+                  Doctor Portal
+                </div>
+                <ul className="space-y-1">
+                  <li>
+                    <Link
+                      href="/doctor"
+                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                        pathname === "/doctor"
+                          ? "bg-teal-700 text-white shadow-sm"
+                          : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                      }`}
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+                        />
+                      </svg>
+                      Dashboard
+                    </Link>
+                  </li>
+                </ul>
+              </div>
 
-          {/* Hospital Modules */}
-          <div>
-            <div className="px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2 flex items-center justify-between">
-              <span>Upcoming Modules</span>
-              <span className="text-[9px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded">
-                Later Phases
-              </span>
-            </div>
-            <ul className="space-y-1 text-slate-400 text-sm">
-              {[
-                { name: "Emergency & Triage", phase: "Phase 5" },
-                { name: "Medication & MAR", phase: "Phase 5" },
-                { name: "Pharmacy & Labs", phase: "Phase 6" },
-                { name: "Billing & Reports", phase: "Phase 7" },
-              ].map((item) => (
-                <li key={item.name}>
-                  <div className="flex items-center justify-between px-3 py-1.5 rounded text-xs text-slate-400 cursor-not-allowed opacity-60">
-                    <span>{item.name}</span>
-                    <span className="text-[10px] text-slate-400">{item.phase}</span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
+              {/* Clinical Section */}
+              <div>
+                <div className="px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                  Clinical
+                </div>
+                <ul className="space-y-1">
+                  <li>
+                    <Link
+                      href="/doctor/queue"
+                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                        pathname === "/doctor/queue"
+                          ? "bg-teal-700 text-white shadow-sm"
+                          : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                      }`}
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+                          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                      </svg>
+                      Today&apos;s Queue
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/doctor/appointments"
+                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                        pathname === "/doctor/appointments"
+                          ? "bg-teal-700 text-white shadow-sm"
+                          : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                      }`}
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      Appointments
+                    </Link>
+                  </li>
+                </ul>
+              </div>
 
-          {/* System Settings */}
-          <div>
-            <div className="px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2">
-              System
-            </div>
-            <ul className="space-y-1">
-              <li>
-                <button
-                  type="button"
-                  disabled
-                  className="w-full flex items-center gap-3 px-3 py-2 text-xs text-slate-400 rounded cursor-not-allowed opacity-60"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                    />
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                    />
-                  </svg>
-                  Settings (Phase 5)
-                </button>
-              </li>
-            </ul>
-          </div>
+              {/* Patients Section */}
+              <div>
+                <div className="px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                  Patients
+                </div>
+                <ul className="space-y-1">
+                  <li>
+                    <Link
+                      href="/doctor/patients"
+                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                        pathname === "/doctor/patients"
+                          ? "bg-teal-700 text-white shadow-sm"
+                          : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                      }`}
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                      Patient Search
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/patients"
+                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                        pathname === "/patients" || (pathname.startsWith("/patients") && pathname !== "/patients/new")
+                          ? "bg-teal-700 text-white shadow-sm"
+                          : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                      }`}
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      Patient History
+                    </Link>
+                  </li>
+                </ul>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* General Staff Main Navigation */}
+              <div>
+                <div className="px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                  Main Menu
+                </div>
+                <ul className="space-y-1">
+                  <li>
+                    <Link
+                      href="/staff"
+                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                        pathname === "/staff"
+                          ? "bg-teal-700 text-white shadow-sm"
+                          : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                      }`}
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+                        />
+                      </svg>
+                      Dashboard
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/appointments"
+                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                        pathname === "/appointments"
+                          ? "bg-teal-700 text-white shadow-sm"
+                          : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                      }`}
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      Appointments (OPD)
+                    </Link>
+                  </li>
+                  {(user.role === "RECEPTIONIST" || user.role === "STAFF" || user.role === "ADMIN") && (
+                    <li>
+                      <Link
+                        href="/appointments/new"
+                        className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                          pathname === "/appointments/new"
+                            ? "bg-teal-700 text-white shadow-sm"
+                            : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                        }`}
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        Book Appointment
+                      </Link>
+                    </li>
+                  )}
+                  {(user.role === "RECEPTIONIST" || user.role === "STAFF" || user.role === "ADMIN") && (
+                    <li>
+                      <Link
+                        href="/patients/new"
+                        className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                          pathname === "/patients/new"
+                            ? "bg-teal-700 text-white shadow-sm"
+                            : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                        }`}
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+                            d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                        </svg>
+                        Admit Patient
+                      </Link>
+                    </li>
+                  )}
+                  <li>
+                    <Link
+                      href="/patients"
+                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                        pathname === "/patients" || (pathname.startsWith("/patients") && pathname !== "/patients/new")
+                          ? "bg-teal-700 text-white shadow-sm"
+                          : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                      }`}
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      Patients Directory
+                    </Link>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Hospital Modules */}
+              <div>
+                <div className="px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2 flex items-center justify-between">
+                  <span>Upcoming Modules</span>
+                  <span className="text-[9px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded">
+                    Later Phases
+                  </span>
+                </div>
+                <ul className="space-y-1 text-slate-400 text-sm">
+                  {[
+                    { name: "Emergency & Triage", phase: "Phase 6" },
+                    { name: "Medication & MAR", phase: "Phase 6" },
+                    { name: "Pharmacy & Labs", phase: "Phase 7" },
+                    { name: "Billing & Reports", phase: "Phase 8" },
+                  ].map((item) => (
+                    <li key={item.name}>
+                      <div className="flex items-center justify-between px-3 py-1.5 rounded text-xs text-slate-400 cursor-not-allowed opacity-60">
+                        <span>{item.name}</span>
+                        <span className="text-[10px] text-slate-400">{item.phase}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </>
+          )}
         </nav>
 
         {/* Sidebar Footer / User Profile & Logout */}

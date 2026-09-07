@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Stethoscope,
   Users,
@@ -77,6 +78,7 @@ export default function DoctorQueueClient({
   initialDoctorId,
   isAdmin,
 }: DoctorQueueClientProps) {
+  const router = useRouter();
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>(initialDoctorId || "");
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0]);
 
@@ -185,6 +187,26 @@ export default function DoctorQueueClient({
       }
     } catch {
       alert("Network error performing queue action");
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
+  const startConsultation = async (appointmentId: string) => {
+    setActionInProgress(appointmentId);
+    try {
+      const res = await fetch(`/api/doctor/appointments/${appointmentId}/start`, {
+        method: "POST",
+      });
+
+      if (res.ok) {
+        router.push(`/doctor/consultation/${appointmentId}`);
+      } else {
+        const err = await res.json();
+        alert(err.error || "Failed to start consultation");
+      }
+    } catch {
+      alert("Network error starting consultation");
     } finally {
       setActionInProgress(null);
     }
@@ -371,22 +393,20 @@ export default function DoctorQueueClient({
 
               <div className="flex flex-wrap items-center gap-2">
                 <Link
+                  href={`/doctor/consultation/${apt.id}`}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-xs transition"
+                >
+                  <Stethoscope className="w-4 h-4" />
+                  <span>Open Clinical Workspace</span>
+                </Link>
+
+                <Link
                   href={`/patients/${apt.patient.id}`}
                   className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold transition"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
                   <span>Patient Profile</span>
                 </Link>
-
-                <button
-                  type="button"
-                  disabled={actionInProgress === apt.id}
-                  onClick={() => handleAction(apt.id, "COMPLETED")}
-                  className="inline-flex items-center gap-1.5 px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition disabled:opacity-50"
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Mark Consultation Completed</span>
-                </button>
               </div>
             </div>
           ))}
@@ -533,11 +553,11 @@ export default function DoctorQueueClient({
                         <button
                           type="button"
                           disabled={actionInProgress === apt.id}
-                          onClick={() => handleAction(apt.id, "IN_CONSULTATION")}
+                          onClick={() => startConsultation(apt.id)}
                           className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-semibold text-xs shadow-xs transition disabled:opacity-50"
                         >
                           <Play className="w-3.5 h-3.5 fill-current" />
-                          <span>Start</span>
+                          <span>Start Consultation</span>
                         </button>
                       </div>
                     </td>

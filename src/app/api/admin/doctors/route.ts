@@ -3,6 +3,7 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin-auth";
 import { createAuditLog } from "@/lib/audit";
+import { hashPassword } from "@/lib/password";
 
 const PAGE_SIZE = 10;
 
@@ -12,6 +13,7 @@ const createDoctorSchema = z.object({
   specialization: z.string().min(1, "Specialization is required").max(150),
   phone: z.string().min(6, "Phone is required").max(20),
   email: z.string().email("Invalid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters").optional(),
   qualifications: z.string().optional(),
   experience: z.string().optional(),
   roomNumber: z.string().optional(),
@@ -114,6 +116,42 @@ export async function POST(request: NextRequest) {
     }
     const doctorNumber = `DOC-${String(nextNum).padStart(5, "0")}`;
 
+    // Handle User account creation if password provided
+    let linkedUserId = data.userId || null;
+    if (data.password) {
+      const passwordHash = await hashPassword(data.password);
+      const existingUser = await prisma.user.findUnique({
+        where: { email: data.email },
+      });
+
+      if (existingUser) {
+        const updatedUser = await prisma.user.update({
+          where: { id: existingUser.id },
+          data: {
+            passwordHash,
+            role: "DOCTOR",
+            status: "ACTIVE",
+            firstName: data.firstName,
+            lastName: data.lastName,
+          },
+        });
+        linkedUserId = updatedUser.id;
+      } else {
+        const newUser = await prisma.user.create({
+          data: {
+            email: data.email,
+            passwordHash,
+            firstName: data.firstName,
+            lastName: data.lastName,
+            role: "DOCTOR",
+            status: "ACTIVE",
+            permissions: ["DOCTOR_WORKSPACE"],
+          },
+        });
+        linkedUserId = newUser.id;
+      }
+    }
+
     const doctor = await prisma.doctor.create({
       data: {
         doctorNumber,
@@ -129,7 +167,7 @@ export async function POST(request: NextRequest) {
         availability: data.availability as "AVAILABLE" | "BUSY" | "ON_LEAVE" | "OFFLINE",
         status: data.status as "ACTIVE" | "ON_LEAVE" | "INACTIVE",
         departmentId: data.departmentId,
-        userId: data.userId || null,
+        userId: linkedUserId,
       },
       include: {
         department: { select: { id: true, name: true, code: true } },

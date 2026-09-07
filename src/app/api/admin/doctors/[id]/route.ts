@@ -3,6 +3,7 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin-auth";
 import { createAuditLog } from "@/lib/audit";
+import { hashPassword } from "@/lib/password";
 
 const updateDoctorSchema = z.object({
   firstName: z.string().min(1).max(100).optional(),
@@ -10,6 +11,7 @@ const updateDoctorSchema = z.object({
   specialization: z.string().min(1).max(150).optional(),
   phone: z.string().min(6).max(20).optional(),
   email: z.string().email().optional(),
+  password: z.string().min(6, "Password must be at least 6 characters").optional().or(z.literal("")),
   qualifications: z.string().optional().nullable(),
   experience: z.string().optional().nullable(),
   roomNumber: z.string().optional().nullable(),
@@ -82,10 +84,63 @@ export async function PUT(
       }
     }
 
+    // Handle password update/setting
+    let linkedUserId = existing.userId;
+    if (parsed.data.password && parsed.data.password.trim().length >= 6) {
+      const passwordHash = await hashPassword(parsed.data.password.trim());
+      const targetEmail = parsed.data.email || existing.email;
+
+      if (existing.userId) {
+        await prisma.user.update({
+          where: { id: existing.userId },
+          data: {
+            passwordHash,
+            role: "DOCTOR",
+            status: "ACTIVE",
+            email: targetEmail,
+            firstName: parsed.data.firstName || existing.firstName,
+            lastName: parsed.data.lastName || existing.lastName,
+          },
+        });
+      } else {
+        const existingUser = await prisma.user.findUnique({
+          where: { email: targetEmail },
+        });
+
+        if (existingUser) {
+          const updatedUser = await prisma.user.update({
+            where: { id: existingUser.id },
+            data: {
+              passwordHash,
+              role: "DOCTOR",
+              status: "ACTIVE",
+            },
+          });
+          linkedUserId = updatedUser.id;
+        } else {
+          const newUser = await prisma.user.create({
+            data: {
+              email: targetEmail,
+              passwordHash,
+              firstName: parsed.data.firstName || existing.firstName,
+              lastName: parsed.data.lastName || existing.lastName,
+              role: "DOCTOR",
+              status: "ACTIVE",
+              permissions: ["DOCTOR_WORKSPACE"],
+            },
+          });
+          linkedUserId = newUser.id;
+        }
+      }
+    }
+
+    const { password: _p, ...doctorUpdateData } = parsed.data;
+
     const updated = await prisma.doctor.update({
       where: { id },
       data: {
-        ...parsed.data,
+        ...doctorUpdateData,
+        userId: linkedUserId,
         consultationFee: parsed.data.consultationFee !== undefined
           ? parsed.data.consultationFee
           : undefined,

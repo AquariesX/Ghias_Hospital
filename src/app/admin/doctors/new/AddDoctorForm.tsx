@@ -25,6 +25,7 @@ export default function AddDoctorForm() {
     specialization: "",
     phone: "",
     email: "",
+    password: "",
     qualifications: "",
     experience: "",
     roomNumber: "",
@@ -157,6 +158,24 @@ export default function AddDoctorForm() {
               <input name="phone" value={form.phone} onChange={handleChange}
                 className={inputClass} placeholder="0346-5551234" required />
               <FieldError name="phone" errors={errors} />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Doctor Portal Login Password <span className="text-rose-500">*</span>
+              </label>
+              <input
+                name="password"
+                type="password"
+                value={form.password}
+                onChange={handleChange}
+                className={inputClass}
+                placeholder="Set secure password for doctor to access /doctor dashboard (min 6 characters)"
+                required
+              />
+              <p className="text-[11px] text-slate-500 mt-1">
+                This password enables the physician to log in directly to their clinical workspace.
+              </p>
+              <FieldError name="password" errors={errors} />
             </div>
           </div>
         </div>
