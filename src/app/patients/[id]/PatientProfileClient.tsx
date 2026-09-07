@@ -462,9 +462,16 @@ export default function PatientProfileClient({
                   <span className="truncate max-w-[200px] text-white">{patient.address}</span>
                 </div>
               )}
-              <div className="pt-1.5 border-t border-white/10 text-[11px] text-teal-200">
-                Registered on: {formatDate(patient.createdAt)}
+              <div className="pt-1.5 border-t border-white/10 text-[11px] text-teal-200 flex items-center justify-between">
+                <span>Registered: {formatDate(patient.createdAt)}</span>
               </div>
+              <Link
+                href={`/appointments/new?patientId=${patient.id}`}
+                className="mt-1 inline-flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-white text-teal-900 font-bold text-xs shadow-sm hover:bg-teal-50 transition"
+              >
+                <Calendar className="w-3.5 h-3.5 text-teal-700" />
+                <span>Book Appointment</span>
+              </Link>
             </div>
           </div>
         </div>
@@ -918,13 +925,16 @@ export default function PatientProfileClient({
                     <th className="py-3 px-4">Fee (PKR)</th>
                     <th className="py-3 px-4">Status</th>
                     <th className="py-3 px-4">Reason / Notes</th>
+                    <th className="py-3 px-4 text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {history.appointments.map((apt) => (
                     <tr key={apt.id} className="hover:bg-slate-50/80 transition">
-                      <td className="py-3.5 px-4 font-mono font-medium text-slate-800">
-                        {apt.appointmentNumber}
+                      <td className="py-3.5 px-4 font-mono font-bold text-teal-800 whitespace-nowrap">
+                        <Link href={`/appointments/${apt.id}`} className="hover:underline">
+                          {apt.appointmentNumber}
+                        </Link>
                       </td>
                       <td className="py-3.5 px-4 whitespace-nowrap text-slate-700">
                         <div>{formatDate(apt.appointmentDate)}</div>
@@ -942,7 +952,7 @@ export default function PatientProfileClient({
                           <span className="text-slate-400">—</span>
                         )}
                       </td>
-                      <td className="py-3.5 px-4">
+                      <td className="py-3.5 px-4 whitespace-nowrap">
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700">
                           {apt.appointmentType}
                         </span>
@@ -952,10 +962,10 @@ export default function PatientProfileClient({
                           </span>
                         )}
                       </td>
-                      <td className="py-3.5 px-4 font-mono font-medium text-slate-700">
+                      <td className="py-3.5 px-4 font-mono font-medium text-slate-700 whitespace-nowrap">
                         Rs. {Number(apt.consultationFee).toLocaleString()}
                       </td>
-                      <td className="py-3.5 px-4">
+                      <td className="py-3.5 px-4 whitespace-nowrap">
                         <span
                           className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                             apt.status === "COMPLETED"
@@ -973,6 +983,14 @@ export default function PatientProfileClient({
                       <td className="py-3.5 px-4 text-xs text-slate-600 max-w-xs truncate">
                         {apt.reason}
                         {apt.notes && <span className="block text-slate-400 mt-0.5">Note: {apt.notes}</span>}
+                      </td>
+                      <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                        <Link
+                          href={`/appointments/${apt.id}`}
+                          className="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition"
+                        >
+                          View Slip
+                        </Link>
                       </td>
                     </tr>
                   ))}

@@ -141,7 +141,7 @@ export default function PatientListClient({ userRole }: { userRole: string }) {
             ? `Total ${pagination.total} registered patient${pagination.total === 1 ? "" : "s"} in GIAS Hospital`
             : "Centralized hospital patient medical records and registration"
         }
-        actionLabel={canManage ? "+ Register Patient" : undefined}
+        actionLabel={canManage ? "+ Admit Patient" : undefined}
         actionHref={canManage ? "/patients/new" : undefined}
       />
 

@@ -2,13 +2,21 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
-import { getRoleDisplayName, canManagePatients } from "@/lib/rbac";
+import { getRoleDisplayName, canManagePatients, canManageAppointments } from "@/lib/rbac";
 import prisma from "@/lib/prisma";
-import StatusBadge from "@/components/ui/StatusBadge";
-import { UserPlus, Users, Search, ArrowRight } from "lucide-react";
+import {
+  UserPlus,
+  Search,
+  ArrowRight,
+  Calendar,
+  Clock,
+  Stethoscope,
+  Plus,
+  BedDouble,
+} from "lucide-react";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Staff Workspace — GIAS Hospital" };
+export const metadata = { title: "Staff & Reception Workspace — GIAS Hospital" };
 
 export default async function StaffDashboardPage() {
   const user = await getCurrentUser();
@@ -25,166 +33,328 @@ export default async function StaffDashboardPage() {
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
-  const [patientCount, activePatientCount, todayRegisteredCount, recentPatients] =
-    await Promise.all([
-      prisma.patient.count(),
-      prisma.patient.count({ where: { status: "ACTIVE" } }),
-      prisma.patient.count({ where: { createdAt: { gte: todayStart } } }),
-      prisma.patient.findMany({
-        take: 5,
-        orderBy: { createdAt: "desc" },
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          patientNumber: true,
-          mrNumber: true,
-          phone: true,
-          status: true,
-          createdAt: true,
+  const [
+    patientCount,
+    todayAppointmentsCount,
+    todayWaitingCount,
+    todayEmergencyCount,
+    todayCompletedCount,
+    todayAppointments,
+  ] = await Promise.all([
+    prisma.patient.count(),
+    prisma.appointment.count({ where: { appointmentDate: todayStart } }),
+    prisma.appointment.count({
+      where: { appointmentDate: todayStart, status: { in: ["WAITING", "SCHEDULED"] } },
+    }),
+    prisma.appointment.count({
+      where: { appointmentDate: todayStart, isEmergency: true },
+    }),
+    prisma.appointment.count({
+      where: { appointmentDate: todayStart, status: "COMPLETED" },
+    }),
+    prisma.appointment.findMany({
+      where: { appointmentDate: todayStart },
+      take: 6,
+      orderBy: [{ isEmergency: "desc" }, { appointmentTime: "asc" }],
+      include: {
+        patient: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            patientNumber: true,
+            mrNumber: true,
+            phone: true,
+          },
         },
-      }),
-    ]);
+        doctor: {
+          select: {
+            firstName: true,
+            lastName: true,
+            specialization: true,
+          },
+        },
+        department: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    }),
+  ]);
 
   const canRegister = canManagePatients(user.role);
+  const canBook = canManageAppointments(user.role);
 
   return (
     <DashboardLayout user={user}>
-      <div className="max-w-5xl mx-auto space-y-6">
+      <div className="max-w-6xl mx-auto space-y-6">
         {/* Welcome Banner */}
         <div className="bg-white p-6 sm:p-8 rounded-xl border border-slate-200 shadow-xs">
           <div className="flex items-center gap-3 mb-2">
             <span className="w-3 h-3 rounded-full bg-emerald-600 inline-block animate-pulse"></span>
             <span className="text-xs font-bold uppercase tracking-wider text-emerald-700">
-              Hospital Operations &amp; Clinical Staff Portal
+              Frontdesk Reception &amp; Staff Operations
             </span>
           </div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            Welcome to GIAS Hospital
-          </h1>
-          <p className="text-slate-600 mt-1">
-            Logged in as: <strong className="text-slate-900">{getRoleDisplayName(user.role)}</strong> ({user.firstName} {user.lastName})
-          </p>
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-emerald-50 text-emerald-800 text-xs font-semibold border border-emerald-200">
-              Account Status: {user.status}
-            </span>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-teal-50 text-teal-800 text-xs font-semibold border border-teal-200">
-              Phase 3 Patient Management Active
-            </span>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">
+                Welcome, {user.firstName} {user.lastName}
+              </h1>
+              <p className="text-slate-600 text-sm mt-1">
+                Role: <strong className="text-slate-900">{getRoleDisplayName(user.role)}</strong> • Account Status: {user.status}
+              </p>
+            </div>
+
+            {canBook && (
+              <div className="flex flex-wrap items-center gap-2">
+                <Link
+                  href="/appointments/new"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm shadow-sm transition"
+                >
+                  <Plus className="w-4 h-4 stroke-[3]" />
+                  <span>New Appointment</span>
+                </Link>
+                {canRegister && (
+                  <Link
+                    href="/patients/new"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm shadow-sm transition"
+                  >
+                    <BedDouble className="w-4 h-4" />
+                    <span>Admit Patient</span>
+                  </Link>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Quick Action Cards for Patient Management */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {canRegister && (
+        {/* Live Reception Metrics Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+              Today&apos;s Appointments
+            </span>
+            <p className="text-3xl font-extrabold text-slate-900 mt-1">{todayAppointmentsCount}</p>
+            <p className="text-xs text-slate-400 mt-1">Scheduled for today</p>
+          </div>
+
+          <div className="bg-white p-5 rounded-xl border border-amber-200 bg-amber-50/20 shadow-xs">
+            <span className="text-[11px] font-bold text-amber-800 uppercase tracking-wider block">
+              Waiting / Queued
+            </span>
+            <p className="text-3xl font-extrabold text-amber-700 mt-1">{todayWaitingCount}</p>
+            <p className="text-xs text-amber-600 mt-1">Patients in clinic waiting area</p>
+          </div>
+
+          <div className="bg-white p-5 rounded-xl border border-rose-200 bg-rose-50/20 shadow-xs">
+            <span className="text-[11px] font-bold text-rose-800 uppercase tracking-wider block">
+              Emergency Triage
+            </span>
+            <p className="text-3xl font-extrabold text-rose-700 mt-1">{todayEmergencyCount}</p>
+            <p className="text-xs text-rose-600 mt-1">High/Critical priority cases</p>
+          </div>
+
+          <div className="bg-white p-5 rounded-xl border border-emerald-200 bg-emerald-50/20 shadow-xs">
+            <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider block">
+              Completed Encounters
+            </span>
+            <p className="text-3xl font-extrabold text-emerald-700 mt-1">{todayCompletedCount}</p>
+            <p className="text-xs text-emerald-600 mt-1">Consultations finished</p>
+          </div>
+        </div>
+
+        {/* Quick Receptionist Action Tiles */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {canBook && (
             <Link
-              href="/patients/new"
+              href="/appointments/new"
               className="bg-gradient-to-br from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white p-5 rounded-xl shadow-sm transition flex flex-col justify-between group"
             >
               <div>
                 <div className="p-2.5 rounded-lg bg-white/10 w-fit mb-3 text-white">
-                  <UserPlus className="w-5 h-5" />
+                  <Plus className="w-5 h-5 stroke-[3]" />
                 </div>
-                <h2 className="text-base font-bold">Register New Patient</h2>
+                <h2 className="text-base font-bold">Book Appointment</h2>
                 <p className="text-xs text-teal-100 mt-1">
-                  Create medical record, assign sequential Patient &amp; MR Number.
+                  Search or register patient, choose doctor, and assign into queue.
                 </p>
               </div>
               <div className="flex items-center gap-1 text-xs font-semibold mt-4 text-teal-100 group-hover:translate-x-1 transition">
-                <span>Start Registration</span>
+                <span>Start Booking</span>
                 <ArrowRight className="w-4 h-4" />
               </div>
             </Link>
           )}
 
           <Link
-            href="/patients"
+            href="/appointments"
             className="bg-white border border-slate-200 hover:border-teal-500 p-5 rounded-xl shadow-xs transition flex flex-col justify-between group"
           >
             <div>
               <div className="p-2.5 rounded-lg bg-teal-50 text-teal-700 w-fit mb-3">
-                <Search className="w-5 h-5" />
+                <Calendar className="w-5 h-5" />
               </div>
-              <h2 className="text-base font-bold text-slate-900">Patient Directory</h2>
+              <h2 className="text-base font-bold text-slate-900">Today&apos;s Appointments</h2>
               <p className="text-xs text-slate-500 mt-1">
-                Lookup patients by MR#, CNIC, Name, or Mobile Phone.
+                Filter by doctor, department, or status, check-in, and manage slips.
               </p>
             </div>
             <div className="flex items-center gap-1 text-xs font-semibold mt-4 text-teal-600 group-hover:translate-x-1 transition">
-              <span>Search Records ({patientCount} total)</span>
+              <span>View All Appointments</span>
               <ArrowRight className="w-4 h-4" />
             </div>
           </Link>
 
-          <div className="bg-white border border-slate-200 p-5 rounded-xl shadow-xs flex flex-col justify-between">
+          <Link
+            href="/patients"
+            className="bg-white border border-slate-200 hover:border-teal-500 p-5 rounded-xl shadow-xs transition flex flex-col justify-between group"
+          >
             <div>
               <div className="p-2.5 rounded-lg bg-blue-50 text-blue-700 w-fit mb-3">
-                <Users className="w-5 h-5" />
+                <Search className="w-5 h-5" />
               </div>
-              <h2 className="text-base font-bold text-slate-900">Today&apos;s Registrations</h2>
-              <p className="text-3xl font-bold text-teal-700 mt-2">{todayRegisteredCount}</p>
-              <p className="text-xs text-slate-400 mt-1">
-                {activePatientCount} active patients in registry
+              <h2 className="text-base font-bold text-slate-900">Search Patient</h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Lookup by MR#, CNIC, Name, or Mobile Phone ({patientCount} registered).
               </p>
             </div>
-            <div className="text-xs text-slate-400 mt-2">
-              Updated in real-time
+            <div className="flex items-center gap-1 text-xs font-semibold mt-4 text-blue-600 group-hover:translate-x-1 transition">
+              <span>Patients Directory</span>
+              <ArrowRight className="w-4 h-4" />
             </div>
-          </div>
+          </Link>
+
+          <Link
+            href="/doctor/queue"
+            className="bg-white border border-slate-200 hover:border-teal-500 p-5 rounded-xl shadow-xs transition flex flex-col justify-between group"
+          >
+            <div>
+              <div className="p-2.5 rounded-lg bg-purple-50 text-purple-700 w-fit mb-3">
+                <Stethoscope className="w-5 h-5" />
+              </div>
+              <h2 className="text-base font-bold text-slate-900">Doctor Queues</h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Monitor waiting patients and active consultation rooms in real-time.
+              </p>
+            </div>
+            <div className="flex items-center gap-1 text-xs font-semibold mt-4 text-purple-600 group-hover:translate-x-1 transition">
+              <span>View Queue Board</span>
+              <ArrowRight className="w-4 h-4" />
+            </div>
+          </Link>
         </div>
 
-        {/* Recent Patients Table */}
-        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-            <h2 className="text-sm font-semibold text-slate-800">Recent Patient Registrations</h2>
+        {/* Today's Appointments Schedule Table */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
+            <div className="flex items-center gap-2">
+              <Clock className="w-5 h-5 text-teal-600" />
+              <h2 className="text-base font-bold text-slate-900">
+                Today&apos;s Patient Appointments ({todayAppointmentsCount})
+              </h2>
+            </div>
             <Link
-              href="/patients"
-              className="text-xs font-semibold text-teal-600 hover:text-teal-800 transition"
+              href="/appointments?date=today"
+              className="text-xs font-bold text-teal-600 hover:text-teal-800"
             >
-              View Full Directory &rarr;
+              View Full Appointments List &rarr;
             </Link>
           </div>
 
-          {recentPatients.length === 0 ? (
-            <div className="py-8 text-center text-xs text-slate-400">No patients registered yet</div>
+          {todayAppointments.length === 0 ? (
+            <div className="p-12 text-center space-y-2">
+              <Calendar className="w-8 h-8 text-slate-300 mx-auto" />
+              <p className="text-sm font-medium text-slate-600">No appointments scheduled for today yet.</p>
+              {canBook && (
+                <Link
+                  href="/appointments/new"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-teal-600 hover:text-teal-700"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Book First Appointment</span>
+                </Link>
+              )}
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50/75 border-b border-slate-100 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase tracking-wider">
                   <tr>
-                    <th className="py-2.5 px-4">Patient Name</th>
-                    <th className="py-2.5 px-4">Patient #</th>
-                    <th className="py-2.5 px-4">MR #</th>
-                    <th className="py-2.5 px-4">Phone</th>
-                    <th className="py-2.5 px-4">Status</th>
-                    <th className="py-2.5 px-4 text-right">Action</th>
+                    <th className="py-3 px-4">Apt #</th>
+                    <th className="py-3 px-4">Patient</th>
+                    <th className="py-3 px-4">Physician &amp; Dept</th>
+                    <th className="py-3 px-4">Time</th>
+                    <th className="py-3 px-4">Type</th>
+                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4 text-right">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {recentPatients.map((p) => (
-                    <tr key={p.id} className="hover:bg-slate-50/80 transition">
-                      <td className="py-3 px-4 font-medium text-slate-900">
-                        {p.firstName} {p.lastName}
+                <tbody className="divide-y divide-slate-100 text-xs">
+                  {todayAppointments.map((apt) => (
+                    <tr key={apt.id} className="hover:bg-slate-50/80 transition">
+                      <td className="py-3 px-4 font-mono font-bold text-teal-800">
+                        <Link href={`/appointments/${apt.id}`} className="hover:underline">
+                          {apt.appointmentNumber}
+                        </Link>
                       </td>
-                      <td className="py-3 px-4 font-mono text-xs text-slate-700">
-                        {p.patientNumber}
-                      </td>
-                      <td className="py-3 px-4 font-mono text-xs text-slate-700">
-                        {p.mrNumber || "—"}
-                      </td>
-                      <td className="py-3 px-4 text-xs text-slate-600">
-                        {p.phone}
-                      </td>
+
                       <td className="py-3 px-4">
-                        <StatusBadge status={p.status} />
+                        <span className="font-bold text-slate-900 block">
+                          {apt.patient.firstName} {apt.patient.lastName}
+                        </span>
+                        <span className="text-slate-500 font-mono text-[11px]">
+                          {apt.patient.mrNumber || apt.patient.patientNumber}
+                        </span>
                       </td>
-                      <td className="py-3 px-4 text-right">
-                        <Link
-                          href={`/patients/${p.id}`}
-                          className="text-xs font-semibold text-teal-600 hover:text-teal-800"
+
+                      <td className="py-3 px-4">
+                        <span className="font-semibold text-slate-800 block">
+                          Dr. {apt.doctor.firstName} {apt.doctor.lastName}
+                        </span>
+                        <span className="text-slate-500 text-[11px]">
+                          {apt.department.name}
+                        </span>
+                      </td>
+
+                      <td className="py-3 px-4 whitespace-nowrap text-slate-700 font-medium">
+                        {apt.appointmentTime}
+                      </td>
+
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-slate-100 text-slate-700">
+                          {apt.appointmentType}
+                        </span>
+                        {apt.isEmergency && (
+                          <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800">
+                            Emergency
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                            apt.status === "WAITING"
+                              ? "bg-amber-100 text-amber-800"
+                              : apt.status === "IN_CONSULTATION"
+                              ? "bg-blue-100 text-blue-800"
+                              : apt.status === "COMPLETED"
+                              ? "bg-emerald-100 text-emerald-800"
+                              : "bg-slate-100 text-slate-800"
+                          }`}
                         >
-                          View File →
+                          {apt.status}
+                        </span>
+                      </td>
+
+                      <td className="py-3 px-4 text-right whitespace-nowrap">
+                        <Link
+                          href={`/appointments/${apt.id}`}
+                          className="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-[11px] transition"
+                        >
+                          View Slip
                         </Link>
                       </td>
                     </tr>
@@ -193,16 +363,6 @@ export default async function StaffDashboardPage() {
               </table>
             </div>
           )}
-        </div>
-
-        {/* Operational Modules Info */}
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 text-xs text-slate-600 space-y-1">
-          <p className="font-semibold text-slate-800">
-            GIAS Operations Status:
-          </p>
-          <p>
-            Patient Registry and Profile features (Phase 3) are active. Appointment booking, doctor consultation scheduling, and emergency triage workflows will integrate with these records in subsequent phases.
-          </p>
         </div>
       </div>
     </DashboardLayout>

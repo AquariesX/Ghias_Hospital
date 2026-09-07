@@ -42,6 +42,10 @@ export function isAuthorizedForPath(role: UserRole | string, pathname: string): 
     return canViewPatients(role);
   }
 
+  if (pathname.startsWith("/appointments")) {
+    return canViewAppointments(role);
+  }
+
   // General routes
   return true;
 }
@@ -64,6 +68,33 @@ export function canViewPatients(role: UserRole | string): boolean {
     role === "DOCTOR" ||
     role === "NURSE"
   );
+}
+
+/**
+ * Checks if a user role can create, reschedule, or cancel appointments
+ */
+export function canManageAppointments(role: UserRole | string): boolean {
+  return role === "ADMIN" || role === "RECEPTIONIST" || role === "STAFF";
+}
+
+/**
+ * Checks if a user role can view appointments and queues
+ */
+export function canViewAppointments(role: UserRole | string): boolean {
+  return (
+    role === "ADMIN" ||
+    role === "RECEPTIONIST" ||
+    role === "STAFF" ||
+    role === "DOCTOR" ||
+    role === "NURSE"
+  );
+}
+
+/**
+ * Checks if a user role can manage doctor clinical queues
+ */
+export function canManageDoctorQueue(role: UserRole | string): boolean {
+  return role === "ADMIN" || role === "DOCTOR";
 }
 
 /**

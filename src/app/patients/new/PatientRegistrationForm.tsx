@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import PageHeader from "@/components/ui/PageHeader";
 import FieldError from "@/components/ui/FieldError";
 
@@ -43,6 +43,8 @@ function calculatePatientAge(dobString: string): string | null {
 
 export default function PatientRegistrationForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnTo = searchParams.get("returnTo");
 
   const [nextNumbers, setNextNumbers] = useState<{
     patientNumber: string;
@@ -183,9 +185,13 @@ export default function PatientRegistrationForm() {
       });
 
       setTimeout(() => {
-        router.push(`/patients/${data.data.id}`);
+        if (returnTo) {
+          router.push(`${returnTo}?patientId=${data.data.id}`);
+        } else {
+          router.push(`/patients/${data.data.id}`);
+        }
         router.refresh();
-      }, 1200);
+      }, 1000);
     } catch {
       setGlobalError("Network error — please verify connection and try again");
       setIsSubmitting(false);
@@ -198,8 +204,8 @@ export default function PatientRegistrationForm() {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <PageHeader
-        title="Register New Patient"
-        subtitle="Complete frontdesk patient intake, generate hospital MR number, and initiate medical record"
+        title="Admit Patient"
+        subtitle="Complete patient intake, generate hospital MR number, and initiate medical record"
         backHref="/patients"
         backLabel="Back to Directory"
       />
@@ -213,10 +219,13 @@ export default function PatientRegistrationForm() {
       {successData && (
         <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm p-4 rounded-lg shadow-xs flex items-center justify-between">
           <div>
-            <p className="font-bold">Patient Registered Successfully!</p>
+            <p className="font-bold">Patient Admitted Successfully!</p>
             <p className="text-xs text-emerald-700 mt-0.5">
               Assigned Patient #: <span className="font-mono font-bold">{successData.patientNumber}</span> | MR #:{" "}
-              <span className="font-mono font-bold">{successData.mrNumber}</span>. Opening patient profile...
+              <span className="font-mono font-bold">{successData.mrNumber}</span>.{" "}
+              {returnTo
+                ? "Returning to appointment booking with new patient selected..."
+                : "Opening patient profile..."}
             </p>
           </div>
           <div className="w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
@@ -695,16 +704,16 @@ export default function PatientRegistrationForm() {
           </div>
         </div>
 
-        {/* Section 5: Admission / Initial Status */}
+        {/* Section 5: Admission & Patient Status */}
         <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-xs space-y-4">
           <h2 className="text-sm font-bold uppercase tracking-wider text-slate-700 border-b border-slate-100 pb-2 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-slate-600"></span>
-            5. Initial Patient Status
+            5. Admission &amp; Patient Status
           </h2>
 
           <div className="max-w-xs">
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Registration Status
+              Admission Status
             </label>
             <select
               name="status"
@@ -712,7 +721,7 @@ export default function PatientRegistrationForm() {
               onChange={handleChange}
               className={inputClass}
             >
-              <option value="ACTIVE">Active (Outpatient / General)</option>
+              <option value="ACTIVE">Active (Admitted / General Care)</option>
               <option value="CRITICAL">Critical (Immediate Attention)</option>
               <option value="DISCHARGED">Discharged</option>
             </select>
@@ -736,10 +745,10 @@ export default function PatientRegistrationForm() {
             {isSubmitting ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Registering Patient...
+                Admitting Patient...
               </>
             ) : (
-              "Complete Patient Registration"
+              "Complete Patient Admission"
             )}
           </button>
         </div>

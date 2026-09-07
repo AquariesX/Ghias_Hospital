@@ -254,7 +254,7 @@ export default async function AdminDashboardPage() {
               href="/patients/new"
               className="text-xs font-medium text-teal-700 hover:text-teal-900 transition-colors"
             >
-              + Register New Patient
+              + Admit Patient
             </Link>
             <Link
               href="/patients"
@@ -400,7 +400,7 @@ export default async function AdminDashboardPage() {
         {/* Quick Links */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {[
-            { label: "Register Patient", href: "/patients/new", icon: "🏥" },
+            { label: "Admit Patient", href: "/patients/new", icon: "🏥" },
             { label: "Patients Directory", href: "/patients", icon: "📋" },
             { label: "Add Doctor", href: "/admin/doctors/new", icon: "👨‍⚕️" },
             { label: "Add Staff", href: "/admin/staff/new", icon: "👤" },

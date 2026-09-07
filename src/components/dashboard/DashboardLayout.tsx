@@ -109,6 +109,75 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
               </li>
               <li>
                 <Link
+                  href="/appointments"
+                  className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                    pathname === "/appointments"
+                      ? "bg-teal-700 text-white shadow-sm"
+                      : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  Appointments (OPD)
+                </Link>
+              </li>
+              {(user.role === "RECEPTIONIST" || user.role === "STAFF" || user.role === "ADMIN") && (
+                <li>
+                  <Link
+                    href="/appointments/new"
+                    className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                      pathname === "/appointments/new"
+                        ? "bg-teal-700 text-white shadow-sm"
+                        : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                    }`}
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Book Appointment
+                  </Link>
+                </li>
+              )}
+              {(user.role === "RECEPTIONIST" || user.role === "STAFF" || user.role === "ADMIN") && (
+                <li>
+                  <Link
+                    href="/patients/new"
+                    className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                      pathname === "/patients/new"
+                        ? "bg-teal-700 text-white shadow-sm"
+                        : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                    }`}
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+                        d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                    </svg>
+                    Admit Patient
+                  </Link>
+                </li>
+              )}
+              {(user.role === "DOCTOR" || user.role === "ADMIN") && (
+                <li>
+                  <Link
+                    href="/doctor/queue"
+                    className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                      pathname === "/doctor/queue"
+                        ? "bg-teal-700 text-white shadow-sm"
+                        : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                    }`}
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                    </svg>
+                    Doctor Queue
+                  </Link>
+                </li>
+              )}
+              <li>
+                <Link
                   href="/patients"
                   className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                     pathname === "/patients" || (pathname.startsWith("/patients") && pathname !== "/patients/new")
@@ -123,23 +192,6 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
                   Patients Directory
                 </Link>
               </li>
-              {(user.role === "RECEPTIONIST" || user.role === "STAFF" || user.role === "ADMIN") && (
-                <li>
-                  <Link
-                    href="/patients/new"
-                    className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                      pathname === "/patients/new"
-                        ? "bg-teal-700 text-white shadow-sm"
-                        : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                    }`}
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    Register Patient
-                  </Link>
-                </li>
-              )}
             </ul>
           </div>
 
@@ -153,10 +205,7 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
             </div>
             <ul className="space-y-1 text-slate-400 text-sm">
               {[
-                { name: "Appointments & OPD", phase: "Phase 4" },
-                { name: "Doctor Consultations", phase: "Phase 4" },
                 { name: "Emergency & Triage", phase: "Phase 5" },
-                { name: "Admissions & Wards", phase: "Phase 5" },
                 { name: "Medication & MAR", phase: "Phase 5" },
                 { name: "Pharmacy & Labs", phase: "Phase 6" },
                 { name: "Billing & Reports", phase: "Phase 7" },
