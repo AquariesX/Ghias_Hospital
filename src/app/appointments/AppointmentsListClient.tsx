@@ -15,6 +15,7 @@ import {
 interface AppointmentItem {
   id: string;
   appointmentNumber: string;
+  tokenNumber?: number | null;
   appointmentType: "REGULAR" | "FOLLOW_UP" | "EMERGENCY";
   appointmentDate: string;
   appointmentTime: string;
@@ -434,10 +435,17 @@ export default function AppointmentsListClient() {
               <tbody className="divide-y divide-slate-100">
                 {appointments.map((apt) => (
                   <tr key={apt.id} className="hover:bg-slate-50/80 transition">
-                    <td className="py-3.5 px-4 font-mono font-bold text-teal-800 whitespace-nowrap">
-                      <Link href={`/appointments/${apt.id}`} className="hover:underline">
-                        {apt.appointmentNumber}
-                      </Link>
+                    <td className="py-3.5 px-4 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        {apt.tokenNumber ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-black font-mono bg-teal-50 text-teal-800 border border-teal-200" title={`Daily Token #${apt.tokenNumber}`}>
+                            #{apt.tokenNumber}
+                          </span>
+                        ) : null}
+                        <Link href={`/appointments/${apt.id}`} className="font-mono font-bold text-teal-800 hover:underline">
+                          {apt.appointmentNumber}
+                        </Link>
+                      </div>
                     </td>
 
                     <td className="py-3.5 px-4">

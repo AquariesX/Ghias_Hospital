@@ -176,3 +176,70 @@ export async function PUT(
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const admin = await requireAdmin(request);
+    const { id } = await params;
+
+    const existing = await prisma.doctor.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: {
+            appointments: true,
+            consultations: true,
+            prescriptions: true,
+          },
+        },
+      },
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: "Doctor not found" }, { status: 404 });
+    }
+
+    if (existing._count.appointments > 0 || existing._count.consultations > 0) {
+      return NextResponse.json(
+        {
+          error: `Cannot delete doctor Dr. ${existing.firstName} ${existing.lastName}: ${existing._count.appointments} appointment(s) and ${existing._count.consultations} consultation(s) are associated with this clinician.`,
+        },
+        { status: 400 }
+      );
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.doctor.delete({ where: { id } });
+      if (existing.userId) {
+        await tx.user.delete({ where: { id: existing.userId } });
+      }
+
+      await createAuditLog({
+        userId: admin.id,
+        userName: `${admin.firstName} ${admin.lastName}`,
+        userRole: admin.role,
+        action: "DELETE_DOCTOR",
+        entity: "Doctor",
+        entityId: id,
+        oldValue: JSON.stringify({
+          name: `${existing.firstName} ${existing.lastName}`,
+          email: existing.email,
+          doctorNumber: existing.doctorNumber,
+        }),
+      });
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: `Doctor Dr. ${existing.firstName} ${existing.lastName} deleted successfully.`,
+    });
+  } catch (err) {
+    if (err instanceof NextResponse) return err;
+    console.error("DELETE /api/admin/doctors/[id]:", err);
+    return NextResponse.json({ error: "Failed to delete doctor" }, { status: 500 });
+  }
+}
+

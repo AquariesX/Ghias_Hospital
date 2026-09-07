@@ -211,3 +211,123 @@ export async function PUT(
     return NextResponse.json({ error: "Failed to update patient" }, { status: 500 });
   }
 }
+
+export async function DELETE(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await requirePatientManage(request);
+    const { id } = await context.params;
+
+    const patient = await prisma.patient.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        patientNumber: true,
+        mrNumber: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+      },
+    });
+
+    if (!patient) {
+      return NextResponse.json({ error: "Patient not found" }, { status: 404 });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // 1. Delete prescription items and prescriptions
+      const prescriptions = await tx.prescription.findMany({
+        where: { patientId: id },
+        select: { id: true },
+      });
+      if (prescriptions.length > 0) {
+        const rxIds = prescriptions.map((p) => p.id);
+        await tx.prescriptionItem.deleteMany({
+          where: { prescriptionId: { in: rxIds } },
+        });
+        await tx.prescription.deleteMany({
+          where: { patientId: id },
+        });
+      }
+
+      // 2. Delete medication administrations
+      await tx.medicationAdministration.deleteMany({
+        where: { patientId: id },
+      });
+
+      // 3. Delete vital signs
+      await tx.vitalSign.deleteMany({
+        where: { patientId: id },
+      });
+
+      // 4. Delete nursing notes
+      await tx.nursingNote.deleteMany({
+        where: { patientId: id },
+      });
+
+      // 5. Delete emergency triage
+      await tx.emergencyTriage.deleteMany({
+        where: { patientId: id },
+      });
+
+      // 6. Delete consultations
+      await tx.consultation.deleteMany({
+        where: { patientId: id },
+      });
+
+      // 7. Delete appointments
+      await tx.appointment.deleteMany({
+        where: { patientId: id },
+      });
+
+      // 8. Delete admissions & statements if any
+      await tx.admissionStatement.deleteMany({
+        where: { admission: { patientId: id } },
+      });
+      await tx.admission.deleteMany({
+        where: { patientId: id },
+      });
+
+      // 9. Delete timeline events
+      await tx.timelineEvent.deleteMany({
+        where: { patientId: id },
+      });
+
+      // 10. Delete the patient record
+      await tx.patient.delete({
+        where: { id },
+      });
+
+      // 11. System audit log
+      await createAuditLog({
+        userId: user.id,
+        userName: `${user.firstName} ${user.lastName}`,
+        userRole: user.role,
+        action: "DELETE_PATIENT",
+        entity: "Patient",
+        entityId: id,
+        oldValue: JSON.stringify({
+          name: `${patient.firstName} ${patient.lastName}`,
+          patientNumber: patient.patientNumber,
+          mrNumber: patient.mrNumber,
+          phone: patient.phone,
+        }),
+      });
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: `Patient ${patient.firstName} ${patient.lastName} (${patient.mrNumber || patient.patientNumber}) and all associated records deleted successfully.`,
+    });
+  } catch (error) {
+    if (error instanceof NextResponse) return error;
+    console.error("DELETE /api/patients/[id] error:", error);
+    return NextResponse.json(
+      { error: "Failed to delete patient record" },
+      { status: 500 }
+    );
+  }
+}
+

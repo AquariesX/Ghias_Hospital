@@ -7,6 +7,7 @@ import StatusBadge from "@/components/ui/StatusBadge";
 import Pagination from "@/components/ui/Pagination";
 import EmptyState from "@/components/ui/EmptyState";
 import PageHeader from "@/components/ui/PageHeader";
+import DoctorRowActions from "./DoctorRowActions";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Doctors — GIAS Hospital Admin" };
@@ -193,20 +194,10 @@ export default async function DoctorsListPage({
                           <StatusBadge status={doc.status} />
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <Link
-                              href={`/admin/doctors/${doc.id}`}
-                              className="text-xs text-teal-700 hover:text-teal-900 font-medium"
-                            >
-                              View
-                            </Link>
-                            <Link
-                              href={`/admin/doctors/${doc.id}/edit`}
-                              className="text-xs text-slate-600 hover:text-slate-900 font-medium"
-                            >
-                              Edit
-                            </Link>
-                          </div>
+                          <DoctorRowActions
+                            doctorId={doc.id}
+                            doctorName={`Dr. ${doc.firstName} ${doc.lastName}`}
+                          />
                         </td>
                       </tr>
                     ))}

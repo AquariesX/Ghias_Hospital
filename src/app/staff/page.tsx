@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { getRoleDisplayName, canManagePatients, canManageAppointments } from "@/lib/rbac";
 import prisma from "@/lib/prisma";
+import NurseDashboardView from "./NurseDashboardView";
 import {
   UserPlus,
   Search,
@@ -16,7 +17,7 @@ import {
 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Staff & Reception Workspace — GIAS Hospital" };
+export const metadata = { title: "Staff & Nursing Workspace — GIAS Hospital" };
 
 export default async function StaffDashboardPage() {
   const user = await getCurrentUser();
@@ -25,14 +26,210 @@ export default async function StaffDashboardPage() {
     redirect("/login");
   }
 
-  const allowedRoles = ["NURSE", "RECEPTIONIST", "STAFF"];
+  const allowedRoles = ["NURSE", "RECEPTIONIST", "STAFF", "ADMIN"];
   if (!allowedRoles.includes(user.role)) {
     redirect("/login");
   }
 
+  // Find linked staff profile
+  const staff = await prisma.staff.findFirst({
+    where: { OR: [{ userId: user.id }, { email: user.email }] },
+    include: { department: true },
+  });
+
+  const isNurse =
+    user.role === "NURSE" ||
+    staff?.role === "HEAD_NURSE" ||
+    staff?.role === "STAFF_NURSE";
+
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date();
+  todayEnd.setHours(23, 59, 59, 999);
 
+  // If the user is a Nurse, load nursing-specific dashboard data
+  if (isNurse) {
+    const isEmergency = staff?.nurseDepartment === "EMERGENCY";
+
+    if (isEmergency) {
+      const [
+        totalEmergencyAppointments,
+        totalTriageToday,
+        criticalCount,
+        highCount,
+        urgentCount,
+        normalCount,
+        erQueue,
+      ] = await Promise.all([
+        prisma.appointment.count({
+          where: { appointmentDate: { gte: todayStart, lte: todayEnd }, isEmergency: true },
+        }),
+        prisma.emergencyTriage.count({
+          where: { triagedAt: { gte: todayStart, lte: todayEnd } },
+        }),
+        prisma.emergencyTriage.count({
+          where: { triagedAt: { gte: todayStart, lte: todayEnd }, priority: "CRITICAL" },
+        }),
+        prisma.emergencyTriage.count({
+          where: { triagedAt: { gte: todayStart, lte: todayEnd }, priority: "HIGH" },
+        }),
+        prisma.emergencyTriage.count({
+          where: { triagedAt: { gte: todayStart, lte: todayEnd }, priority: "URGENT" },
+        }),
+        prisma.emergencyTriage.count({
+          where: { triagedAt: { gte: todayStart, lte: todayEnd }, priority: "NORMAL" },
+        }),
+        prisma.emergencyTriage.findMany({
+          where: { triagedAt: { gte: todayStart, lte: todayEnd } },
+          orderBy: { triagedAt: "desc" },
+          take: 8,
+          include: {
+            patient: {
+              select: {
+                id: true,
+                patientNumber: true,
+                mrNumber: true,
+                firstName: true,
+                lastName: true,
+                gender: true,
+                dateOfBirth: true,
+                phone: true,
+                bloodGroup: true,
+                allergies: true,
+                vitalSigns: { orderBy: { recordedAt: "desc" }, take: 1 },
+              },
+            },
+          },
+        }),
+      ]);
+
+      return (
+        <DashboardLayout
+          user={{
+            ...user,
+            nurseDepartment: staff?.nurseDepartment || null,
+            staffRole: staff?.role || null,
+          }}
+        >
+          <div className="max-w-6xl mx-auto">
+            <NurseDashboardView
+              nurseName={`${user.firstName} ${user.lastName}`}
+              department="EMERGENCY"
+              role={staff?.role || "STAFF_NURSE"}
+              shift={staff?.shift || null}
+              erMetrics={{
+                totalCases: Math.max(totalEmergencyAppointments, totalTriageToday),
+                critical: criticalCount,
+                high: highCount,
+                urgent: urgentCount,
+                normal: normalCount,
+              }}
+              queue={erQueue.map((item) => ({
+                id: item.id,
+                patient: item.patient,
+                priority: item.priority,
+                chiefComplaint: item.chiefComplaint,
+                triagedAt: item.triagedAt,
+              }))}
+            />
+          </div>
+        </DashboardLayout>
+      );
+    } else {
+      // OPD Nursing Dashboard
+      const [
+        totalOpdPatients,
+        waitingCount,
+        inConsultationCount,
+        completedCount,
+        opdQueue,
+      ] = await Promise.all([
+        prisma.appointment.count({
+          where: { appointmentDate: { gte: todayStart, lte: todayEnd }, isEmergency: false },
+        }),
+        prisma.appointment.count({
+          where: { appointmentDate: { gte: todayStart, lte: todayEnd }, status: "WAITING", isEmergency: false },
+        }),
+        prisma.appointment.count({
+          where: { appointmentDate: { gte: todayStart, lte: todayEnd }, status: "IN_CONSULTATION", isEmergency: false },
+        }),
+        prisma.appointment.count({
+          where: { appointmentDate: { gte: todayStart, lte: todayEnd }, status: "COMPLETED", isEmergency: false },
+        }),
+        prisma.appointment.findMany({
+          where: { appointmentDate: { gte: todayStart, lte: todayEnd }, isEmergency: false },
+          orderBy: [{ appointmentTime: "asc" }, { createdAt: "asc" }],
+          take: 8,
+          include: {
+            patient: {
+              select: {
+                id: true,
+                patientNumber: true,
+                mrNumber: true,
+                firstName: true,
+                lastName: true,
+                gender: true,
+                dateOfBirth: true,
+                phone: true,
+                bloodGroup: true,
+                allergies: true,
+                vitalSigns: { orderBy: { recordedAt: "desc" }, take: 1 },
+              },
+            },
+            doctor: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                specialization: true,
+                roomNumber: true,
+              },
+            },
+            department: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        }),
+      ]);
+
+      return (
+        <DashboardLayout
+          user={{
+            ...user,
+            nurseDepartment: staff?.nurseDepartment || "OPD",
+            staffRole: staff?.role || null,
+          }}
+        >
+          <div className="max-w-6xl mx-auto">
+            <NurseDashboardView
+              nurseName={`${user.firstName} ${user.lastName}`}
+              department="OPD"
+              role={staff?.role || "STAFF_NURSE"}
+              shift={staff?.shift || null}
+              opdMetrics={{
+                totalPatients: totalOpdPatients,
+                waiting: waitingCount,
+                inConsultation: inConsultationCount,
+                completed: completedCount,
+              }}
+              queue={opdQueue.map((item) => ({
+                id: item.id,
+                patient: item.patient,
+                doctor: item.doctor,
+                department: item.department,
+                appointmentTime: item.appointmentTime,
+                status: item.status,
+              }))}
+            />
+          </div>
+        </DashboardLayout>
+      );
+    }
+  }
+
+  // Otherwise, render Receptionist / Staff Operations Dashboard
   const [
     patientCount,
     todayAppointmentsCount,
@@ -87,7 +284,13 @@ export default async function StaffDashboardPage() {
   const canBook = canManageAppointments(user.role);
 
   return (
-    <DashboardLayout user={user}>
+    <DashboardLayout
+      user={{
+        ...user,
+        nurseDepartment: staff?.nurseDepartment || null,
+        staffRole: staff?.role || null,
+      }}
+    >
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Welcome Banner */}
         <div className="bg-white p-6 sm:p-8 rounded-xl border border-slate-200 shadow-xs">

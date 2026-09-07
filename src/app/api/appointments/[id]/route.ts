@@ -155,10 +155,27 @@ export async function PATCH(
     }
 
     if (appointmentDate) {
-      updateData.appointmentDate = new Date(`${appointmentDate}T00:00:00.000Z`);
-    }
+      const newDate = new Date(`${appointmentDate}T00:00:00.000Z`);
+      updateData.appointmentDate = newDate;
+      const now = new Date();
+      updateData.appointmentTime = appointmentTime || now.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
 
-    if (appointmentTime) {
+      // Recalculate daily token for the new date
+      const latestApt = await prisma.appointment.findFirst({
+        where: { doctorId: existing.doctorId, appointmentDate: newDate },
+        orderBy: { tokenNumber: "desc" },
+        select: { tokenNumber: true },
+      });
+      const dayCount = await prisma.appointment.count({
+        where: { doctorId: existing.doctorId, appointmentDate: newDate },
+      });
+      const nextTokenNumber = Math.max((latestApt?.tokenNumber ?? 0) + 1, dayCount + 1);
+      updateData.tokenNumber = nextTokenNumber;
+    } else if (appointmentTime) {
       updateData.appointmentTime = appointmentTime;
     }
 
@@ -189,9 +206,8 @@ export async function PATCH(
                 ? "APPOINTMENT_CANCELLED"
                 : "APPOINTMENT_UPDATED",
             title: `Appointment Status: ${status}`,
-            description: `Appointment ${existing.appointmentNumber} with Dr. ${existing.doctor.firstName} ${existing.doctor.lastName} changed status to ${status}.${
-              cancellationReason ? ` Reason: ${cancellationReason}` : ""
-            }`,
+            description: `Appointment ${existing.appointmentNumber} with Dr. ${existing.doctor.firstName} ${existing.doctor.lastName} changed status to ${status}.${cancellationReason ? ` Reason: ${cancellationReason}` : ""
+              }`,
             entityId: existing.id,
             performerName: `${user.firstName} ${user.lastName}`,
             performerRole: user.role,

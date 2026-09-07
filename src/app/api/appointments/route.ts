@@ -279,10 +279,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Department is inactive or not found" }, { status: 400 });
     }
 
-    // 4. Default Date, Time, and Reason
+    // 4. Default Date, Time, and Reason (Time is automatically set to creation timestamp)
     const dateStr = data.appointmentDate || new Date().toISOString().split("T")[0];
     const appointmentDate = new Date(`${dateStr}T00:00:00.000Z`);
-    const appointmentTime = data.appointmentTime || "10:00 AM";
+
+    const now = new Date();
+    const automaticTime = now.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+    const appointmentTime = automaticTime;
     const appointmentReason = data.reason?.trim() || "Doctor Consultation";
 
     // 5. Determine Emergency fields
@@ -304,9 +311,29 @@ export async function POST(request: NextRequest) {
 
     // 7. Atomic transaction: create appointment + timeline event + audit log
     const appointment = await prisma.$transaction(async (tx) => {
+      // Calculate daily token number for this doctor on this appointmentDate (starts at 1 each day)
+      const latestApt = await tx.appointment.findFirst({
+        where: {
+          doctorId: doctor.id,
+          appointmentDate,
+        },
+        orderBy: { tokenNumber: "desc" },
+        select: { tokenNumber: true },
+      });
+
+      const dayCount = await tx.appointment.count({
+        where: {
+          doctorId: doctor.id,
+          appointmentDate,
+        },
+      });
+
+      const tokenNumber = Math.max((latestApt?.tokenNumber ?? 0) + 1, dayCount + 1);
+
       const created = await tx.appointment.create({
         data: {
           appointmentNumber,
+          tokenNumber,
           patient: { connect: { id: patient.id } },
           doctor: { connect: { id: doctor.id } },
           department: { connect: { id: department.id } },
@@ -338,8 +365,8 @@ export async function POST(request: NextRequest) {
         data: {
           patientId: patient.id,
           eventType: "APPOINTMENT_SCHEDULED",
-          title: `Appointment Booked (${created.appointmentType})`,
-          description: `Appointment ${created.appointmentNumber} scheduled with Dr. ${doctor.firstName} ${doctor.lastName} (${department.name}) for ${dateStr} at ${appointmentTime}. Fee: PKR ${doctor.consultationFee}. Reason: ${appointmentReason}`,
+          title: `Token #${tokenNumber} Issued (${created.appointmentType})`,
+          description: `Token #${tokenNumber} (${created.appointmentNumber}) booked for Dr. ${doctor.firstName} ${doctor.lastName} (${department.name}) on ${dateStr} at ${appointmentTime}. Fee: PKR ${doctor.consultationFee}. Reason: ${appointmentReason}`,
           entityId: created.id,
           performerName: `${user.firstName} ${user.lastName}`,
           performerRole: user.role,

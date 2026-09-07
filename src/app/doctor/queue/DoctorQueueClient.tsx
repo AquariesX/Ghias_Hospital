@@ -46,6 +46,7 @@ interface DoctorInfo {
 interface QueueAppointment {
   id: string;
   appointmentNumber: string;
+  tokenNumber?: number | null;
   appointmentType: "REGULAR" | "FOLLOW_UP" | "EMERGENCY";
   appointmentDate: string;
   appointmentTime: string;
@@ -380,6 +381,11 @@ export default function DoctorQueueClient({
                   <span className="font-mono font-bold text-teal-800">
                     Patient #: {apt.patient.patientNumber}
                   </span>
+                  {apt.tokenNumber && (
+                    <span className="font-mono font-extrabold text-teal-800 bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
+                      Token #{apt.tokenNumber}
+                    </span>
+                  )}
                   {apt.patient.mrNumber && (
                     <span className="font-mono text-slate-700">MR #: {apt.patient.mrNumber}</span>
                   )}
@@ -465,17 +471,24 @@ export default function DoctorQueueClient({
                       apt.isEmergency ? "bg-rose-50/30 font-medium" : ""
                     }`}
                   >
-                    {/* Position */}
+                    {/* Position & Token */}
                     <td className="py-3.5 px-4 text-center">
-                      <span
-                        className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-mono font-extrabold text-sm shadow-xs ${
-                          apt.isEmergency
-                            ? "bg-rose-600 text-white animate-pulse"
-                            : "bg-teal-700 text-white"
-                        }`}
-                      >
-                        #{apt.queuePosition}
-                      </span>
+                      <div className="flex flex-col items-center">
+                        <span
+                          className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-mono font-extrabold text-sm shadow-xs ${
+                            apt.isEmergency
+                              ? "bg-rose-600 text-white animate-pulse"
+                              : "bg-teal-700 text-white"
+                          }`}
+                        >
+                          #{apt.queuePosition}
+                        </span>
+                        {apt.tokenNumber ? (
+                          <span className="text-[10px] font-mono font-black text-teal-800 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200 mt-1">
+                            Tok #{apt.tokenNumber}
+                          </span>
+                        ) : null}
+                      </div>
                     </td>
 
                     {/* Patient Name */}

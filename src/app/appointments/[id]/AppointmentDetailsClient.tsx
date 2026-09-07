@@ -20,6 +20,7 @@ import {
 interface AppointmentData {
   id: string;
   appointmentNumber: string;
+  tokenNumber?: number | null;
   appointmentType: "REGULAR" | "FOLLOW_UP" | "EMERGENCY";
   appointmentDate: string;
   appointmentTime: string;
@@ -213,22 +214,34 @@ export default function AppointmentDetailsClient({
             </p>
           </div>
 
-          <div className="text-right">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-              Appointment Number
-            </span>
-            <div className="inline-flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-lg border border-white/15">
-              <span className="font-mono text-xl font-bold text-teal-300">
-                {appointment.appointmentNumber}
+          <div className="flex items-center gap-4 text-right">
+            {appointment.tokenNumber ? (
+              <div className="bg-teal-500/20 border border-teal-400/40 px-3.5 py-1.5 rounded-lg text-left">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-teal-300 block">
+                  Daily Token #
+                </span>
+                <span className="font-mono text-2xl font-black text-white">
+                  #{appointment.tokenNumber}
+                </span>
+              </div>
+            ) : null}
+            <div>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                Appointment Number
               </span>
-              <button
-                type="button"
-                onClick={() => copyToClipboard(appointment.appointmentNumber)}
-                className="p-1 text-slate-300 hover:text-white"
-                title="Copy Appointment #"
-              >
-                {copied ? <Check className="w-4 h-4 text-teal-400" /> : <Copy className="w-4 h-4" />}
-              </button>
+              <div className="inline-flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-lg border border-white/15">
+                <span className="font-mono text-xl font-bold text-teal-300">
+                  {appointment.appointmentNumber}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard(appointment.appointmentNumber)}
+                  className="p-1 text-slate-300 hover:text-white"
+                  title="Copy Appointment #"
+                >
+                  {copied ? <Check className="w-4 h-4 text-teal-400" /> : <Copy className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
           </div>
         </div>

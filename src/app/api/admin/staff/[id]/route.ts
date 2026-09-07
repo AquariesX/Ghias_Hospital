@@ -213,3 +213,75 @@ export async function PUT(
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const admin = await requireAdmin(request);
+    const { id } = await params;
+
+    const existing = await prisma.staff.findUnique({
+      where: { id },
+      include: {
+        user: {
+          include: {
+            _count: {
+              select: {
+                createdAppointments: true,
+                createdAdmissions: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: "Staff member not found" }, { status: 404 });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.staff.delete({ where: { id } });
+
+      if (existing.userId && existing.user) {
+        if (
+          existing.user._count.createdAppointments > 0 ||
+          existing.user._count.createdAdmissions > 0
+        ) {
+          await tx.user.update({
+            where: { id: existing.userId },
+            data: { status: UserStatus.INACTIVE },
+          });
+        } else {
+          await tx.user.delete({ where: { id: existing.userId } });
+        }
+      }
+
+      await createAuditLog({
+        userId: admin.id,
+        userName: `${admin.firstName} ${admin.lastName}`,
+        userRole: admin.role,
+        action: "DELETE_STAFF",
+        entity: "Staff",
+        entityId: id,
+        oldValue: JSON.stringify({
+          name: `${existing.firstName} ${existing.lastName}`,
+          email: existing.email,
+          role: existing.role,
+          staffNumber: existing.staffNumber,
+        }),
+      });
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: `Staff member ${existing.firstName} ${existing.lastName} deleted successfully.`,
+    });
+  } catch (err) {
+    if (err instanceof NextResponse) return err;
+    console.error("DELETE /api/admin/staff/[id]:", err);
+    return NextResponse.json({ error: "Failed to delete staff member" }, { status: 500 });
+  }
+}

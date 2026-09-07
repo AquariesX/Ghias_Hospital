@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   User,
   Phone,
@@ -18,6 +19,8 @@ import {
   Copy,
   Check,
   Edit,
+  Trash2,
+  AlertCircle,
   ArrowLeft,
   Stethoscope,
   RotateCw,
@@ -265,10 +268,31 @@ export default function PatientProfileClient({
   initialHistory,
   canEdit,
 }: PatientProfileClientProps) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [history, setHistory] = useState<HistoryData>(initialHistory);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const handleDeletePatient = async () => {
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch(`/api/patients/${patient.id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to delete patient record");
+      }
+      router.push("/patients");
+      router.refresh();
+    } catch (err: any) {
+      setDeleteError(err.message || "Failed to delete patient");
+      setIsDeleting(false);
+    }
+  };
 
   const copyToClipboard = (text: string, fieldName: string) => {
     navigator.clipboard.writeText(text);
@@ -333,13 +357,27 @@ export default function PatientProfileClient({
           </button>
 
           {canEdit && (
-            <Link
-              href={`/patients/${patient.id}/edit`}
-              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium transition shadow-sm"
-            >
-              <Edit className="w-4 h-4" />
-              Edit Profile
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link
+                href={`/patients/${patient.id}/edit`}
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium transition shadow-sm"
+              >
+                <Edit className="w-4 h-4" />
+                Edit Profile
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteError(null);
+                  setIsDeleteModalOpen(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-sm font-medium transition shadow-sm"
+                title="Delete Patient Record"
+              >
+                <Trash2 className="w-4 h-4 text-rose-600" />
+                Delete
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -1379,6 +1417,70 @@ export default function PatientProfileClient({
               No timeline events recorded yet.
             </div>
           )}
+        </div>
+      )}
+
+      {/* Delete Patient Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs text-left">
+          <div className="bg-white max-w-md w-full rounded-2xl shadow-xl border border-slate-200 p-6 space-y-4">
+            <div className="flex items-center gap-3 text-rose-600">
+              <div className="p-2.5 rounded-full bg-rose-50 border border-rose-200">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Delete Patient Record</h3>
+                <p className="text-xs text-slate-500">Permanent and irreversible action</p>
+              </div>
+            </div>
+
+            <p className="text-sm text-slate-600">
+              Are you sure you want to permanently delete patient{" "}
+              <strong className="text-slate-900">
+                {patient.firstName} {patient.lastName} ({patient.mrNumber || patient.patientNumber})
+              </strong>
+              ?
+            </p>
+
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs space-y-1">
+              <p className="font-semibold">This will cascade delete all linked records:</p>
+              <ul className="list-disc list-inside text-[11px] text-amber-700">
+                <li>Appointments ({history.appointments.length})</li>
+                <li>Vital Signs ({history.vitalSigns.length})</li>
+                <li>Consultations ({history.consultations.length})</li>
+                <li>Prescriptions ({history.prescriptions.length})</li>
+                <li>Admissions ({history.admissions.length})</li>
+                <li>Nursing Notes ({history.nursingNotes.length})</li>
+                <li>Emergency Triage ({patient._count?.emergencyTriages ?? 0})</li>
+              </ul>
+            </div>
+
+            {deleteError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{deleteError}</span>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setIsDeleteModalOpen(false)}
+                disabled={isDeleting}
+                className="px-3.5 py-1.5 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeletePatient}
+                disabled={isDeleting}
+                className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold shadow-xs disabled:opacity-50 transition-colors"
+              >
+                {isDeleting ? "Deleting..." : "Confirm Delete"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

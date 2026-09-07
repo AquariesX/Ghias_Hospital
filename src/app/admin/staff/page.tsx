@@ -7,6 +7,7 @@ import StatusBadge from "@/components/ui/StatusBadge";
 import Pagination from "@/components/ui/Pagination";
 import EmptyState from "@/components/ui/EmptyState";
 import PageHeader from "@/components/ui/PageHeader";
+import StaffRowActions from "./StaffRowActions";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Staff — GIAS Hospital Admin" };
@@ -179,10 +180,11 @@ export default async function StaffListPage({
                         <td className="px-4 py-3 text-slate-600 hidden lg:table-cell text-xs">{s.shift || "—"}</td>
                         <td className="px-4 py-3"><StatusBadge status={s.status} /></td>
                         <td className="px-4 py-3 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <Link href={`/admin/staff/${s.id}`} className="text-xs text-teal-700 hover:text-teal-900 font-medium">View</Link>
-                            <Link href={`/admin/staff/${s.id}/edit`} className="text-xs text-slate-600 hover:text-slate-900 font-medium">Edit</Link>
-                          </div>
+                          <StaffRowActions
+                            staffId={s.id}
+                            staffName={`${s.firstName} ${s.lastName}`}
+                            role={formatRole(s.role)}
+                          />
                         </td>
                       </tr>
                     ))}

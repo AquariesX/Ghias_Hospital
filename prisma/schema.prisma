@@ -323,6 +323,7 @@ model Appointment {
   appointmentType AppointmentType   @default(REGULAR)
   appointmentDate DateTime          @db.Date
   appointmentTime String            // e.g. "10:30 AM"
+  tokenNumber     Int?              // Daily sequential token number (1, 2, 3... resets each day)
 
   /// Immutable snapshot of the doctor's consultation fee at the moment the appointment is booked.
   consultationFee Decimal           @db.Decimal(10, 2)

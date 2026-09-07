@@ -7,6 +7,7 @@ import StatusBadge from "@/components/ui/StatusBadge";
 import Pagination from "@/components/ui/Pagination";
 import EmptyState from "@/components/ui/EmptyState";
 import PageHeader from "@/components/ui/PageHeader";
+import DepartmentRowActions from "./DepartmentRowActions";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Departments — GIAS Hospital Admin" };
@@ -134,10 +135,11 @@ export default async function DepartmentsListPage({
                         </td>
                         <td className="px-4 py-3"><StatusBadge status={dept.status} /></td>
                         <td className="px-4 py-3 text-right">
-                          <Link href={`/admin/departments/${dept.id}/edit`}
-                            className="text-xs text-teal-700 hover:text-teal-900 font-medium">
-                            Edit
-                          </Link>
+                          <DepartmentRowActions
+                            departmentId={dept.id}
+                            departmentName={dept.name}
+                            doctorsCount={dept._count.doctors}
+                          />
                         </td>
                       </tr>
                     ))}

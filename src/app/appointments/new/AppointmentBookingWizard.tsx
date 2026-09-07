@@ -51,6 +51,7 @@ interface PatientSearchMatch {
 interface SuccessData {
   id: string;
   appointmentNumber: string;
+  tokenNumber: number;
   patientName: string;
   patientPhone: string;
   patientNumber: string;
@@ -64,14 +65,6 @@ interface SuccessData {
   consultationFee: string;
   queuePosition: number;
 }
-
-const TIME_SLOTS = [
-  "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM",
-  "11:00 AM", "11:30 AM", "12:00 PM", "12:30 PM",
-  "02:00 PM", "02:30 PM", "03:00 PM", "03:30 PM",
-  "04:00 PM", "04:30 PM", "05:00 PM", "06:00 PM",
-  "07:00 PM", "08:00 PM",
-];
 
 export default function AppointmentBookingWizard() {
   const searchParams = useSearchParams();
@@ -92,7 +85,6 @@ export default function AppointmentBookingWizard() {
   const [appointmentDate, setAppointmentDate] = useState<string>(
     new Date().toISOString().split("T")[0]
   );
-  const [appointmentTime, setAppointmentTime] = useState<string>("10:00 AM");
   const [appointmentType, setAppointmentType] = useState<"REGULAR" | "FOLLOW_UP" | "EMERGENCY">("REGULAR");
   const [reason, setReason] = useState<string>("");
 
@@ -238,7 +230,6 @@ export default function AppointmentBookingWizard() {
         doctorId: selectedDoctorId,
         departmentId: selectedDoctor?.departmentId,
         appointmentDate,
-        appointmentTime,
         reason: reason.trim() || "Doctor Consultation",
         appointmentType,
         isEmergency: appointmentType === "EMERGENCY",
@@ -261,6 +252,7 @@ export default function AppointmentBookingWizard() {
       setSuccessData({
         id: data.appointment.id,
         appointmentNumber: data.appointment.appointmentNumber,
+        tokenNumber: data.appointment.tokenNumber ?? data.queuePosition ?? 1,
         patientName: patientName.trim(),
         patientPhone: patientPhone.trim(),
         patientNumber: data.appointment.patient?.patientNumber || "PAT-NEW",
@@ -269,7 +261,7 @@ export default function AppointmentBookingWizard() {
         departmentName: selectedDoctor?.departmentName || "General OPD",
         roomNumber: selectedDoctor?.roomNumber || null,
         appointmentDate,
-        appointmentTime,
+        appointmentTime: data.appointment.appointmentTime || new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }),
         appointmentType,
         consultationFee: String(data.appointment.consultationFee || (selectedDoctor?.consultationFee ?? "1000")),
         queuePosition: data.queuePosition || 1,
@@ -320,18 +312,21 @@ export default function AppointmentBookingWizard() {
           <div className="bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl p-6 text-left max-w-lg mx-auto space-y-4 font-sans print:border-solid print:bg-white">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <div>
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                  Token Number
+                <span className="text-[10px] font-bold text-teal-700 uppercase tracking-wider block">
+                  Daily Token #
                 </span>
-                <span className="font-mono font-extrabold text-xl text-teal-800">
-                  {successData.appointmentNumber}
+                <span className="font-mono font-black text-3xl text-teal-900 block leading-tight">
+                  #{successData.tokenNumber}
+                </span>
+                <span className="text-[11px] font-mono text-slate-500 block mt-0.5">
+                  Ref: {successData.appointmentNumber}
                 </span>
               </div>
               <div className="text-right">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
                   Queue Position
                 </span>
-                <span className="inline-flex items-center px-3 py-1 rounded-lg bg-teal-700 text-white font-mono font-black text-xl shadow-xs">
+                <span className="inline-flex items-center px-3.5 py-1.5 rounded-lg bg-teal-700 text-white font-mono font-black text-xl shadow-xs mt-1">
                   #{successData.queuePosition}
                 </span>
               </div>
@@ -744,25 +739,26 @@ export default function AppointmentBookingWizard() {
               </div>
             </div>
 
-            {/* Time Slot */}
+            {/* Appointment Time (Automatic) */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Time Slot
-              </label>
-              <div className="relative">
-                <Clock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                <select
-                  value={appointmentTime}
-                  onChange={(e) => setAppointmentTime(e.target.value)}
-                  className="w-full text-sm font-medium pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
-                >
-                  {TIME_SLOTS.map((slot) => (
-                    <option key={slot} value={slot}>
-                      {slot}
-                    </option>
-                  ))}
-                </select>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-semibold text-slate-700">
+                  Appointment Time
+                </label>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200">
+                  Auto-Recorded
+                </span>
               </div>
+              <div className="relative">
+                <Clock className="w-4 h-4 text-teal-600 absolute left-3 top-3" />
+                <div className="w-full text-sm font-medium pl-9 pr-3 py-2 border border-slate-200 rounded-lg bg-slate-50 text-slate-700 flex items-center justify-between">
+                  <span>Current Booking Time</span>
+                  <span className="text-xs text-slate-400 font-normal">Auto-set</span>
+                </div>
+              </div>
+              <p className="text-[11px] text-slate-400 mt-1">
+                Token # and exact timestamp are assigned automatically upon booking.
+              </p>
             </div>
           </div>
 

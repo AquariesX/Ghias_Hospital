@@ -96,3 +96,81 @@ export async function PUT(
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const admin = await requireAdmin(request);
+    const { id } = await params;
+
+    const department = await prisma.department.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: {
+            doctors: true,
+            appointments: true,
+            staffMembers: true,
+          },
+        },
+      },
+    });
+
+    if (!department) {
+      return NextResponse.json({ error: "Department not found" }, { status: 404 });
+    }
+
+    if (department._count.doctors > 0) {
+      return NextResponse.json(
+        {
+          error: `Cannot delete department "${department.name}": ${department._count.doctors} doctor(s) are assigned to it. Please reassign or delete these doctors first.`,
+        },
+        { status: 400 }
+      );
+    }
+
+    if (department._count.appointments > 0) {
+      return NextResponse.json(
+        {
+          error: `Cannot delete department "${department.name}": ${department._count.appointments} appointment(s) are linked to it.`,
+        },
+        { status: 400 }
+      );
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // Unlink any staff assigned to this department
+      await tx.staff.updateMany({
+        where: { departmentId: id },
+        data: { departmentId: null },
+      });
+
+      // Delete department
+      await tx.department.delete({
+        where: { id },
+      });
+
+      await createAuditLog({
+        userId: admin.id,
+        userName: `${admin.firstName} ${admin.lastName}`,
+        userRole: admin.role,
+        action: "DELETE_DEPARTMENT",
+        entity: "Department",
+        entityId: id,
+        oldValue: JSON.stringify({ name: department.name, code: department.code }),
+      });
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: "Department deleted successfully",
+    });
+  } catch (err) {
+    if (err instanceof NextResponse) return err;
+    console.error("DELETE /api/admin/departments/[id] error:", err);
+    return NextResponse.json({ error: "Failed to delete department" }, { status: 500 });
+  }
+}
+

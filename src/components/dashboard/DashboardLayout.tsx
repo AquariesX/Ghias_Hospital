@@ -13,6 +13,8 @@ interface DashboardUser {
   lastName: string;
   role: string;
   status: string;
+  nurseDepartment?: string | null;
+  staffRole?: string | null;
 }
 
 interface DashboardLayoutProps {
@@ -74,7 +76,11 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
               GIAS HOSPITAL
             </span>
             <span className="text-[10px] uppercase tracking-wider text-teal-400 font-medium block">
-              {user.role === "DOCTOR" ? "Doctor Portal" : "Management System"}
+              {user.role === "DOCTOR"
+                ? "Doctor Portal"
+                : user.role === "NURSE" || user.staffRole === "HEAD_NURSE" || user.staffRole === "STAFF_NURSE"
+                ? `Nurse Portal${user.nurseDepartment ? ` — ${user.nurseDepartment}` : ""}`
+                : "Management System"}
             </span>
           </div>
         </div>
@@ -150,6 +156,38 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
                       Appointments
                     </Link>
                   </li>
+                  <li>
+                    <Link
+                      href="/doctor/inpatients"
+                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                        pathname.startsWith("/doctor/inpatients")
+                          ? "bg-teal-700 text-white shadow-sm"
+                          : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                      }`}
+                    >
+                      <svg className="w-4 h-4 text-rose-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+                          d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                      </svg>
+                      Inpatients &amp; Discharge
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/reports"
+                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                        pathname === "/reports"
+                          ? "bg-teal-700 text-white shadow-sm"
+                          : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                      }`}
+                    >
+                      <svg className="w-4 h-4 text-teal-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+                          d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
+                      Hospital Reports
+                    </Link>
+                  </li>
                 </ul>
               </div>
 
@@ -189,6 +227,106 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
                           d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                       </svg>
                       Patient History
+                    </Link>
+                  </li>
+                </ul>
+              </div>
+            </>
+          ) : user.role === "NURSE" || user.staffRole === "HEAD_NURSE" || user.staffRole === "STAFF_NURSE" ? (
+            <>
+              {/* Nursing Main Navigation */}
+              <div>
+                <div className="px-3 text-[11px] font-semibold uppercase tracking-wider text-teal-400 mb-2">
+                  Nurse Portal {user.nurseDepartment ? `(${user.nurseDepartment})` : ""}
+                </div>
+                <ul className="space-y-1">
+                  <li>
+                    <Link
+                      href="/staff"
+                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                        pathname === "/staff"
+                          ? "bg-teal-700 text-white shadow-sm"
+                          : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                      }`}
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+                        />
+                      </svg>
+                      Dashboard
+                    </Link>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Department Specific Clinical Queues */}
+              <div>
+                <div className="px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                  Clinical Queues
+                </div>
+                <ul className="space-y-1">
+                  {(user.nurseDepartment === "OPD" || user.staffRole === "HEAD_NURSE" || !user.nurseDepartment) && (
+                    <li>
+                      <Link
+                        href="/staff/opd"
+                        className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                          pathname === "/staff/opd"
+                            ? "bg-teal-700 text-white shadow-sm"
+                            : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                        }`}
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                        </svg>
+                        OPD Patient Queue
+                      </Link>
+                    </li>
+                  )}
+                  {(user.nurseDepartment === "EMERGENCY" || user.staffRole === "HEAD_NURSE") && (
+                    <li>
+                      <Link
+                        href="/staff/emergency"
+                        className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                          pathname === "/staff/emergency"
+                            ? "bg-teal-700 text-white shadow-sm"
+                            : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                        }`}
+                      >
+                        <svg className="w-4 h-4 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        Emergency Queue &amp; Triage
+                      </Link>
+                    </li>
+                  )}
+                </ul>
+              </div>
+
+              {/* Patients Section */}
+              <div>
+                <div className="px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                  Patient Records
+                </div>
+                <ul className="space-y-1">
+                  <li>
+                    <Link
+                      href="/staff/patients"
+                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                        pathname === "/staff/patients" || (pathname.startsWith("/staff/patients") && pathname !== "/staff/patients/new")
+                          ? "bg-teal-700 text-white shadow-sm"
+                          : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                      }`}
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                      Patient Directory &amp; Vitals
                     </Link>
                   </li>
                 </ul>
@@ -287,6 +425,38 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
                           d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                       </svg>
                       Patients Directory
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/doctor/inpatients"
+                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                        pathname.startsWith("/doctor/inpatients")
+                          ? "bg-teal-700 text-white shadow-sm"
+                          : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                      }`}
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+                          d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                      </svg>
+                      Inpatients &amp; Ward
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/reports"
+                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                        pathname === "/reports"
+                          ? "bg-teal-700 text-white shadow-sm"
+                          : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                      }`}
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+                          d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
+                      Hospital Reports
                     </Link>
                   </li>
                 </ul>

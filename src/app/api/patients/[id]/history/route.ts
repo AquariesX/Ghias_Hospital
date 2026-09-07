@@ -33,6 +33,7 @@ export async function GET(
       vitalSigns,
       nursingNotes,
       timelineEvents,
+      medicationAdministrations,
     ] = await Promise.all([
       prisma.appointment.findMany({
         where: { patientId },
@@ -127,6 +128,11 @@ export async function GET(
         where: { patientId },
         orderBy: { timestamp: "desc" },
       }),
+
+      prisma.medicationAdministration.findMany({
+        where: { patientId },
+        orderBy: { administeredAt: "desc" },
+      }),
     ]);
 
     return NextResponse.json({
@@ -139,6 +145,7 @@ export async function GET(
         vitalSigns,
         nursingNotes,
         timelineEvents,
+        medicationAdministrations,
       },
     });
   } catch (error) {
