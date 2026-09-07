@@ -1,22 +1,24 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { canManagePatients } from "@/lib/rbac";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
-import AdmissionsClient from "./AdmissionsClient";
+import PermissionsClient from "./PermissionsClient";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Inpatient Admission — GIAS Hospital" };
+export const metadata = {
+  title: "Patient Permissions & Consents — GIAS Hospital",
+};
 
-export default async function AdmissionsPage() {
+export default async function ReceptionPermissionsPage() {
   const user = await getCurrentUser();
 
   if (!user) {
     redirect("/login");
   }
 
-  if (!canManagePatients(user.role)) {
-    redirect("/patients");
+  const allowedRoles = ["ADMIN", "RECEPTIONIST", "STAFF", "DOCTOR"];
+  if (!allowedRoles.includes(user.role)) {
+    redirect("/login");
   }
 
   return (
@@ -31,8 +33,8 @@ export default async function AdmissionsPage() {
         status: user.status,
       }}
     >
-      <Suspense fallback={<div className="p-8 text-center text-xs text-slate-500">Loading admission intake...</div>}>
-        <AdmissionsClient />
+      <Suspense fallback={<div className="p-8 text-center text-xs text-slate-500">Loading consents wizard...</div>}>
+        <PermissionsClient />
       </Suspense>
     </DashboardLayout>
   );

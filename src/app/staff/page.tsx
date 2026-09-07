@@ -14,6 +14,7 @@ import {
   Stethoscope,
   Plus,
   BedDouble,
+  FileCheck2,
 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -444,6 +445,25 @@ export default async function StaffDashboardPage() {
             </div>
             <div className="flex items-center gap-1 text-xs font-semibold mt-4 text-purple-600 group-hover:translate-x-1 transition">
               <span>View Queue Board</span>
+              <ArrowRight className="w-4 h-4" />
+            </div>
+          </Link>
+
+          <Link
+            href="/reception/permissions"
+            className="bg-white border border-slate-200 hover:border-teal-500 p-5 rounded-xl shadow-xs transition flex flex-col justify-between group"
+          >
+            <div>
+              <div className="p-2.5 rounded-lg bg-teal-50 text-teal-700 w-fit mb-3">
+                <FileCheck2 className="w-5 h-5" />
+              </div>
+              <h2 className="text-base font-bold text-slate-900">Patient Consents</h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Generate official Urdu consent forms (Anesthesia, Operation, Blood).
+              </p>
+            </div>
+            <div className="flex items-center gap-1 text-xs font-semibold mt-4 text-teal-600 group-hover:translate-x-1 transition">
+              <span>Open Consents Wizard</span>
               <ArrowRight className="w-4 h-4" />
             </div>
           </Link>

@@ -1,40 +1,118 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { Trash2, AlertTriangle, AlertCircle } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  Calendar,
+  BedDouble,
+  Search,
+  Plus,
+  ArrowRight,
+  User,
+  Filter,
+  RefreshCw,
+  FileCheck2,
+  Stethoscope,
+  Clock,
+  ExternalLink,
+  ChevronLeft,
+  ChevronRight,
+  AlertCircle,
+} from "lucide-react";
 import StatusBadge from "@/components/ui/StatusBadge";
 import EmptyState from "@/components/ui/EmptyState";
 import PageHeader from "@/components/ui/PageHeader";
 
-interface PatientListItem {
+interface AppointmentPatientItem {
   id: string;
-  patientNumber: string;
-  mrNumber: string | null;
-  firstName: string;
-  lastName: string;
-  gender: string;
-  dateOfBirth: string;
-  phone: string;
-  email: string | null;
-  bloodGroup: string;
+  appointmentNumber: string;
+  appointmentDate: string;
+  appointmentTime: string;
+  appointmentType: string;
   status: string;
-  cnic: string | null;
-  relationType: string | null;
-  relatedPersonName: string | null;
-  emergencyContactName: string;
-  emergencyContactPhone: string;
-  createdAt: string;
-  _count: {
-    appointments: number;
-    consultations: number;
-    admissions: number;
-    prescriptions: number;
+  reason: string;
+  tokenNumber?: number | null;
+  isEmergency: boolean;
+  patient: {
+    id: string;
+    patientNumber: string;
+    mrNumber: string | null;
+    firstName: string;
+    lastName: string;
+    gender: string;
+    dateOfBirth: string;
+    phone: string;
+    bloodGroup: string;
+    cnic: string | null;
+    status: string;
+  };
+  doctor: {
+    id: string;
+    doctorNumber: string;
+    firstName: string;
+    lastName: string;
+    specialization: string;
+    department?: { id: string; name: string; code: string } | null;
+  };
+  department: {
+    id: string;
+    name: string;
+    code: string;
+  };
+  consultation?: {
+    id: string;
+    consultationNumber: string;
+    status: string;
+    provisionalDiagnosis?: string | null;
+    finalDiagnosis?: string | null;
+    treatmentPlan?: string | null;
+  } | null;
+  hasConsultation: boolean;
+  isConsultationCompleted: boolean;
+}
+
+interface AdmittedPatientItem {
+  id: string;
+  admissionNumber: string;
+  admissionDate: string;
+  admissionTime?: string | null;
+  admissionSource: string;
+  roomBedNo: string;
+  status: string;
+  provisionalDiagnosis?: string | null;
+  treatmentPlan?: string | null;
+  patient: {
+    id: string;
+    patientNumber: string;
+    mrNumber: string | null;
+    firstName: string;
+    lastName: string;
+    gender: string;
+    dateOfBirth: string;
+    phone: string;
+    bloodGroup: string;
+    cnic: string | null;
+    status: string;
+    allergies: string[];
+  };
+  doctor?: {
+    id: string;
+    doctorNumber: string;
+    firstName: string;
+    lastName: string;
+    specialization: string;
+    department?: { id: string; name: string } | null;
+  } | null;
+  metrics: {
     vitalSigns: number;
+    nursingNotes: number;
+    medicationAdministrations: number;
+    prescriptions: number;
   };
 }
 
-interface PaginationData {
+interface PaginationMeta {
   page: number;
   limit: number;
   total: number;
@@ -42,470 +120,608 @@ interface PaginationData {
   hasMore: boolean;
 }
 
-const BLOOD_GROUPS = [
-  { value: "A_POSITIVE", label: "A+" },
-  { value: "A_NEGATIVE", label: "A-" },
-  { value: "B_POSITIVE", label: "B+" },
-  { value: "B_NEGATIVE", label: "B-" },
-  { value: "AB_POSITIVE", label: "AB+" },
-  { value: "AB_NEGATIVE", label: "AB-" },
-  { value: "O_POSITIVE", label: "O+" },
-  { value: "O_NEGATIVE", label: "O-" },
-];
-
-function calculateAge(dobString: string): string {
-  const dob = new Date(dobString);
-  if (isNaN(dob.getTime())) return "—";
-  const diffMs = Date.now() - dob.getTime();
-  const ageDate = new Date(diffMs);
-  const years = Math.abs(ageDate.getUTCFullYear() - 1970);
-  if (years > 0) return `${years} yrs`;
-  const months = Math.floor(diffMs / (1000 * 60 * 60 * 24 * 30.4375));
-  return `${months} mos`;
-}
-
-function formatBloodGroup(bg: string): string {
-  const match = BLOOD_GROUPS.find((b) => b.value === bg);
-  return match ? match.label : bg;
-}
-
 export default function PatientListClient({ userRole }: { userRole: string }) {
-  const [patients, setPatients] = useState<PatientListItem[]>([]);
-  const [pagination, setPagination] = useState<PaginationData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const [search, setSearch] = useState("");
-  const [gender, setGender] = useState("");
-  const [bloodGroup, setBloodGroup] = useState("");
-  const [status, setStatus] = useState("");
-  const [page, setPage] = useState(1);
-  const [refreshKey, setRefreshKey] = useState(0);
+  // Active Tab: "appointments" | "admitted"
+  const activeTabParam = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState<"appointments" | "admitted">(
+    activeTabParam === "admitted" ? "admitted" : "appointments"
+  );
+
+  // Sync tab with URL
+  const handleTabChange = (newTab: "appointments" | "admitted") => {
+    setActiveTab(newTab);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", newTab);
+    params.set("page", "1");
+    router.push(`/patients?${params.toString()}`);
+  };
+
+  // ---------------------------------------------------------------------------
+  // Tab 1: Appointment Patients State
+  // ---------------------------------------------------------------------------
+  const [appointmentPatients, setAppointmentPatients] = useState<AppointmentPatientItem[]>([]);
+  const [apptPagination, setApptPagination] = useState<PaginationMeta | null>(null);
+  const [apptLoading, setApptLoading] = useState(true);
+  const [apptSearch, setApptSearch] = useState("");
+  const [apptStatus, setApptStatus] = useState("");
+  const [apptType, setApptType] = useState("");
+  const [apptPage, setApptPage] = useState(1);
+
+  // ---------------------------------------------------------------------------
+  // Tab 2: Admitted Patients State
+  // ---------------------------------------------------------------------------
+  const [admittedPatients, setAdmittedPatients] = useState<AdmittedPatientItem[]>([]);
+  const [admittedPagination, setAdmittedPagination] = useState<PaginationMeta | null>(null);
+  const [admittedLoading, setAdmittedLoading] = useState(true);
+  const [admittedSearch, setAdmittedSearch] = useState("");
+  const [admittedStatus, setAdmittedStatus] = useState("");
+  const [admittedSource, setAdmittedSource] = useState("");
+  const [admittedPage, setAdmittedPage] = useState(1);
 
   const canManage = userRole === "ADMIN" || userRole === "RECEPTIONIST" || userRole === "STAFF";
 
-  const [deleteTarget, setDeleteTarget] = useState<PatientListItem | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
-    setIsDeleting(true);
-    setDeleteError(null);
-    try {
-      const res = await fetch(`/api/patients/${deleteTarget.id}`, { method: "DELETE" });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to delete patient");
-      }
-      setPatients((prev) => prev.filter((p) => p.id !== deleteTarget.id));
-      if (pagination) {
-        setPagination((prev) => prev ? { ...prev, total: prev.total - 1 } : null);
-      }
-      setDeleteTarget(null);
-    } catch (err: any) {
-      setDeleteError(err.message || "Failed to delete patient");
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
+  // Fetch Appointment Patients
   useEffect(() => {
-    let cancelled = false;
-    async function loadPatients() {
-      setIsLoading(true);
-      setError("");
+    if (activeTab !== "appointments") return;
+
+    let isMounted = true;
+    const timer = setTimeout(async () => {
+      setApptLoading(true);
       try {
-        const params = new URLSearchParams({ page: String(page) });
-        if (search) params.set("search", search);
-        if (gender) params.set("gender", gender);
-        if (bloodGroup) params.set("bloodGroup", bloodGroup);
-        if (status) params.set("status", status);
+        const query = new URLSearchParams({
+          page: String(apptPage),
+          limit: "10",
+        });
+        if (apptSearch.trim()) query.set("search", apptSearch.trim());
+        if (apptStatus) query.set("status", apptStatus);
+        if (apptType) query.set("appointmentType", apptType);
 
-        const res = await fetch(`/api/patients?${params}`);
+        const res = await fetch(`/api/patients/appointments?${query.toString()}`);
         const data = await res.json();
-        if (cancelled) return;
-
-        if (res.ok) {
-          setPatients(data.data || []);
-          setPagination(data.pagination);
-        } else {
-          setError(data.error || "Failed to load patients");
+        if (isMounted && res.ok && Array.isArray(data.appointments)) {
+          setAppointmentPatients(data.appointments);
+          setApptPagination(data.pagination);
         }
-      } catch {
-        if (!cancelled) setError("Network error loading patients");
+      } catch (err) {
+        console.error("Failed to load appointment patients:", err);
       } finally {
-        if (!cancelled) setIsLoading(false);
+        if (isMounted) setApptLoading(false);
       }
-    }
-    loadPatients();
+    }, 250);
+
     return () => {
-      cancelled = true;
+      isMounted = false;
+      clearTimeout(timer);
     };
-  }, [page, search, gender, bloodGroup, status, refreshKey]);
+  }, [activeTab, apptPage, apptSearch, apptStatus, apptType]);
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setPage(1);
-    setRefreshKey((k) => k + 1);
-  };
+  // Fetch Admitted Patients
+  useEffect(() => {
+    if (activeTab !== "admitted") return;
 
-  const handleClearFilters = () => {
-    setSearch("");
-    setGender("");
-    setBloodGroup("");
-    setStatus("");
-    setPage(1);
-    setRefreshKey((k) => k + 1);
-  };
+    let isMounted = true;
+    const timer = setTimeout(async () => {
+      setAdmittedLoading(true);
+      try {
+        const query = new URLSearchParams({
+          page: String(admittedPage),
+          limit: "10",
+        });
+        if (admittedSearch.trim()) query.set("search", admittedSearch.trim());
+        if (admittedStatus) query.set("status", admittedStatus);
+        if (admittedSource) query.set("source", admittedSource);
+
+        const res = await fetch(`/api/patients/admitted?${query.toString()}`);
+        const data = await res.json();
+        if (isMounted && res.ok && Array.isArray(data.admissions)) {
+          setAdmittedPatients(data.admissions);
+          setAdmittedPagination(data.pagination);
+        }
+      } catch (err) {
+        console.error("Failed to load admitted patients:", err);
+      } finally {
+        if (isMounted) setAdmittedLoading(false);
+      }
+    }, 250);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, [activeTab, admittedPage, admittedSearch, admittedStatus, admittedSource]);
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
-      <PageHeader
-        title="Patients Directory"
-        subtitle={
-          pagination
-            ? `Total ${pagination.total} registered patient${pagination.total === 1 ? "" : "s"} in GIAS Hospital`
-            : "Centralized hospital patient medical records and registration"
-        }
-        actionLabel={canManage ? "+ Admit Patient" : undefined}
-        actionHref={canManage ? "/patients/new" : undefined}
-      />
-
-      {/* Filter and Search Bar */}
-      <form
-        onSubmit={handleSearch}
-        className="bg-white border border-slate-200 rounded-lg p-4 shadow-xs flex flex-wrap gap-3 items-center"
-      >
-        <div className="flex-1 min-w-[240px]">
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by Name, MR#, Patient#, CNIC, Phone..."
-            className="w-full text-sm px-3 py-2 border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-teal-500"
-          />
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Top Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white border border-slate-200 p-6 rounded-2xl shadow-xs">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-teal-700">
+            <User className="w-4 h-4" />
+            <span>Clinical Registry • Hospital Encounters</span>
+          </div>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight mt-1">
+            Patient Directory
+          </h1>
+          <p className="text-xs text-slate-500 mt-1">
+            Manage outpatient appointment encounters and active inpatient hospital admissions from one unified registry.
+          </p>
         </div>
 
-        <select
-          value={gender}
-          onChange={(e) => {
-            setGender(e.target.value);
-            setPage(1);
-          }}
-          className="text-sm px-3 py-2 border border-slate-300 rounded bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
-        >
-          <option value="">All Genders</option>
-          <option value="MALE">Male</option>
-          <option value="FEMALE">Female</option>
-          <option value="OTHER">Other</option>
-        </select>
+        {canManage && (
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/appointments/new"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-800 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-3.5 py-2 rounded-xl transition"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Book Appointment</span>
+            </Link>
 
-        <select
-          value={bloodGroup}
-          onChange={(e) => {
-            setBloodGroup(e.target.value);
-            setPage(1);
-          }}
-          className="text-sm px-3 py-2 border border-slate-300 rounded bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
-        >
-          <option value="">All Blood Groups</option>
-          {BLOOD_GROUPS.map((bg) => (
-            <option key={bg.value} value={bg.value}>
-              {bg.label}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={status}
-          onChange={(e) => {
-            setStatus(e.target.value);
-            setPage(1);
-          }}
-          className="text-sm px-3 py-2 border border-slate-300 rounded bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
-        >
-          <option value="">All Statuses</option>
-          <option value="ACTIVE">Active</option>
-          <option value="CRITICAL">Critical</option>
-          <option value="DISCHARGED">Discharged</option>
-        </select>
-
-        <button
-          type="submit"
-          className="px-4 py-2 text-sm font-medium text-white bg-teal-700 rounded hover:bg-teal-800 transition-colors shadow-xs"
-        >
-          Search
-        </button>
-
-        {(search || gender || bloodGroup || status) && (
-          <button
-            type="button"
-            onClick={handleClearFilters}
-            className="px-3 py-2 text-sm text-slate-600 bg-slate-100 hover:bg-slate-200 rounded transition-colors"
-          >
-            Clear
-          </button>
-        )}
-      </form>
-
-      {error && (
-        <div className="bg-rose-50 border border-rose-200 text-rose-700 text-sm px-4 py-3 rounded-lg">
-          {error}
-        </div>
-      )}
-
-      {/* Patient Directory Table */}
-      <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-xs">
-        {isLoading ? (
-          <div className="flex items-center justify-center py-24">
-            <div className="w-8 h-8 border-3 border-teal-600 border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : patients.length === 0 ? (
-          <EmptyState
-            title="No patients found"
-            description={
-              search || gender || bloodGroup || status
-                ? "No patient records match the applied search and filter criteria."
-                : "No patients are registered in the hospital system yet."
-            }
-            actionLabel={canManage && !search ? "Register First Patient" : undefined}
-            actionHref={canManage && !search ? "/patients/new" : undefined}
-          />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                  <th className="px-4 py-3.5">Numbers</th>
-                  <th className="px-4 py-3.5">Patient Details</th>
-                  <th className="px-4 py-3.5">CNIC</th>
-                  <th className="px-4 py-3.5">Contact</th>
-                  <th className="px-4 py-3.5">Blood Group</th>
-                  <th className="px-4 py-3.5">Status</th>
-                  <th className="px-4 py-3.5 hidden lg:table-cell">Activity</th>
-                  <th className="px-4 py-3.5 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {patients.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="px-4 py-3.5 whitespace-nowrap">
-                      <div className="flex flex-col">
-                        <Link
-                          href={`/patients/${p.id}`}
-                          className="font-mono font-bold text-teal-700 hover:text-teal-900 text-xs"
-                        >
-                          {p.patientNumber}
-                        </Link>
-                        {p.mrNumber ? (
-                          <span className="font-mono text-[11px] text-slate-500">
-                            {p.mrNumber}
-                          </span>
-                        ) : (
-                          <span className="text-[11px] text-slate-400">—</span>
-                        )}
-                      </div>
-                    </td>
-
-                    <td className="px-4 py-3.5">
-                      <div>
-                        <Link
-                          href={`/patients/${p.id}`}
-                          className="font-semibold text-slate-900 hover:text-teal-700 block"
-                        >
-                          {p.firstName} {p.lastName}
-                        </Link>
-                        <div className="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5">
-                          <span className="capitalize">{p.gender.toLowerCase()}</span>
-                          <span>•</span>
-                          <span>{calculateAge(p.dateOfBirth)}</span>
-                          {p.relatedPersonName && (
-                            <>
-                              <span>•</span>
-                              <span className="truncate max-w-[140px]" title={p.relatedPersonName}>
-                                {p.relationType ? `${p.relationType}: ` : ""}
-                                {p.relatedPersonName}
-                              </span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-
-                    <td className="px-4 py-3.5 whitespace-nowrap">
-                      <span className="font-mono text-xs text-slate-700">
-                        {p.cnic || <span className="text-slate-400">—</span>}
-                      </span>
-                    </td>
-
-                    <td className="px-4 py-3.5 whitespace-nowrap">
-                      <p className="text-xs font-medium text-slate-800">{p.phone}</p>
-                      {p.emergencyContactPhone && (
-                        <p className="text-[11px] text-slate-400">
-                          Em: {p.emergencyContactPhone}
-                        </p>
-                      )}
-                    </td>
-
-                    <td className="px-4 py-3.5 whitespace-nowrap">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
-                        {formatBloodGroup(p.bloodGroup)}
-                      </span>
-                    </td>
-
-                    <td className="px-4 py-3.5 whitespace-nowrap">
-                      <StatusBadge status={p.status} />
-                    </td>
-
-                    <td className="px-4 py-3.5 whitespace-nowrap hidden lg:table-cell">
-                      <div className="text-[11px] text-slate-500 space-y-0.5">
-                        <p>{p._count.appointments} appointments</p>
-                        <p>{p._count.vitalSigns} vitals recorded</p>
-                      </div>
-                    </td>
-
-                    <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-2">
-                        <Link
-                          href={`/patients/${p.id}`}
-                          className="px-2.5 py-1 text-xs font-medium text-teal-700 bg-teal-50 hover:bg-teal-100 rounded border border-teal-200 transition-colors"
-                        >
-                          Profile
-                        </Link>
-                        {canManage && (
-                          <>
-                            <Link
-                              href={`/patients/${p.id}/edit`}
-                              className="px-2.5 py-1 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded border border-slate-300 transition-colors"
-                            >
-                              Edit
-                            </Link>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setDeleteError(null);
-                                setDeleteTarget(p);
-                              }}
-                              className="p-1 text-xs text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded transition-colors"
-                              title="Delete Patient Record"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* Pagination Controls */}
-        {pagination && pagination.totalPages > 1 && (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-6 py-4 border-t border-slate-200 bg-slate-50/50 text-xs">
-            <span className="text-slate-500 font-medium">
-              Showing page {pagination.page} of {pagination.totalPages} ({pagination.total} registered patients)
-            </span>
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => setPage(Math.max(1, pagination.page - 1))}
-                disabled={pagination.page <= 1}
-                className="px-3 py-1.5 rounded border border-slate-200 bg-white font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none transition"
-              >
-                Previous
-              </button>
-              {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
-                .filter(
-                  (p) =>
-                    p === 1 ||
-                    p === pagination.totalPages ||
-                    Math.abs(p - pagination.page) <= 1
-                )
-                .map((p) => (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => setPage(p)}
-                    className={`px-3 py-1.5 rounded font-semibold transition ${
-                      p === pagination.page
-                        ? "bg-teal-600 text-white"
-                        : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                    }`}
-                  >
-                    {p}
-                  </button>
-                ))}
-              <button
-                type="button"
-                onClick={() => setPage(Math.min(pagination.totalPages, pagination.page + 1))}
-                disabled={pagination.page >= pagination.totalPages}
-                className="px-3 py-1.5 rounded border border-slate-200 bg-white font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none transition"
-              >
-                Next
-              </button>
-            </div>
+            <Link
+              href="/admissions"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-teal-800 hover:bg-teal-900 px-4 py-2 rounded-xl shadow-xs transition"
+            >
+              <BedDouble className="w-4 h-4" />
+              <span>Admit Patient</span>
+            </Link>
           </div>
         )}
       </div>
 
-      {/* Delete Patient Confirmation Modal */}
-      {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs text-left">
-          <div className="bg-white max-w-md w-full rounded-2xl shadow-xl border border-slate-200 p-6 space-y-4">
-            <div className="flex items-center gap-3 text-rose-600">
-              <div className="p-2.5 rounded-full bg-rose-50 border border-rose-200">
-                <AlertTriangle className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-slate-900">Delete Patient Record</h3>
-                <p className="text-xs text-slate-500">Confirm permanent deletion</p>
-              </div>
+      {/* Navigation Tabs */}
+      <div className="flex items-center border-b border-slate-200 bg-white rounded-t-xl px-4 pt-3 shadow-2xs">
+        <button
+          type="button"
+          onClick={() => handleTabChange("appointments")}
+          className={`inline-flex items-center gap-2.5 px-5 py-3 border-b-2 font-bold text-xs transition cursor-pointer ${
+            activeTab === "appointments"
+              ? "border-teal-700 text-teal-900 bg-teal-50/40 rounded-t-lg"
+              : "border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300"
+          }`}
+        >
+          <Calendar className="w-4 h-4" />
+          <span>Appointment Patients (Outpatient)</span>
+          {apptPagination && (
+            <span
+              className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-black ${
+                activeTab === "appointments" ? "bg-teal-700 text-white" : "bg-slate-100 text-slate-600"
+              }`}
+            >
+              {apptPagination.total}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleTabChange("admitted")}
+          className={`inline-flex items-center gap-2.5 px-5 py-3 border-b-2 font-bold text-xs transition cursor-pointer ${
+            activeTab === "admitted"
+              ? "border-teal-700 text-teal-900 bg-teal-50/40 rounded-t-lg"
+              : "border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300"
+          }`}
+        >
+          <BedDouble className="w-4 h-4" />
+          <span>Admitted Patients (Active Inpatients)</span>
+          {admittedPagination && (
+            <span
+              className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-black ${
+                activeTab === "admitted" ? "bg-teal-700 text-white" : "bg-slate-100 text-slate-600"
+              }`}
+            >
+              {admittedPagination.total}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* ===================================================================== */}
+      {/* TAB 1: APPOINTMENT PATIENTS                                           */}
+      {/* ===================================================================== */}
+      {activeTab === "appointments" && (
+        <div className="space-y-4">
+          {/* Search & Contextual Filter Bar */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={apptSearch}
+                onChange={(e) => {
+                  setApptSearch(e.target.value);
+                  setApptPage(1);
+                }}
+                placeholder="Search by MR#, Patient Name, Appointment#, Doctor..."
+                className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 pl-10 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition"
+              />
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-2.5" />
             </div>
 
-            <p className="text-sm text-slate-600">
-              Are you sure you want to permanently delete patient{" "}
-              <strong className="text-slate-900">
-                {deleteTarget.firstName} {deleteTarget.lastName} ({deleteTarget.mrNumber || deleteTarget.patientNumber})
-              </strong>
-              ?
-            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={apptType}
+                onChange={(e) => {
+                  setApptType(e.target.value);
+                  setApptPage(1);
+                }}
+                className="text-xs text-black bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-hidden focus:ring-1 focus:ring-teal-500"
+              >
+                <option value="">All Appointment Types</option>
+                <option value="REGULAR">Regular</option>
+                <option value="FOLLOW_UP">Follow Up</option>
+                <option value="EMERGENCY">Emergency</option>
+              </select>
 
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs space-y-1">
-              <p className="font-semibold">Permanent deletion:</p>
-              <p className="text-[11px] text-amber-700">
-                This will remove the patient record and cascade delete all associated appointments, vital signs, prescriptions, and clinical history.
-              </p>
+              <select
+                value={apptStatus}
+                onChange={(e) => {
+                  setApptStatus(e.target.value);
+                  setApptPage(1);
+                }}
+                className="text-xs text-black bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-hidden focus:ring-1 focus:ring-teal-500"
+              >
+                <option value="">All Statuses</option>
+                <option value="SCHEDULED">Scheduled</option>
+                <option value="WAITING">Waiting</option>
+                <option value="IN_CONSULTATION">In Consultation</option>
+                <option value="COMPLETED">Completed</option>
+                <option value="CANCELLED">Cancelled</option>
+              </select>
             </div>
+          </div>
 
-            {deleteError && (
-              <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{deleteError}</span>
+          {/* Table Container */}
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
+            {apptLoading ? (
+              <div className="p-12 text-center text-xs text-slate-500">
+                <div className="w-7 h-7 border-2 border-teal-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                Loading appointment encounters from database...
+              </div>
+            ) : appointmentPatients.length === 0 ? (
+              <div className="p-12 text-center text-xs text-slate-500">
+                <p className="text-sm font-semibold text-slate-700">No appointment patients found</p>
+                <p className="mt-1 text-slate-400">
+                  {apptSearch || apptStatus || apptType
+                    ? "Try adjusting your search criteria or filters."
+                    : "No active appointment encounters match the outpatient filter."}
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                      <th className="py-3.5 px-4">MR Number</th>
+                      <th className="py-3.5 px-4">Patient Name</th>
+                      <th className="py-3.5 px-4">Appt #</th>
+                      <th className="py-3.5 px-4">Date &amp; Time</th>
+                      <th className="py-3.5 px-4">Department</th>
+                      <th className="py-3.5 px-4">Doctor</th>
+                      <th className="py-3.5 px-4">Type</th>
+                      <th className="py-3.5 px-4">Status</th>
+                      <th className="py-3.5 px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {appointmentPatients.map((apt) => {
+                      const hasAdmissionRecommendation =
+                        apt.consultation?.treatmentPlan?.includes("[ADMISSION RECOMMENDED") ||
+                        apt.consultation?.treatmentPlan?.includes("RECOMMEND INPATIENT");
+
+                      return (
+                        <tr key={apt.id} className="hover:bg-teal-50/30 transition">
+                          <td className="py-3.5 px-4 font-mono font-bold text-teal-800">
+                            <Link href={`/patients/${apt.patient.id}`} className="hover:underline">
+                              {apt.patient.mrNumber || apt.patient.patientNumber}
+                            </Link>
+                          </td>
+                          <td className="py-3.5 px-4 font-semibold text-slate-900">
+                            <Link href={`/patients/${apt.patient.id}`} className="hover:text-teal-700">
+                              {apt.patient.firstName} {apt.patient.lastName}
+                            </Link>
+                            <span className="block text-[11px] text-slate-400 font-mono">
+                              {apt.patient.phone}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 font-mono text-slate-600">
+                            {apt.appointmentNumber}
+                            {apt.tokenNumber && (
+                              <span className="ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">
+                                #{apt.tokenNumber}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-4 text-slate-700">
+                            <span className="block font-medium">{apt.appointmentDate}</span>
+                            <span className="text-[11px] text-slate-500 font-mono">{apt.appointmentTime}</span>
+                          </td>
+                          <td className="py-3.5 px-4 text-slate-700 font-medium">
+                            {apt.department.name}
+                          </td>
+                          <td className="py-3.5 px-4 text-slate-900">
+                            <span className="font-semibold">
+                              Dr. {apt.doctor.firstName} {apt.doctor.lastName}
+                            </span>
+                            <span className="block text-[10px] text-slate-400">
+                              {apt.doctor.specialization}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 text-slate-700">
+                              {apt.appointmentType}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <div className="space-y-1">
+                              <StatusBadge status={apt.status} />
+                              {hasAdmissionRecommendation && (
+                                <span className="inline-block text-[9px] font-black uppercase px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300">
+                                  Admission Recommended
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              {canManage && (
+                                <Link
+                                  href={`/admissions?patientId=${apt.patient.id}&appointmentId=${apt.id}&doctorId=${apt.doctor.id}&diagnosis=${encodeURIComponent(
+                                    apt.consultation?.provisionalDiagnosis || apt.reason || ""
+                                  )}`}
+                                  className="inline-flex items-center gap-1 text-[11px] font-bold text-white bg-teal-800 hover:bg-teal-900 px-2.5 py-1.5 rounded-lg shadow-2xs transition"
+                                  title="Admit patient into hospital"
+                                >
+                                  <BedDouble className="w-3.5 h-3.5" />
+                                  <span>Admit</span>
+                                </Link>
+                              )}
+
+                              <Link
+                                href={`/patients/${apt.patient.id}`}
+                                className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 rounded-lg transition"
+                                title="View Patient Profile"
+                              >
+                                <span>Details</span>
+                              </Link>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
 
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setDeleteTarget(null)}
-                disabled={isDeleting}
-                className="px-3.5 py-1.5 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleDelete}
-                disabled={isDeleting}
-                className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold shadow-xs disabled:opacity-50 transition-colors"
-              >
-                {isDeleting ? "Deleting..." : "Confirm Delete"}
-              </button>
+            {/* Pagination Controls */}
+            {apptPagination && apptPagination.totalPages > 1 && (
+              <div className="p-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600 bg-slate-50/50">
+                <span>
+                  Showing page {apptPagination.page} of {apptPagination.totalPages} ({apptPagination.total} total appointment patients)
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={apptPagination.page <= 1}
+                    onClick={() => setApptPage((p) => Math.max(1, p - 1))}
+                    className="p-1.5 border border-slate-200 rounded-lg hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!apptPagination.hasMore}
+                    onClick={() => setApptPage((p) => p + 1)}
+                    className="p-1.5 border border-slate-200 rounded-lg hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================== */}
+      {/* TAB 2: ADMITTED PATIENTS                                              */}
+      {/* ===================================================================== */}
+      {activeTab === "admitted" && (
+        <div className="space-y-4">
+          {/* Search & Contextual Filter Bar */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={admittedSearch}
+                onChange={(e) => {
+                  setAdmittedSearch(e.target.value);
+                  setAdmittedPage(1);
+                }}
+                placeholder="Search by MR#, Patient Name, Admission#, Doctor, Ward/Bed..."
+                className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 pl-10 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition"
+              />
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-2.5" />
             </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={admittedSource}
+                onChange={(e) => {
+                  setAdmittedSource(e.target.value);
+                  setAdmittedPage(1);
+                }}
+                className="text-xs text-black bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-hidden focus:ring-1 focus:ring-teal-500"
+              >
+                <option value="">All Admission Sources</option>
+                <option value="OPD">OPD Consultation</option>
+                <option value="EMERGENCY">Emergency Triage</option>
+              </select>
+
+              <select
+                value={admittedStatus}
+                onChange={(e) => {
+                  setAdmittedStatus(e.target.value);
+                  setAdmittedPage(1);
+                }}
+                className="text-xs text-black bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-hidden focus:ring-1 focus:ring-teal-500"
+              >
+                <option value="">All Active Statuses</option>
+                <option value="ADMITTED">Admitted</option>
+                <option value="UNDER_TREATMENT">Under Treatment</option>
+                <option value="DISCHARGE_PENDING">Discharge Pending</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Table Container */}
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
+            {admittedLoading ? (
+              <div className="p-12 text-center text-xs text-slate-500">
+                <div className="w-7 h-7 border-2 border-teal-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                Loading active inpatients from database...
+              </div>
+            ) : admittedPatients.length === 0 ? (
+              <div className="p-12 text-center text-xs text-slate-500">
+                <p className="text-sm font-semibold text-slate-700">No admitted patients found</p>
+                <p className="mt-1 text-slate-400">
+                  {admittedSearch || admittedStatus || admittedSource
+                    ? "Try adjusting your search criteria or filters."
+                    : "There are currently no active admitted inpatients in the hospital."}
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                      <th className="py-3.5 px-4">MR Number</th>
+                      <th className="py-3.5 px-4">Patient Name</th>
+                      <th className="py-3.5 px-4">Admission #</th>
+                      <th className="py-3.5 px-4">Admission Date</th>
+                      <th className="py-3.5 px-4">Assigned Doctor</th>
+                      <th className="py-3.5 px-4">Ward / Bed</th>
+                      <th className="py-3.5 px-4">Source</th>
+                      <th className="py-3.5 px-4">Status</th>
+                      <th className="py-3.5 px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {admittedPatients.map((adm) => (
+                      <tr key={adm.id} className="hover:bg-teal-50/30 transition">
+                        <td className="py-3.5 px-4 font-mono font-bold text-teal-800">
+                          <Link href={`/patients/${adm.patient.id}`} className="hover:underline">
+                            {adm.patient.mrNumber || adm.patient.patientNumber}
+                          </Link>
+                        </td>
+                        <td className="py-3.5 px-4 font-semibold text-slate-900">
+                          <Link href={`/patients/${adm.patient.id}`} className="hover:text-teal-700">
+                            {adm.patient.firstName} {adm.patient.lastName}
+                          </Link>
+                          <span className="block text-[11px] text-slate-400 font-mono">
+                            {adm.patient.phone} • Blood: {adm.patient.bloodGroup}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 font-mono font-semibold text-slate-700">
+                          {adm.admissionNumber}
+                        </td>
+                        <td className="py-3.5 px-4 text-slate-700">
+                          <span className="block font-medium">{adm.admissionDate}</span>
+                          {adm.admissionTime && (
+                            <span className="text-[11px] text-slate-500 font-mono">
+                              {adm.admissionTime}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4 text-slate-900">
+                          <span className="font-semibold">
+                            {adm.doctor ? `Dr. ${adm.doctor.firstName} ${adm.doctor.lastName}` : "On-Call Staff"}
+                          </span>
+                          {adm.doctor?.specialization && (
+                            <span className="block text-[10px] text-slate-400">
+                              {adm.doctor.specialization}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span className="font-bold text-slate-900 bg-slate-100 px-2 py-1 rounded text-xs">
+                            {adm.roomBedNo}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 text-slate-700">
+                            {adm.admissionSource}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <StatusBadge status={adm.status} />
+                        </td>
+                        <td className="py-3.5 px-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            {canManage && (
+                              <Link
+                                href={`/reception/permissions?patientId=${adm.patient.id}&admissionId=${adm.id}`}
+                                className="inline-flex items-center gap-1 text-[11px] font-bold text-teal-800 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-2.5 py-1.5 rounded-lg transition"
+                                title="Generate Patient Consents"
+                              >
+                                <FileCheck2 className="w-3.5 h-3.5" />
+                                <span>Consents</span>
+                              </Link>
+                            )}
+
+                            <Link
+                              href={`/doctor/inpatients/${adm.id}`}
+                              className="inline-flex items-center gap-1 text-[11px] font-bold text-white bg-teal-800 hover:bg-teal-900 px-2.5 py-1.5 rounded-lg shadow-2xs transition"
+                              title="Open Inpatient Clinical File"
+                            >
+                              <Stethoscope className="w-3.5 h-3.5" />
+                              <span>Chart</span>
+                            </Link>
+
+                            <Link
+                              href={`/patients/${adm.patient.id}`}
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 rounded-lg transition"
+                              title="View Patient Profile"
+                            >
+                              <span>Profile</span>
+                            </Link>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Pagination Controls */}
+            {admittedPagination && admittedPagination.totalPages > 1 && (
+              <div className="p-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600 bg-slate-50/50">
+                <span>
+                  Showing page {admittedPagination.page} of {admittedPagination.totalPages} ({admittedPagination.total} total active inpatients)
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={admittedPagination.page <= 1}
+                    onClick={() => setAdmittedPage((p) => Math.max(1, p - 1))}
+                    className="p-1.5 border border-slate-200 rounded-lg hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!admittedPagination.hasMore}
+                    onClick={() => setAdmittedPage((p) => p + 1)}
+                    className="p-1.5 border border-slate-200 rounded-lg hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -20,6 +20,8 @@ interface CompleteConsultationPayload {
   finalDiagnosis?: string;
   investigations?: string;
   treatmentPlan?: string;
+  recommendAdmission?: boolean;
+  admissionReason?: string;
   prescriptionItems?: Array<{
     medicineName: string;
     dosage: string;
@@ -105,7 +107,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           provisionalDiagnosis: body.provisionalDiagnosis || consultation.provisionalDiagnosis,
           finalDiagnosis: body.finalDiagnosis || consultation.finalDiagnosis,
           investigations: body.investigations || consultation.investigations,
-          treatmentPlan: body.treatmentPlan || consultation.treatmentPlan,
+          treatmentPlan:
+            body.recommendAdmission
+              ? `${body.treatmentPlan || consultation.treatmentPlan || ""}\n[ADMISSION RECOMMENDED: ${
+                  body.admissionReason || body.provisionalDiagnosis || body.finalDiagnosis || "Inpatient Care"
+                }]`.trim()
+              : body.treatmentPlan || consultation.treatmentPlan,
           status: "COMPLETED",
         },
       });
@@ -195,6 +202,22 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             eventType: "PRESCRIPTION_CREATED",
             title: `Prescription Issued (${createdPrescriptionNumber})`,
             description: `Prescribed ${prescriptionItemCount} medicine(s) by Dr. ${doctor.firstName} ${doctor.lastName}.`,
+            entityId: consultation.id,
+            performerName: `Dr. ${doctor.firstName} ${doctor.lastName}`,
+            performerRole: "DOCTOR",
+          },
+        });
+      }
+
+      if (body.recommendAdmission) {
+        await tx.timelineEvent.create({
+          data: {
+            patientId: appointment.patientId,
+            eventType: "ADMISSION_RECOMMENDED",
+            title: "Inpatient Admission Recommended",
+            description: `Dr. ${doctor.firstName} ${doctor.lastName} recommended inpatient admission during consultation #${consultation.consultationNumber}. Reason: ${
+              body.admissionReason || body.provisionalDiagnosis || body.finalDiagnosis || "Inpatient Care Required"
+            }.`,
             entityId: consultation.id,
             performerName: `Dr. ${doctor.firstName} ${doctor.lastName}`,
             performerRole: "DOCTOR",

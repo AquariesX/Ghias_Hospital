@@ -175,6 +175,8 @@ export default function ClinicalWorkspaceClient({ appointmentId, doctor }: Props
   const [finalDiagnosis, setFinalDiagnosis] = useState<string>("");
   const [investigations, setInvestigations] = useState<string>("");
   const [treatmentPlan, setTreatmentPlan] = useState<string>("");
+  const [recommendAdmission, setRecommendAdmission] = useState<boolean>(false);
+  const [admissionReason, setAdmissionReason] = useState<string>("");
 
   // Prescription items state
   const [prescriptionItems, setPrescriptionItems] = useState<PrescriptionItemRow[]>([
@@ -404,6 +406,8 @@ export default function ClinicalWorkspaceClient({ appointmentId, doctor }: Props
         finalDiagnosis,
         investigations,
         treatmentPlan,
+        recommendAdmission,
+        admissionReason,
         prescriptionItems: prescriptionItems.filter((i) => i.medicineName.trim().length > 0),
       };
 
@@ -805,6 +809,47 @@ export default function ClinicalWorkspaceClient({ appointmentId, doctor }: Props
                 placeholder="Dietary instructions, lifestyle advice, rest, follow-up..."
                 className="w-full text-xs text-black border border-slate-300 rounded-lg p-3 focus:ring-1 focus:ring-teal-500 focus:outline-none disabled:bg-slate-50"
               />
+            </div>
+
+            {/* Inpatient Admission Recommendation Card */}
+            <div className={`p-4 rounded-xl border transition ${
+              recommendAdmission
+                ? "bg-amber-50/60 border-amber-300 ring-2 ring-amber-400/20"
+                : "bg-slate-50 border-slate-200"
+            }`}>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  disabled={isCompleted}
+                  checked={recommendAdmission}
+                  onChange={(e) => setRecommendAdmission(e.target.checked)}
+                  className="w-4 h-4 accent-amber-600 rounded"
+                />
+                <div>
+                  <span className="text-xs font-bold text-slate-900 block">
+                    Recommend Inpatient Hospital Admission
+                  </span>
+                  <span className="text-[11px] text-slate-500">
+                    Signals frontdesk reception to initiate inpatient bed assignment and consent procedures.
+                  </span>
+                </div>
+              </label>
+
+              {recommendAdmission && (
+                <div className="mt-3 pt-3 border-t border-amber-200/80 space-y-2">
+                  <label className="block text-[11px] font-bold text-amber-900 uppercase tracking-wider">
+                    Admission Clinical Indication &amp; Priority Notes
+                  </label>
+                  <input
+                    type="text"
+                    disabled={isCompleted}
+                    value={admissionReason}
+                    onChange={(e) => setAdmissionReason(e.target.value)}
+                    placeholder="e.g. Acute exacerbation, Emergency surgical evaluation, IV hydration & observation..."
+                    className="w-full text-xs text-black border border-amber-300 bg-white rounded-lg px-3 py-2 focus:ring-1 focus:ring-amber-500 focus:outline-none"
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
