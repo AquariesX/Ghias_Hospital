@@ -5,7 +5,7 @@ import ReportsClient from "./ReportsClient";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
-  title: "Hospital Reports & Clinical Analytics — GIAS Hospital",
+  title: "Hospital Reports & Clinical Analytics — GHIAS Hospital",
 };
 
 export default async function ReportsPage() {

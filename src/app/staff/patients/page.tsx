@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma";
 import NursePatientSearchClient from "./NursePatientSearchClient";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Patient Directory — GIAS Hospital" };
+export const metadata = { title: "Patient Directory — GHIAS Hospital" };
 
 export default async function NursePatientsPage() {
   const user = await getCurrentUser();

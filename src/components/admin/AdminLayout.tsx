@@ -205,7 +205,7 @@ function Sidebar({
           +
         </div>
         <div className="min-w-0">
-          <span className="font-bold text-white tracking-wide text-sm block truncate">GIAS HOSPITAL</span>
+          <span className="font-bold text-white tracking-wide text-sm block truncate">GHIAS HOSPITAL</span>
           <span className="text-[10px] uppercase tracking-wider text-teal-400 font-medium block">
             Admin Panel
           </span>
@@ -340,7 +340,7 @@ export default function AdminLayout({ user, children }: AdminLayoutProps) {
 
             <div>
               <h2 className="text-sm font-semibold text-slate-800">{getPageTitle()}</h2>
-              <p className="text-[10px] text-slate-400 hidden sm:block">GIAS Hospital Management System</p>
+              <p className="text-[10px] text-slate-400 hidden sm:block">GHIAS Hospital Management System</p>
             </div>
           </div>
 

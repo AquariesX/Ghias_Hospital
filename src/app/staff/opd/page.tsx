@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma";
 import OpdQueueClient from "./OpdQueueClient";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "OPD Patient Queue — GIAS Hospital" };
+export const metadata = { title: "OPD Patient Queue — GHIAS Hospital" };
 
 export default async function OpdQueuePage() {
   const user = await getCurrentUser();

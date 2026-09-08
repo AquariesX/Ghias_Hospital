@@ -11,8 +11,27 @@ interface PermissionPrintClientProps {
   data: PermissionDocumentData;
 }
 
-export default function PermissionPrintClient({ data }: PermissionPrintClientProps) {
+export default function PermissionPrintClient({ data: initialData }: PermissionPrintClientProps) {
+  const [data, setData] = useState<PermissionDocumentData>(initialData);
   const [hasLoggedPrint, setHasLoggedPrint] = useState(false);
+
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem("ghias_permission_consent_fields");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setData((prev) => ({
+          ...prev,
+          consentDetails: {
+            ...prev.consentDetails,
+            ...parsed,
+          },
+        }));
+      }
+    } catch (e) {
+      console.error("Error reading stored consent details:", e);
+    }
+  }, []);
 
   const handlePrint = async () => {
     // Trigger browser print

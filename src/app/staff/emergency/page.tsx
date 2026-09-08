@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma";
 import EmergencyQueueClient from "./EmergencyQueueClient";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Emergency Nursing & Triage — GIAS Hospital" };
+export const metadata = { title: "Emergency Nursing & Triage — GHIAS Hospital" };
 
 export default async function EmergencyQueuePage() {
   const user = await getCurrentUser();

@@ -18,10 +18,13 @@ import {
   Calendar,
   Layers,
   ArrowRight,
+  RefreshCw,
+  FileText,
 } from "lucide-react";
 import PermissionDocumentView, {
   PermissionDocumentData,
   PermissionType,
+  ConsentFormFields,
 } from "@/components/permissions/PermissionDocumentView";
 
 interface PatientSearchResult {
@@ -63,6 +66,45 @@ interface PatientAdmission {
   } | null;
 }
 
+interface AdmittedInpatient {
+  id: string;
+  admissionNumber: string;
+  admissionDate: string;
+  admissionTime?: string | null;
+  roomBedNo: string;
+  admissionSource: string;
+  status: string;
+  provisionalDiagnosis?: string | null;
+  treatmentPlan?: string | null;
+  patient: {
+    id: string;
+    patientNumber: string;
+    mrNumber: string | null;
+    firstName: string;
+    lastName: string;
+    gender: string;
+    dateOfBirth: string;
+    phone: string;
+    bloodGroup: string;
+    cnic: string | null;
+    relationType?: string | null;
+    relatedPersonName?: string | null;
+    emergencyContactName?: string;
+    emergencyContactPhone?: string;
+    emergencyContactRelation?: string | null;
+    status: string;
+    address?: string | null;
+  };
+  doctor?: {
+    id: string;
+    doctorNumber: string;
+    firstName: string;
+    lastName: string;
+    specialization: string;
+    department?: { id?: string; name: string } | null;
+  } | null;
+}
+
 export default function PermissionsClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -71,7 +113,15 @@ export default function PermissionsClient() {
   const queryPatientId = searchParams.get("patientId");
   const queryAdmissionId = searchParams.get("admissionId");
 
-  // Search state
+  // Selection mode tab: "admitted" (default) or "all" (search entire patient registry)
+  const [selectionTab, setSelectionTab] = useState<"admitted" | "all">("admitted");
+
+  // Admitted Inpatients state
+  const [admittedList, setAdmittedList] = useState<AdmittedInpatient[]>([]);
+  const [isLoadingAdmittedList, setIsLoadingAdmittedList] = useState(false);
+  const [admittedSearch, setAdmittedSearch] = useState("");
+
+  // Search All Patients state
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<PatientSearchResult[]>([]);
@@ -81,6 +131,96 @@ export default function PermissionsClient() {
   const [admissions, setAdmissions] = useState<PatientAdmission[]>([]);
   const [selectedAdmission, setSelectedAdmission] = useState<PatientAdmission | null>(null);
   const [isLoadingAdmissions, setIsLoadingAdmissions] = useState(false);
+
+  // Consent Form Custom Fields (as shown in Ghias Hospital official paper form)
+  const [consentFields, setConsentFields] = useState<ConsentFormFields>({
+    giverName: "",
+    relationToPatient: "خود / مریض",
+    relationPersonName: "",
+    procedureName: "",
+    organOrBodyPart: "",
+    doctorName: "",
+    anesthetistName: "",
+    operationComplications: "خون بہنا، انفیکشن، الرجی",
+    operationAlternative: "ادویات و دیگر متبادل طریقہ علاج",
+    bloodComponents: "ہول بلڈ / ریڈ سیلز (Whole Blood / PRBC)",
+    bloodComplications: "بخار، الرجک ری ایکشن، لرزہ",
+    bloodAlternative: "آئرن تھراپی / آئی وی فلوئڈز",
+    consentDate: new Date().toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }),
+    consentTime: new Date().toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }),
+  });
+
+  // Sync consent form defaults whenever a patient or admission is selected
+  useEffect(() => {
+    if (selectedPatient) {
+      const doctorFullName = selectedAdmission?.doctor
+        ? `Dr. ${selectedAdmission.doctor.firstName} ${selectedAdmission.doctor.lastName}`
+        : "";
+
+      setConsentFields((prev) => ({
+        ...prev,
+        giverName:
+          prev.giverName ||
+          selectedPatient.relatedPersonName ||
+          `${selectedPatient.firstName} ${selectedPatient.lastName}`,
+        relationToPatient:
+          prev.relationToPatient || selectedPatient.relationType || "خود / مریض",
+        relationPersonName:
+          prev.relationPersonName || selectedPatient.relatedPersonName || "",
+        procedureName:
+          prev.procedureName ||
+          selectedAdmission?.provisionalDiagnosis ||
+          selectedAdmission?.treatmentPlan ||
+          "علاج و سرجری",
+        doctorName: prev.doctorName || doctorFullName,
+        anesthetistName: prev.anesthetistName || doctorFullName,
+      }));
+    }
+  }, [selectedPatient, selectedAdmission]);
+
+  // Fetch admitted patients
+  const fetchAdmittedPatients = async (query = "") => {
+    setIsLoadingAdmittedList(true);
+    try {
+      const url = query.trim()
+        ? `/api/patients/admitted?search=${encodeURIComponent(query.trim())}&limit=50`
+        : `/api/patients/admitted?limit=50`;
+      const res = await fetch(url);
+      const json = await res.json();
+      const list: AdmittedInpatient[] = Array.isArray(json.admissions)
+        ? json.admissions
+        : Array.isArray(json.data)
+        ? json.data
+        : [];
+      setAdmittedList(list);
+    } catch (err) {
+      console.error("Failed to fetch admitted patients:", err);
+    } finally {
+      setIsLoadingAdmittedList(false);
+    }
+  };
+
+  // Initial fetch for admitted patients
+  useEffect(() => {
+    fetchAdmittedPatients();
+  }, []);
+
+  // Debounce search on admitted patients list
+  useEffect(() => {
+    if (selectionTab !== "admitted") return;
+    const timer = setTimeout(() => {
+      fetchAdmittedPatients(admittedSearch);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [admittedSearch, selectionTab]);
 
   // Auto-load patient and admission if URL query params provided
   useEffect(() => {
@@ -94,21 +234,26 @@ export default function PermissionsClient() {
             try {
               const res = await fetch(`/api/admissions?patientId=${data.patient.id}&limit=10`);
               const admJson = await res.json();
-              if (res.ok && Array.isArray(admJson.admissions)) {
-                setAdmissions(admJson.admissions);
+              const records: PatientAdmission[] = Array.isArray(admJson.admissions)
+                ? admJson.admissions
+                : Array.isArray(admJson.data)
+                ? admJson.data
+                : [];
+              if (res.ok && records.length > 0) {
+                setAdmissions(records);
                 if (queryAdmissionId) {
-                  const target = admJson.admissions.find((a: PatientAdmission) => a.id === queryAdmissionId);
+                  const target = records.find((a: PatientAdmission) => a.id === queryAdmissionId);
                   if (target) {
                     setSelectedAdmission(target);
                   }
-                } else if (admJson.admissions.length > 0) {
-                  const activeAdm = admJson.admissions.find(
+                } else {
+                  const activeAdm = records.find(
                     (a: PatientAdmission) =>
                       a.status === "ADMITTED" ||
                       a.status === "UNDER_TREATMENT" ||
                       a.status === "DISCHARGE_PENDING"
                   );
-                  setSelectedAdmission(activeAdm || admJson.admissions[0]);
+                  setSelectedAdmission(activeAdm || records[0]);
                 }
               }
             } catch (err) {
@@ -135,7 +280,7 @@ export default function PermissionsClient() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // Debounced patient search
+  // Debounced search for all patients
   useEffect(() => {
     if (!searchQuery.trim() || searchQuery.trim().length < 2) {
       setSearchResults([]);
@@ -164,7 +309,63 @@ export default function PermissionsClient() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Fetch admissions when a patient is selected
+  // Handle choosing an admitted patient directly from the list
+  const handleSelectAdmittedInpatient = (adm: AdmittedInpatient) => {
+    const patientResult: PatientSearchResult = {
+      id: adm.patient.id,
+      patientNumber: adm.patient.patientNumber,
+      mrNumber: adm.patient.mrNumber,
+      firstName: adm.patient.firstName,
+      lastName: adm.patient.lastName,
+      gender: adm.patient.gender,
+      dateOfBirth: adm.patient.dateOfBirth,
+      phone: adm.patient.phone,
+      bloodGroup: adm.patient.bloodGroup,
+      cnic: adm.patient.cnic,
+      relationType: adm.patient.relationType || null,
+      relatedPersonName: adm.patient.relatedPersonName || null,
+      emergencyContactName: adm.patient.emergencyContactName || "",
+      emergencyContactPhone: adm.patient.emergencyContactPhone || "",
+      emergencyContactRelation: adm.patient.emergencyContactRelation || null,
+      status: adm.patient.status,
+    };
+
+    const admissionResult: PatientAdmission = {
+      id: adm.id,
+      admissionNumber: adm.admissionNumber,
+      admissionDate: adm.admissionDate,
+      admissionTime: adm.admissionTime,
+      roomBedNo: adm.roomBedNo,
+      admissionSource: adm.admissionSource,
+      status: adm.status,
+      provisionalDiagnosis: adm.provisionalDiagnosis,
+      treatmentPlan: adm.treatmentPlan,
+      doctor: adm.doctor,
+    };
+
+    setSelectedPatient(patientResult);
+    setSelectedAdmission(admissionResult);
+    setAdmissions([admissionResult]);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    // Also fetch any other admissions in the background for this patient
+    fetch(`/api/admissions?patientId=${adm.patient.id}&limit=10`)
+      .then((r) => r.json())
+      .then((json) => {
+        const records: PatientAdmission[] = Array.isArray(json.admissions)
+          ? json.admissions
+          : Array.isArray(json.data)
+          ? json.data
+          : [];
+        if (records.length > 0) {
+          setAdmissions(records);
+        }
+      })
+      .catch((e) => console.error("Error fetching other admissions:", e));
+  };
+
+  // Fetch admissions when a patient is selected from Search All
   const handleSelectPatient = async (patient: PatientSearchResult) => {
     setSelectedPatient(patient);
     setSelectedAdmission(null);
@@ -176,18 +377,21 @@ export default function PermissionsClient() {
     try {
       const res = await fetch(`/api/admissions?patientId=${patient.id}&limit=10`);
       const json = await res.json();
-      if (res.ok && Array.isArray(json.admissions)) {
-        setAdmissions(json.admissions);
+      const records: PatientAdmission[] = Array.isArray(json.admissions)
+        ? json.admissions
+        : Array.isArray(json.data)
+        ? json.data
+        : [];
+      if (res.ok && records.length > 0) {
+        setAdmissions(records);
         // Automatically select the active or most recent admission
-        if (json.admissions.length > 0) {
-          const activeAdm = json.admissions.find(
-            (a: PatientAdmission) =>
-              a.status === "ADMITTED" ||
-              a.status === "UNDER_TREATMENT" ||
-              a.status === "DISCHARGE_PENDING"
-          );
-          setSelectedAdmission(activeAdm || json.admissions[0]);
-        }
+        const activeAdm = records.find(
+          (a: PatientAdmission) =>
+            a.status === "ADMITTED" ||
+            a.status === "UNDER_TREATMENT" ||
+            a.status === "DISCHARGE_PENDING"
+        );
+        setSelectedAdmission(activeAdm || records[0]);
       } else {
         setAdmissions([]);
       }
@@ -221,13 +425,14 @@ export default function PermissionsClient() {
     const ageYears = new Date().getFullYear() - dob.getFullYear();
 
     return {
-      hospitalName: "GIAS HOSPITAL PHALIA",
+      hospitalName: "GHIAS HOSPITAL PHALIA",
       regNumber: "REG NO. R-59488",
       generatedAt: new Date().toISOString(),
       isSigned: false,
       status: "UNSIGNED",
       watermarkText: "UNSIGNED / FOR SIGNATURE",
       selectedPermissions,
+      consentDetails: consentFields,
       patient: {
         id: selectedPatient.id,
         patientNumber: selectedPatient.patientNumber,
@@ -310,6 +515,13 @@ export default function PermissionsClient() {
       return;
     }
 
+    // Persist filled consent fields to sessionStorage for print page
+    try {
+      sessionStorage.setItem("ghias_permission_consent_fields", JSON.stringify(consentFields));
+    } catch (err) {
+      console.error("Failed to store consent fields in session:", err);
+    }
+
     setIsGenerating(true);
 
     try {
@@ -320,6 +532,7 @@ export default function PermissionsClient() {
           patientId: selectedPatient.id,
           admissionId: selectedAdmission.id,
           permissions: selectedPermissions,
+          consentDetails: consentFields,
         }),
       });
 
@@ -333,10 +546,28 @@ export default function PermissionsClient() {
         `Generated ${selectedPermissions.length} permission form(s) successfully. Opening print view...`
       );
 
-      // Open print view in new window or redirect
-      const printUrl = `/reception/permissions/print?patientId=${selectedPatient.id}&admissionId=${
-        selectedAdmission.id
-      }&forms=${selectedPermissions.join(",")}`;
+      // Open print view in new window or redirect with full parameters
+      const queryParams = new URLSearchParams({
+        patientId: selectedPatient.id,
+        admissionId: selectedAdmission.id,
+        forms: selectedPermissions.join(","),
+        giverName: consentFields.giverName || "",
+        giverRelation: consentFields.relationToPatient || "",
+        relationPersonName: consentFields.relationPersonName || "",
+        procedureName: consentFields.procedureName || "",
+        organOrBodyPart: consentFields.organOrBodyPart || "",
+        doctorName: consentFields.doctorName || "",
+        anesthetistName: consentFields.anesthetistName || "",
+        operationComplications: consentFields.operationComplications || "",
+        operationAlternative: consentFields.operationAlternative || "",
+        bloodComponents: consentFields.bloodComponents || "",
+        bloodComplications: consentFields.bloodComplications || "",
+        bloodAlternative: consentFields.bloodAlternative || "",
+        consentDate: consentFields.consentDate || "",
+        consentTime: consentFields.consentTime || "",
+      });
+
+      const printUrl = `/reception/permissions/print?${queryParams.toString()}`;
 
       startTransition(() => {
         router.push(printUrl);
@@ -401,63 +632,261 @@ export default function PermissionsClient() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column: Search & Patient Selection (5 Cols) */}
         <div className="lg:col-span-5 space-y-6">
-          {/* Patient Search Card */}
+          {/* Patient Selection Card */}
           <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                <Search className="w-4 h-4 text-teal-700" />
-                <span>1. Search Patient</span>
+                <BedDouble className="w-4 h-4 text-teal-700" />
+                <span>1. Select Patient</span>
               </span>
-              <span className="text-[10px] text-slate-400">MR#, Name, CNIC, Phone</span>
+              <button
+                type="button"
+                onClick={() => {
+                  if (selectionTab === "admitted") {
+                    fetchAdmittedPatients(admittedSearch);
+                  }
+                }}
+                title="Refresh admitted list"
+                className="p-1 text-slate-400 hover:text-teal-700 rounded-md transition hover:bg-slate-100"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isLoadingAdmittedList ? "animate-spin text-teal-700" : ""}`} />
+              </button>
             </div>
 
-            <div className="relative">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Type MR#, CNIC, Name, or Phone..."
-                className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 pl-9 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition"
-              />
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+            {/* Selection Mode Tabs */}
+            <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-xl text-xs font-bold gap-1">
+              <button
+                type="button"
+                onClick={() => setSelectionTab("admitted")}
+                className={`py-2 px-2.5 rounded-lg flex items-center justify-center gap-1.5 transition text-[11px] sm:text-xs ${
+                  selectionTab === "admitted"
+                    ? "bg-white text-teal-900 shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <BedDouble className="w-3.5 h-3.5 shrink-0" />
+                <span>Admitted Patients</span>
+                {admittedList.length > 0 && (
+                  <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-800 font-mono font-black">
+                    {admittedList.length}
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectionTab("all")}
+                className={`py-2 px-2.5 rounded-lg flex items-center justify-center gap-1.5 transition text-[11px] sm:text-xs ${
+                  selectionTab === "all"
+                    ? "bg-white text-teal-900 shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <Search className="w-3.5 h-3.5 shrink-0" />
+                <span>Search All</span>
+              </button>
             </div>
 
-            {/* Results Dropdown / List */}
-            {isSearching && (
-              <p className="text-xs text-slate-500 italic py-2 text-center">Searching database...</p>
-            )}
+            {/* TAB 1: Admitted Inpatients List (Default) */}
+            {selectionTab === "admitted" && (
+              <div className="space-y-3">
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={admittedSearch}
+                    onChange={(e) => setAdmittedSearch(e.target.value)}
+                    placeholder="Search by Bed, ADM#, MR#, Name, Doctor..."
+                    className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 pl-9 pr-8 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition"
+                  />
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  {admittedSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setAdmittedSearch("")}
+                      className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 p-0.5"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
 
-            {!isSearching && searchResults.length > 0 && (
-              <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl max-h-60 overflow-y-auto bg-white">
-                {searchResults.map((patient) => (
-                  <button
-                    key={patient.id}
-                    type="button"
-                    onClick={() => handleSelectPatient(patient)}
-                    className={`w-full text-left p-3 hover:bg-teal-50/60 transition flex items-center justify-between ${
-                      selectedPatient?.id === patient.id ? "bg-teal-50 border-l-4 border-teal-700" : ""
-                    }`}
-                  >
-                    <div>
-                      <p className="text-xs font-bold text-slate-900">
-                        {patient.firstName} {patient.lastName}
-                      </p>
-                      <p className="text-[11px] text-slate-500 font-mono mt-0.5">
-                        MR: {patient.mrNumber || patient.patientNumber} • Phone: {patient.phone}
-                      </p>
+                {isLoadingAdmittedList ? (
+                  <div className="py-8 text-center text-xs text-slate-500 flex flex-col items-center justify-center gap-2">
+                    <RefreshCw className="w-5 h-5 animate-spin text-teal-700" />
+                    <span>Fetching admitted patients...</span>
+                  </div>
+                ) : admittedList.length > 0 ? (
+                  <div className="space-y-2 max-h-80 overflow-y-auto pr-0.5">
+                    {admittedList.map((adm) => {
+                      const isSelected =
+                        selectedPatient?.id === adm.patient.id && selectedAdmission?.id === adm.id;
+                      return (
+                        <div
+                          key={adm.id}
+                          onClick={() => handleSelectAdmittedInpatient(adm)}
+                          className={`p-3 rounded-xl border cursor-pointer transition flex flex-col gap-2 ${
+                            isSelected
+                              ? "border-teal-600 bg-teal-50/70 ring-2 ring-teal-600/20"
+                              : "border-slate-200 hover:border-teal-300 hover:bg-slate-50/70 bg-white"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-xs font-bold text-slate-900">
+                                  {adm.patient.firstName} {adm.patient.lastName}
+                                </p>
+                                <span className="text-[10px] font-mono font-bold text-slate-500">
+                                  ({adm.patient.mrNumber || adm.patient.patientNumber})
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-slate-500 mt-0.5">
+                                Phone: {adm.patient.phone} • Blood: {adm.patient.bloodGroup?.replace("_", " ") || "N/A"}
+                              </p>
+                            </div>
+
+                            <div className="text-right shrink-0">
+                              <span
+                                className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
+                                  isSelected
+                                    ? "bg-teal-700 text-white"
+                                    : "bg-slate-100 text-slate-700"
+                                }`}
+                              >
+                                {isSelected ? "Selected" : "Select"}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-slate-100 text-[10px]">
+                            <span className="font-bold font-mono text-teal-800 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded flex items-center gap-1">
+                              <BedDouble className="w-3 h-3" />
+                              <span>{adm.roomBedNo}</span>
+                            </span>
+
+                            <span className="font-mono font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">
+                              {adm.admissionNumber}
+                            </span>
+
+                            {adm.doctor && (
+                              <span className="text-slate-600 truncate max-w-[130px]">
+                                Dr. {adm.doctor.firstName} {adm.doctor.lastName}
+                              </span>
+                            )}
+
+                            <span className="text-slate-400 ml-auto">
+                              {new Date(adm.admissionDate).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="border border-slate-200 rounded-xl p-6 text-center text-xs text-slate-500 space-y-2">
+                    <p className="font-semibold text-slate-700">
+                      {admittedSearch
+                        ? "No admitted patients match your search."
+                        : "No active admitted inpatients found."}
+                    </p>
+                    <p className="text-[11px] text-slate-400">
+                      {admittedSearch
+                        ? "Try clearing search or check 'Search All'."
+                        : "Admit a patient via the Admissions module to issue consents."}
+                    </p>
+                    <div className="pt-2 flex items-center justify-center gap-3">
+                      {admittedSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setAdmittedSearch("")}
+                          className="text-[11px] font-bold text-teal-700 hover:underline"
+                        >
+                          Clear Search
+                        </button>
+                      )}
+                      <Link
+                        href="/admissions"
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-teal-800 hover:underline"
+                      >
+                        <span>Admit Patient</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </Link>
                     </div>
-                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-slate-100 text-slate-700">
-                      {patient.gender}
-                    </span>
-                  </button>
-                ))}
+                  </div>
+                )}
               </div>
             )}
 
-            {!isSearching && searchQuery.length >= 2 && searchResults.length === 0 && (
-              <p className="text-xs text-slate-500 text-center py-2">
-                No matching patients found in database.
-              </p>
+            {/* TAB 2: Search All Patients */}
+            {selectionTab === "all" && (
+              <div className="space-y-3">
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Type MR#, CNIC, Name, or Phone..."
+                    className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 pl-9 pr-8 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition"
+                  />
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 p-0.5"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {isSearching && (
+                  <p className="text-xs text-slate-500 italic py-3 text-center">
+                    Searching database...
+                  </p>
+                )}
+
+                {!isSearching && searchResults.length > 0 && (
+                  <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl max-h-60 overflow-y-auto bg-white">
+                    {searchResults.map((patient) => (
+                      <button
+                        key={patient.id}
+                        type="button"
+                        onClick={() => handleSelectPatient(patient)}
+                        className={`w-full text-left p-3 hover:bg-teal-50/60 transition flex items-center justify-between ${
+                          selectedPatient?.id === patient.id
+                            ? "bg-teal-50 border-l-4 border-teal-700"
+                            : ""
+                        }`}
+                      >
+                        <div>
+                          <p className="text-xs font-bold text-slate-900">
+                            {patient.firstName} {patient.lastName}
+                          </p>
+                          <p className="text-[11px] text-slate-500 font-mono mt-0.5">
+                            MR: {patient.mrNumber || patient.patientNumber} • Phone: {patient.phone}
+                          </p>
+                        </div>
+                        <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                          {patient.gender}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {!isSearching && searchQuery.length >= 2 && searchResults.length === 0 && (
+                  <p className="text-xs text-slate-500 text-center py-4">
+                    No matching patients found in database.
+                  </p>
+                )}
+
+                {!isSearching && !searchQuery && (
+                  <p className="text-xs text-slate-400 text-center py-4 italic">
+                    Type at least 2 characters to search across all hospital patients.
+                  </p>
+                )}
+              </div>
             )}
           </div>
 
@@ -469,9 +898,23 @@ export default function PermissionsClient() {
                   <User className="w-4 h-4 text-teal-700" />
                   <span>Selected Patient</span>
                 </span>
-                <span className="text-[10px] font-black font-mono bg-teal-100 text-teal-900 px-2 py-0.5 rounded">
-                  {selectedPatient.mrNumber || selectedPatient.patientNumber}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black font-mono bg-teal-100 text-teal-900 px-2 py-0.5 rounded">
+                    {selectedPatient.mrNumber || selectedPatient.patientNumber}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedPatient(null);
+                      setSelectedAdmission(null);
+                      setAdmissions([]);
+                    }}
+                    title="Deselect patient"
+                    className="text-slate-400 hover:text-rose-600 p-0.5 rounded transition"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3 text-xs">
@@ -504,6 +947,19 @@ export default function PermissionsClient() {
                     </span>
                     <p className="font-semibold text-slate-800">
                       {selectedPatient.relatedPersonName}
+                    </p>
+                  </div>
+                )}
+                {selectedPatient.emergencyContactName && (
+                  <div className="col-span-2 pt-1 border-t border-teal-100/60">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                      Emergency Contact
+                    </span>
+                    <p className="font-semibold text-slate-800">
+                      {selectedPatient.emergencyContactName} ({selectedPatient.emergencyContactPhone})
+                      {selectedPatient.emergencyContactRelation && (
+                        <span className="text-slate-500 font-normal"> • {selectedPatient.emergencyContactRelation}</span>
+                      )}
                     </p>
                   </div>
                 )}
@@ -545,7 +1001,7 @@ export default function PermissionsClient() {
                   Permissions are normally generated for admitted inpatients. Please admit the patient via the Admission module first.
                 </p>
                 <Link
-                  href="/patients/new"
+                  href="/admissions"
                   className="inline-flex items-center gap-1 mt-2 text-[11px] font-bold text-teal-800 hover:underline"
                 >
                   <span>Go to Admit Patient</span>
@@ -740,6 +1196,316 @@ export default function PermissionsClient() {
               </label>
             </div>
           </div>
+
+          {/* Step 4: Fill Permission Form Fields (Required by Official Paper Form) */}
+          {selectedPatient && selectedAdmission && (
+            <div className="bg-white border border-teal-200 rounded-2xl p-5 shadow-xs space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-teal-700" />
+                  <span>4. Consent Form Details (فارم کے ضروری کوائف)</span>
+                </span>
+                <span className="text-[10px] font-bold text-teal-800 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded">
+                  Official Paper Fields
+                </span>
+              </div>
+
+              {/* Section A: Person Giving Permission (اجازت دینے والے کے کوائف) */}
+              <div className="space-y-2 bg-slate-50/70 border border-slate-200 rounded-xl p-3.5">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5 text-teal-700" />
+                    <span>اجازت دینے والا (Signer / Permission Giver)</span>
+                  </p>
+                  <span className="text-[10px] text-slate-500">
+                    Patient or Guardian Info
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                      اجازت دینے والے کا نام (Name)
+                    </label>
+                    <input
+                      type="text"
+                      value={consentFields.giverName || ""}
+                      onChange={(e) =>
+                        setConsentFields((p) => ({ ...p, giverName: e.target.value }))
+                      }
+                      placeholder="e.g. محمد احمد"
+                      className="w-full text-xs bg-white border border-slate-200 rounded-lg px-2.5 py-2 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                      مریض سے رشتہ (Relation)
+                    </label>
+                    <input
+                      type="text"
+                      value={consentFields.relationToPatient || ""}
+                      onChange={(e) =>
+                        setConsentFields((p) => ({
+                          ...p,
+                          relationToPatient: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g. خود / والد / شوہر"
+                      className="w-full text-xs bg-white border border-slate-200 rounded-lg px-2.5 py-2 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                      ولدیت / بنت / زوجہ (Father/Husband Name)
+                    </label>
+                    <input
+                      type="text"
+                      value={consentFields.relationPersonName || ""}
+                      onChange={(e) =>
+                        setConsentFields((p) => ({
+                          ...p,
+                          relationPersonName: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g. بشیر احمد"
+                      className="w-full text-xs bg-white border border-slate-200 rounded-lg px-2.5 py-2 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Section B: Operation & Anesthesia Details */}
+              {(selectedPermissions.includes("ANESTHESIA") ||
+                selectedPermissions.includes("OPERATION")) && (
+                <div className="space-y-2 bg-slate-50/70 border border-slate-200 rounded-xl p-3.5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                      <Stethoscope className="w-3.5 h-3.5 text-teal-700" />
+                      <span>آپریشن و بیہوشی کی تفصیلات (Procedure Details)</span>
+                    </p>
+                    <span className="text-[10px] text-slate-500">
+                      Anesthesia & Surgery
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                        کس آپریشن کے لئے / سرجری کی نوعیت (Procedure Name)
+                      </label>
+                      <input
+                        type="text"
+                        value={consentFields.procedureName || ""}
+                        onChange={(e) =>
+                          setConsentFields((p) => ({
+                            ...p,
+                            procedureName: e.target.value,
+                          }))
+                        }
+                        placeholder="e.g. اپینڈکس سرجری / ہرنیا / سیزیرین"
+                        className="w-full text-xs bg-white border border-slate-200 rounded-lg px-2.5 py-2 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                        کس عضو کا آپریشن (Body Part / Organ)
+                      </label>
+                      <input
+                        type="text"
+                        value={consentFields.organOrBodyPart || ""}
+                        onChange={(e) =>
+                          setConsentFields((p) => ({
+                            ...p,
+                            organOrBodyPart: e.target.value,
+                          }))
+                        }
+                        placeholder="e.g. پیٹ (Abdomen) / آنکھ / دائیں ٹانگ"
+                        className="w-full text-xs bg-white border border-slate-200 rounded-lg px-2.5 py-2 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                        سرجن / ڈاکٹر کا نام (Operating Doctor)
+                      </label>
+                      <input
+                        type="text"
+                        value={consentFields.doctorName || ""}
+                        onChange={(e) =>
+                          setConsentFields((p) => ({
+                            ...p,
+                            doctorName: e.target.value,
+                          }))
+                        }
+                        placeholder="e.g. Dr. Ghias"
+                        className="w-full text-xs bg-white border border-slate-200 rounded-lg px-2.5 py-2 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                        بیہوشی کے ڈاکٹر کا نام (Anesthetist Name)
+                      </label>
+                      <input
+                        type="text"
+                        value={consentFields.anesthetistName || ""}
+                        onChange={(e) =>
+                          setConsentFields((p) => ({
+                            ...p,
+                            anesthetistName: e.target.value,
+                          }))
+                        }
+                        placeholder="e.g. Dr. Asif"
+                        className="w-full text-xs bg-white border border-slate-200 rounded-lg px-2.5 py-2 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                        ممکنہ پیچیدگیاں مثلاً (Complications)
+                      </label>
+                      <input
+                        type="text"
+                        value={consentFields.operationComplications || ""}
+                        onChange={(e) =>
+                          setConsentFields((p) => ({
+                            ...p,
+                            operationComplications: e.target.value,
+                          }))
+                        }
+                        placeholder="e.g. خون بہنا، انفیکشن، الرجی"
+                        className="w-full text-xs bg-white border border-slate-200 rounded-lg px-2.5 py-2 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                        متبادل طریقہ علاج (Alternative Treatment)
+                      </label>
+                      <input
+                        type="text"
+                        value={consentFields.operationAlternative || ""}
+                        onChange={(e) =>
+                          setConsentFields((p) => ({
+                            ...p,
+                            operationAlternative: e.target.value,
+                          }))
+                        }
+                        placeholder="e.g. ادویات و دیگر متبادل طریقہ علاج"
+                        className="w-full text-xs bg-white border border-slate-200 rounded-lg px-2.5 py-2 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Section C: Blood Transfusion Details */}
+              {selectedPermissions.includes("BLOOD_TRANSFUSION") && (
+                <div className="space-y-2 bg-slate-50/70 border border-slate-200 rounded-xl p-3.5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                      <Layers className="w-3.5 h-3.5 text-teal-700" />
+                      <span>انتقالِ خون کی تفصیلات (Blood Transfusion)</span>
+                    </p>
+                    <span className="text-[10px] text-slate-500">
+                      Blood Products & Risks
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                        خون / اجزاء مثلاً (Blood Components)
+                      </label>
+                      <input
+                        type="text"
+                        value={consentFields.bloodComponents || ""}
+                        onChange={(e) =>
+                          setConsentFields((p) => ({
+                            ...p,
+                            bloodComponents: e.target.value,
+                          }))
+                        }
+                        placeholder="e.g. Whole Blood, PRBC, FFP, Platelets"
+                        className="w-full text-xs bg-white border border-slate-200 rounded-lg px-2.5 py-2 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                        مضر اثرات و پیچیدگیاں مثلاً (Risks)
+                      </label>
+                      <input
+                        type="text"
+                        value={consentFields.bloodComplications || ""}
+                        onChange={(e) =>
+                          setConsentFields((p) => ({
+                            ...p,
+                            bloodComplications: e.target.value,
+                          }))
+                        }
+                        placeholder="e.g. بخار، الرجک ری ایکشن، لرزہ"
+                        className="w-full text-xs bg-white border border-slate-200 rounded-lg px-2.5 py-2 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                        متبادل (Alternative)
+                      </label>
+                      <input
+                        type="text"
+                        value={consentFields.bloodAlternative || ""}
+                        onChange={(e) =>
+                          setConsentFields((p) => ({
+                            ...p,
+                            bloodAlternative: e.target.value,
+                          }))
+                        }
+                        placeholder="e.g. آئرن تھراپی / آئی وی فلوئڈز"
+                        className="w-full text-xs bg-white border border-slate-200 rounded-lg px-2.5 py-2 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Section D: Date and Time */}
+              <div className="grid grid-cols-2 gap-2.5 pt-1">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                    تاریخ (Date)
+                  </label>
+                  <input
+                    type="text"
+                    value={consentFields.consentDate || ""}
+                    onChange={(e) =>
+                      setConsentFields((p) => ({ ...p, consentDate: e.target.value }))
+                    }
+                    placeholder="DD/MM/YYYY"
+                    className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-2 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                    وقت (Time)
+                  </label>
+                  <input
+                    type="text"
+                    value={consentFields.consentTime || ""}
+                    onChange={(e) =>
+                      setConsentFields((p) => ({ ...p, consentTime: e.target.value }))
+                    }
+                    placeholder="HH:MM AM/PM"
+                    className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-2 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Action Bar */}
           <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-2">

@@ -6,7 +6,7 @@ import PatientLayout from "@/components/layout/PatientLayout";
 import PatientListClient from "./PatientListClient";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Patients Directory — GIAS Hospital" };
+export const metadata = { title: "Patients Directory — GHIAS Hospital" };
 
 export default async function PatientsPage() {
   const user = await getCurrentUser();

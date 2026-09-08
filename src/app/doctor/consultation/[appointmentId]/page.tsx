@@ -17,10 +17,10 @@ export async function generateMetadata({ params }: Props) {
     include: { patient: { select: { firstName: true, lastName: true } } },
   });
 
-  if (!appointment) return { title: "Consultation Workspace — GIAS Hospital" };
+  if (!appointment) return { title: "Consultation Workspace — GHIAS Hospital" };
 
   return {
-    title: `Clinical Consultation: ${appointment.patient.firstName} ${appointment.patient.lastName} — GIAS Hospital`,
+    title: `Clinical Consultation: ${appointment.patient.firstName} ${appointment.patient.lastName} — GHIAS Hospital`,
   };
 }
 

@@ -75,7 +75,7 @@ export default function LoginPage() {
             </svg>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-white uppercase">
-            GIAS Hospital
+            GHIAS Hospital
           </h1>
           <p className="text-xs uppercase tracking-widest text-teal-300 font-semibold mt-1">
             Hospital Management System
@@ -124,7 +124,7 @@ export default function LoginPage() {
                   required
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder="e.g. admin@gias-hospital.com or admin"
+                  placeholder="e.g. admin@ghias-hospital.com or admin"
                   disabled={isLoading}
                   className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-md text-slate-900 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-600 focus:border-teal-600 disabled:bg-slate-50 disabled:text-slate-500"
                 />
@@ -206,10 +206,10 @@ export default function LoginPage() {
               Development Test Accounts
             </h2>
             <div className="text-xs text-slate-600 space-y-1 bg-slate-50 p-3 rounded border border-slate-200 font-mono">
-              <div><strong className="text-slate-800 font-sans">Admin:</strong> admin@gias-hospital.com / Admin@1234</div>
-              <div><strong className="text-slate-800 font-sans">Doctor:</strong> doctor@gias-hospital.com / Doctor@1234</div>
-              <div><strong className="text-slate-800 font-sans">Nurse:</strong> nurse@gias-hospital.com / Nurse@1234</div>
-              <div><strong className="text-slate-800 font-sans">Staff:</strong> staff@gias-hospital.com / Staff@1234</div>
+              <div><strong className="text-slate-800 font-sans">Admin:</strong> admin@ghias-hospital.com / Admin@1234</div>
+              <div><strong className="text-slate-800 font-sans">Doctor:</strong> doctor@ghias-hospital.com / Doctor@1234</div>
+              <div><strong className="text-slate-800 font-sans">Nurse:</strong> nurse@ghias-hospital.com / Nurse@1234</div>
+              <div><strong className="text-slate-800 font-sans">Staff:</strong> staff@ghias-hospital.com / Staff@1234</div>
             </div>
           </div>
         </div>
@@ -217,7 +217,7 @@ export default function LoginPage() {
         {/* Footer */}
         <div className="bg-slate-50 px-6 py-3 border-t border-slate-200 text-center">
           <p className="text-xs text-slate-500">
-            GIAS Hospital Management System &copy; 2026. Secure Access Portal.
+            GHIAS Hospital Management System &copy; 2026. Secure Access Portal.
           </p>
         </div>
       </div>

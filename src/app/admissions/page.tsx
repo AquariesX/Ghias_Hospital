@@ -6,7 +6,7 @@ import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import AdmissionsClient from "./AdmissionsClient";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Inpatient Admission — GIAS Hospital" };
+export const metadata = { title: "Inpatient Admission — GHIAS Hospital" };
 
 export default async function AdmissionsPage() {
   const user = await getCurrentUser();

@@ -6,7 +6,7 @@ import DoctorPatientsClient from "./DoctorPatientsClient";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
-  title: "Doctor Patient Directory — GIAS Hospital",
+  title: "Doctor Patient Directory — GHIAS Hospital",
 };
 
 export default async function DoctorPatientsPage() {

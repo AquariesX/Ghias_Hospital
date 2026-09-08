@@ -17,7 +17,7 @@ import { AppointmentStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
-  title: "Physician Workspace — GIAS Hospital",
+  title: "Physician Workspace — GHIAS Hospital",
 };
 
 export default async function DoctorDashboardPage() {

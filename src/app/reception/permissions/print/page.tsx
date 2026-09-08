@@ -6,7 +6,7 @@ import { PermissionType } from "@/components/permissions/PermissionDocumentView"
 
 export const dynamic = "force-dynamic";
 export const metadata = {
-  title: "Print Patient Permission Document — GIAS Hospital",
+  title: "Print Patient Permission Document — GHIAS Hospital",
 };
 
 interface PrintPageProps {
@@ -14,6 +14,20 @@ interface PrintPageProps {
     patientId?: string;
     admissionId?: string;
     forms?: string;
+    giverName?: string;
+    giverRelation?: string;
+    relationPersonName?: string;
+    procedureName?: string;
+    organOrBodyPart?: string;
+    doctorName?: string;
+    anesthetistName?: string;
+    operationComplications?: string;
+    operationAlternative?: string;
+    bloodComponents?: string;
+    bloodComplications?: string;
+    bloodAlternative?: string;
+    consentDate?: string;
+    consentTime?: string;
   }>;
 }
 
@@ -28,7 +42,8 @@ export default async function PermissionPrintPage({ searchParams }: PrintPagePro
     redirect("/login");
   }
 
-  const { patientId, admissionId, forms } = await searchParams;
+  const params = await searchParams;
+  const { patientId, admissionId, forms } = params;
 
   if (!patientId || !admissionId) {
     notFound();
@@ -71,8 +86,12 @@ export default async function PermissionPrintPage({ searchParams }: PrintPagePro
   const dob = new Date(patient.dateOfBirth);
   const ageYears = new Date().getFullYear() - dob.getFullYear();
 
+  const doctorFullName = admission.doctor
+    ? `Dr. ${admission.doctor.firstName} ${admission.doctor.lastName}`
+    : "Dr. Ghias Hospital";
+
   const documentData = {
-    hospitalName: "GIAS HOSPITAL PHALIA",
+    hospitalName: "GHIAS HOSPITAL PHALIA",
     regNumber: "REG NO. R-59488",
     generatedAt: new Date().toISOString(),
     generatedBy: `${user.firstName} ${user.lastName}`,
@@ -80,6 +99,22 @@ export default async function PermissionPrintPage({ searchParams }: PrintPagePro
     status: "UNSIGNED",
     watermarkText: "UNSIGNED / FOR SIGNATURE",
     selectedPermissions: selectedForms,
+    consentDetails: {
+      giverName: params.giverName || patient.relatedPersonName || `${patient.firstName} ${patient.lastName}`,
+      relationToPatient: params.giverRelation || patient.relationType || "خود / مریض",
+      relationPersonName: params.relationPersonName || patient.relatedPersonName || "",
+      procedureName: params.procedureName || admission.provisionalDiagnosis || admission.treatmentPlan || "علاج و سرجری",
+      organOrBodyPart: params.organOrBodyPart || "",
+      doctorName: params.doctorName || doctorFullName,
+      anesthetistName: params.anesthetistName || params.doctorName || doctorFullName,
+      operationComplications: params.operationComplications || "خون بہنا، انفیکشن، الرجی",
+      operationAlternative: params.operationAlternative || "ادویات و دیگر متبادل طریقہ علاج",
+      bloodComponents: params.bloodComponents || "ہول بلڈ / ریڈ سیلز (Whole Blood / PRBC)",
+      bloodComplications: params.bloodComplications || "بخار، الرجک ری ایکشن، لرزہ",
+      bloodAlternative: params.bloodAlternative || "آئرن تھراپی / آئی وی فلوئڈز",
+      consentDate: params.consentDate || new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }),
+      consentTime: params.consentTime || new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }),
+    },
     patient: {
       id: patient.id,
       patientNumber: patient.patientNumber,

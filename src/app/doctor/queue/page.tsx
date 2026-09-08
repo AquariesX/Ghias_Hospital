@@ -7,7 +7,7 @@ import DoctorQueueClient from "./DoctorQueueClient";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
-  title: "Doctor Clinical Queue — GIAS Hospital",
+  title: "Doctor Clinical Queue — GHIAS Hospital",
 };
 
 export default async function DoctorQueuePage() {

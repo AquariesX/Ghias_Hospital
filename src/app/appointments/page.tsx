@@ -7,7 +7,7 @@ import AppointmentsListClient from "./AppointmentsListClient";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
-  title: "Appointments Directory — GIAS Hospital",
+  title: "Appointments Directory — GHIAS Hospital",
 };
 
 export default async function AppointmentsPage() {

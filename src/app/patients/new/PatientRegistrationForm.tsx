@@ -254,7 +254,7 @@ export default function PatientRegistrationForm() {
           </div>
         </div>
         <div className="text-right text-xs text-slate-400 hidden sm:block">
-          <p>GIAS Hospital Management System</p>
+          <p>GHIAS Hospital Management System</p>
           <p className="text-teal-400 font-medium">Frontdesk Patient Intake</p>
         </div>
       </div>

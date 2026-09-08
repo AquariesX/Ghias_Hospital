@@ -19,7 +19,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "GIAS Hospital Management System",
+  title: "GHIAS Hospital Management System",
   description: "Hospital workflow management and digital health record system",
 };
 

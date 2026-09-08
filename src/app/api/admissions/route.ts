@@ -112,6 +112,13 @@ export async function GET(request: NextRequest) {
               dateOfBirth: true,
               phone: true,
               bloodGroup: true,
+              cnic: true,
+              relationType: true,
+              relatedPersonName: true,
+              emergencyContactName: true,
+              emergencyContactPhone: true,
+              emergencyContactRelation: true,
+              address: true,
               status: true,
             },
           },
@@ -142,6 +149,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: admissions,
+      admissions: admissions,
       pagination: {
         page,
         limit,

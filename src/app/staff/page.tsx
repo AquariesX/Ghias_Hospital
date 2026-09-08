@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Staff & Nursing Workspace — GIAS Hospital" };
+export const metadata = { title: "Staff & Nursing Workspace — GHIAS Hospital" };
 
 export default async function StaffDashboardPage() {
   const user = await getCurrentUser();

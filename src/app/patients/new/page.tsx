@@ -6,7 +6,7 @@ import PatientLayout from "@/components/layout/PatientLayout";
 import PatientRegistrationForm from "./PatientRegistrationForm";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Admit Patient — GIAS Hospital" };
+export const metadata = { title: "Admit Patient — GHIAS Hospital" };
 
 export default async function NewPatientPage() {
   const user = await getCurrentUser();

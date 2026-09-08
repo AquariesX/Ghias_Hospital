@@ -13,6 +13,7 @@ const generatePermissionSchema = z.object({
     .array(z.enum(VALID_PERMISSION_TYPES))
     .min(1, "Please select at least one permission form")
     .max(3, "Maximum 3 permission types allowed"),
+  consentDetails: z.record(z.string(), z.any()).optional(),
 });
 
 const PERMISSION_LABELS: Record<(typeof VALID_PERMISSION_TYPES)[number], { en: string; ur: string }> = {

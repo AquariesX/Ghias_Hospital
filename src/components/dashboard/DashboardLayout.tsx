@@ -73,14 +73,14 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
           </div>
           <div>
             <span className="font-bold text-white tracking-wide text-sm block">
-              GIAS HOSPITAL
+              GHIAS HOSPITAL
             </span>
             <span className="text-[10px] uppercase tracking-wider text-teal-400 font-medium block">
               {user.role === "DOCTOR"
                 ? "Doctor Portal"
                 : user.role === "NURSE" || user.staffRole === "HEAD_NURSE" || user.staffRole === "STAFF_NURSE"
-                ? `Nurse Portal${user.nurseDepartment ? ` — ${user.nurseDepartment}` : ""}`
-                : "Management System"}
+                  ? `Nurse Portal${user.nurseDepartment ? ` — ${user.nurseDepartment}` : ""}`
+                  : "Management System"}
             </span>
           </div>
         </div>
@@ -98,11 +98,10 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
                   <li>
                     <Link
                       href="/doctor"
-                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                        pathname === "/doctor"
+                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${pathname === "/doctor"
                           ? "bg-teal-700 text-white shadow-sm"
                           : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                      }`}
+                        }`}
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path
@@ -127,11 +126,10 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
                   <li>
                     <Link
                       href="/doctor/queue"
-                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                        pathname === "/doctor/queue"
+                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${pathname === "/doctor/queue"
                           ? "bg-teal-700 text-white shadow-sm"
                           : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                      }`}
+                        }`}
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
@@ -143,11 +141,10 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
                   <li>
                     <Link
                       href="/doctor/appointments"
-                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                        pathname === "/doctor/appointments"
+                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${pathname === "/doctor/appointments"
                           ? "bg-teal-700 text-white shadow-sm"
                           : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                      }`}
+                        }`}
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
@@ -159,11 +156,10 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
                   <li>
                     <Link
                       href="/doctor/inpatients"
-                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                        pathname.startsWith("/doctor/inpatients")
+                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${pathname.startsWith("/doctor/inpatients")
                           ? "bg-teal-700 text-white shadow-sm"
                           : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                      }`}
+                        }`}
                     >
                       <svg className="w-4 h-4 text-rose-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
@@ -175,11 +171,10 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
                   <li>
                     <Link
                       href="/reports"
-                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                        pathname === "/reports"
+                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${pathname === "/reports"
                           ? "bg-teal-700 text-white shadow-sm"
                           : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                      }`}
+                        }`}
                     >
                       <svg className="w-4 h-4 text-teal-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
@@ -200,11 +195,10 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
                   <li>
                     <Link
                       href="/doctor/patients"
-                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                        pathname === "/doctor/patients"
+                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${pathname === "/doctor/patients"
                           ? "bg-teal-700 text-white shadow-sm"
                           : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                      }`}
+                        }`}
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
@@ -216,11 +210,10 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
                   <li>
                     <Link
                       href="/patients"
-                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                        pathname === "/patients" || (pathname.startsWith("/patients") && pathname !== "/patients/new")
+                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${pathname === "/patients" || (pathname.startsWith("/patients") && pathname !== "/patients/new")
                           ? "bg-teal-700 text-white shadow-sm"
                           : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                      }`}
+                        }`}
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
@@ -243,11 +236,10 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
                   <li>
                     <Link
                       href="/staff"
-                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                        pathname === "/staff"
+                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${pathname === "/staff"
                           ? "bg-teal-700 text-white shadow-sm"
                           : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                      }`}
+                        }`}
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path
@@ -273,11 +265,10 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
                     <li>
                       <Link
                         href="/staff/opd"
-                        className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                          pathname === "/staff/opd"
+                        className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${pathname === "/staff/opd"
                             ? "bg-teal-700 text-white shadow-sm"
                             : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                        }`}
+                          }`}
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
@@ -291,11 +282,10 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
                     <li>
                       <Link
                         href="/staff/emergency"
-                        className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                          pathname === "/staff/emergency"
+                        className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${pathname === "/staff/emergency"
                             ? "bg-teal-700 text-white shadow-sm"
                             : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                        }`}
+                          }`}
                       >
                         <svg className="w-4 h-4 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -316,11 +306,10 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
                   <li>
                     <Link
                       href="/staff/patients"
-                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                        pathname === "/staff/patients" || (pathname.startsWith("/staff/patients") && pathname !== "/staff/patients/new")
+                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${pathname === "/staff/patients" || (pathname.startsWith("/staff/patients") && pathname !== "/staff/patients/new")
                           ? "bg-teal-700 text-white shadow-sm"
                           : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                      }`}
+                        }`}
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
@@ -343,11 +332,10 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
                   <li>
                     <Link
                       href="/staff"
-                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                        pathname === "/staff"
+                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${pathname === "/staff"
                           ? "bg-teal-700 text-white shadow-sm"
                           : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                      }`}
+                        }`}
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path
@@ -363,11 +351,10 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
                   <li>
                     <Link
                       href="/appointments"
-                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                        pathname === "/appointments"
+                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${pathname === "/appointments"
                           ? "bg-teal-700 text-white shadow-sm"
                           : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                      }`}
+                        }`}
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
@@ -380,11 +367,10 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
                     <li>
                       <Link
                         href="/appointments/new"
-                        className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                          pathname === "/appointments/new"
+                        className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${pathname === "/appointments/new"
                             ? "bg-teal-700 text-white shadow-sm"
                             : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                        }`}
+                          }`}
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -397,11 +383,10 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
                     <li>
                       <Link
                         href="/patients/new"
-                        className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                          pathname === "/patients/new"
+                        className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${pathname === "/patients/new"
                             ? "bg-teal-700 text-white shadow-sm"
                             : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                        }`}
+                          }`}
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
@@ -415,11 +400,10 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
                     <li>
                       <Link
                         href="/reception/permissions"
-                        className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                          pathname.startsWith("/reception/permissions")
+                        className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${pathname.startsWith("/reception/permissions")
                             ? "bg-teal-700 text-white shadow-sm"
                             : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                        }`}
+                          }`}
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
@@ -432,11 +416,10 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
                   <li>
                     <Link
                       href="/patients"
-                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                        pathname === "/patients" || (pathname.startsWith("/patients") && pathname !== "/patients/new")
+                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${pathname === "/patients" || (pathname.startsWith("/patients") && pathname !== "/patients/new")
                           ? "bg-teal-700 text-white shadow-sm"
                           : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                      }`}
+                        }`}
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
@@ -448,11 +431,10 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
                   <li>
                     <Link
                       href="/doctor/inpatients"
-                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                        pathname.startsWith("/doctor/inpatients")
+                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${pathname.startsWith("/doctor/inpatients")
                           ? "bg-teal-700 text-white shadow-sm"
                           : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                      }`}
+                        }`}
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
@@ -464,11 +446,10 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
                   <li>
                     <Link
                       href="/reports"
-                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                        pathname === "/reports"
+                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${pathname === "/reports"
                           ? "bg-teal-700 text-white shadow-sm"
                           : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                      }`}
+                        }`}
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
@@ -543,11 +524,9 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
         <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shadow-xs">
           <div className="flex items-center gap-3">
             <h1 className="text-base font-bold text-slate-800">
-              GIAS Hospital Management System
+              GHIAS Hospital Management System
             </h1>
-            <span className="hidden sm:inline-block text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium border border-slate-200">
-              Phase 1 Active
-            </span>
+
           </div>
 
           <div className="flex items-center gap-4">

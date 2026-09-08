@@ -6,7 +6,7 @@ import prisma from "@/lib/prisma";
 import StatusBadge from "@/components/ui/StatusBadge";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Admin Dashboard — GIAS Hospital" };
+export const metadata = { title: "Admin Dashboard — GHIAS Hospital" };
 
 function formatAction(action: string): string {
   return action
@@ -161,7 +161,7 @@ export default async function AdminDashboardPage() {
                 Welcome back, {user.firstName} {user.lastName}
               </h1>
               <p className="text-sm text-slate-500 mt-0.5">
-                GIAS Hospital Management System — Phase 2: Admin Module
+                GHIAS Hospital Management System — Phase 2: Admin Module
               </p>
             </div>
             <div className="flex items-center gap-2">

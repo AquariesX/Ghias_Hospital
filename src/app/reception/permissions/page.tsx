@@ -6,7 +6,7 @@ import PermissionsClient from "./PermissionsClient";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
-  title: "Patient Permissions & Consents — GIAS Hospital",
+  title: "Patient Permissions & Consents — GHIAS Hospital",
 };
 
 export default async function ReceptionPermissionsPage() {

@@ -20,7 +20,7 @@ import { AdmissionStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
-  title: "Inpatient Ward & Discharge — GIAS Hospital",
+  title: "Inpatient Ward & Discharge — GHIAS Hospital",
 };
 
 interface SearchParams {
