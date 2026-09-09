@@ -69,7 +69,7 @@ async function main() {
       appointmentNumber: aptNumber,
       patientId: patient.id,
       doctorId: testDoctor.id,
-      departmentId: testDoctor.departmentId,
+      departmentId: testDoctor.departmentId!,
       appointmentDate: new Date(),
       appointmentTime: "10:30 AM",
       consultationFee: testDoctor.consultationFee,

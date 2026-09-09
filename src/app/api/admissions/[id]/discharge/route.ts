@@ -201,24 +201,36 @@ export async function POST(
           });
 
           if (aptDoctor) {
-            const appointmentNumber = await generateNextAppointmentNumber();
-            const followUpApt = await tx.appointment.create({
-              data: {
-                appointmentNumber,
-                patientId: admission.patientId,
-                doctorId: aptDoctor.id,
-                departmentId: aptDoctor.departmentId,
-                appointmentType: AppointmentType.FOLLOW_UP,
-                appointmentDate: new Date(data.followUpDate),
-                appointmentTime: "10:00 AM",
-                consultationFee: aptDoctor.consultationFee,
-                reason: `Inpatient Discharge Follow-up for Admission #${admission.admissionNumber} (${data.finalDiagnosis})`,
-                status: AppointmentStatus.SCHEDULED,
-                notes: data.followUpInstructions || "Routine post-discharge clinical evaluation",
-                createdById: user.id,
-              },
-            });
-            createdAppointmentId = followUpApt.id;
+            let followUpDeptId = aptDoctor.departmentId;
+            if (!followUpDeptId) {
+              const fallbackDept = await tx.department.findFirst({
+                where: { status: "ACTIVE" },
+                orderBy: { createdAt: "asc" },
+                select: { id: true },
+              });
+              followUpDeptId = fallbackDept?.id || null;
+            }
+
+            if (followUpDeptId) {
+              const appointmentNumber = await generateNextAppointmentNumber();
+              const followUpApt = await tx.appointment.create({
+                data: {
+                  appointmentNumber,
+                  patientId: admission.patientId,
+                  doctorId: aptDoctor.id,
+                  departmentId: followUpDeptId,
+                  appointmentType: AppointmentType.FOLLOW_UP,
+                  appointmentDate: new Date(data.followUpDate),
+                  appointmentTime: "10:00 AM",
+                  consultationFee: aptDoctor.consultationFee,
+                  reason: `Inpatient Discharge Follow-up for Admission #${admission.admissionNumber} (${data.finalDiagnosis})`,
+                  status: AppointmentStatus.SCHEDULED,
+                  notes: data.followUpInstructions || "Routine post-discharge clinical evaluation",
+                  createdById: user.id,
+                },
+              });
+              createdAppointmentId = followUpApt.id;
+            }
           }
         }
       }

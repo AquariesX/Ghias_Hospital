@@ -18,7 +18,7 @@ const updateDoctorSchema = z.object({
   consultationFee: z.number().min(0).optional(),
   availability: z.enum(["AVAILABLE", "BUSY", "ON_LEAVE", "OFFLINE"]).optional(),
   status: z.enum(["ACTIVE", "ON_LEAVE", "INACTIVE"]).optional(),
-  departmentId: z.string().uuid().optional(),
+  departmentId: z.string().uuid().optional().nullable().or(z.literal("")),
   userId: z.string().uuid().optional().nullable(),
 });
 
@@ -134,12 +134,15 @@ export async function PUT(
       }
     }
 
-    const { password: _p, ...doctorUpdateData } = parsed.data;
+    const { password: _p, departmentId: reqDeptId, ...doctorUpdateData } = parsed.data;
 
     const updated = await prisma.doctor.update({
       where: { id },
       data: {
         ...doctorUpdateData,
+        ...(reqDeptId !== undefined && {
+          departmentId: reqDeptId && reqDeptId.trim() !== "" ? reqDeptId : null,
+        }),
         userId: linkedUserId,
         consultationFee: parsed.data.consultationFee !== undefined
           ? parsed.data.consultationFee

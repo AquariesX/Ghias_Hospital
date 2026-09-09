@@ -94,7 +94,7 @@ async function main() {
       appointmentNumber: apptNumber,
       patient: { connect: { id: testPatient.id } },
       doctor: { connect: { id: doctorA.id } },
-      department: { connect: { id: doctorA.departmentId } },
+      department: { connect: { id: doctorA.departmentId! } },
       createdBy: { connect: { id: adminOrStaffUser.id } },
       appointmentDate: today,
       appointmentTime: "10:30 AM",

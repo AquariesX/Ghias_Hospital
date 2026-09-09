@@ -154,7 +154,7 @@ async function runPhase6Verification() {
         appointmentNumber: `APT-PH6-${Date.now().toString().slice(-6)}`,
         patientId: testPatient.id,
         doctorId: doctorUser.doctorProfile.id,
-        departmentId: dept ? dept.id : doctorUser.doctorProfile.departmentId,
+        departmentId: dept ? dept.id : doctorUser.doctorProfile.departmentId!,
         appointmentDate: todayStart,
         appointmentTime: "11:30 AM",
         consultationFee: 2000.0,

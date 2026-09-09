@@ -264,10 +264,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 3. Resolve Department (from data or doctor's assigned department)
-    const targetDeptId = data.departmentId || doctor.departmentId;
+    // 3. Resolve Department (from data or doctor's assigned department, with active fallback)
+    let targetDeptId = data.departmentId || doctor.departmentId;
     if (!targetDeptId) {
-      return NextResponse.json({ error: "Doctor is not assigned to a department" }, { status: 400 });
+      const fallbackDept = await prisma.department.findFirst({
+        where: { status: "ACTIVE" },
+        orderBy: { createdAt: "asc" },
+        select: { id: true },
+      });
+      targetDeptId = fallbackDept?.id || null;
+    }
+
+    if (!targetDeptId) {
+      return NextResponse.json({ error: "No active clinical department available for appointment" }, { status: 400 });
     }
 
     const department = await prisma.department.findUnique({

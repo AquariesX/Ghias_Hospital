@@ -6,31 +6,59 @@ export async function GET(request: NextRequest) {
   try {
     await requireAppointmentAccess(request);
 
-    const departments = await prisma.department.findMany({
-      where: { status: "ACTIVE" },
-      select: {
-        id: true,
-        code: true,
-        name: true,
-        description: true,
-        doctors: {
-          where: { status: "ACTIVE" },
-          select: {
-            id: true,
-            doctorNumber: true,
-            firstName: true,
-            lastName: true,
-            specialization: true,
-            roomNumber: true,
-            consultationFee: true,
-            availability: true,
-            status: true,
+    const [departments, unassignedDoctors] = await Promise.all([
+      prisma.department.findMany({
+        where: { status: "ACTIVE" },
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          description: true,
+          doctors: {
+            where: { status: "ACTIVE" },
+            select: {
+              id: true,
+              doctorNumber: true,
+              firstName: true,
+              lastName: true,
+              specialization: true,
+              roomNumber: true,
+              consultationFee: true,
+              availability: true,
+              status: true,
+            },
+            orderBy: { firstName: "asc" },
           },
-          orderBy: { firstName: "asc" },
         },
-      },
-      orderBy: { name: "asc" },
-    });
+        orderBy: { name: "asc" },
+      }),
+      prisma.doctor.findMany({
+        where: { status: "ACTIVE", departmentId: null },
+        select: {
+          id: true,
+          doctorNumber: true,
+          firstName: true,
+          lastName: true,
+          specialization: true,
+          roomNumber: true,
+          consultationFee: true,
+          availability: true,
+          status: true,
+        },
+        orderBy: { firstName: "asc" },
+      }),
+    ]);
+
+    if (unassignedDoctors.length > 0) {
+      const fallbackDeptId = departments[0]?.id || "";
+      departments.push({
+        id: fallbackDeptId,
+        code: "GEN",
+        name: "General Consultation / OPD",
+        description: "Doctors assigned to consultation rooms",
+        doctors: unassignedDoctors,
+      });
+    }
 
     return NextResponse.json({ departments });
   } catch (err: unknown) {

@@ -22,7 +22,7 @@ const createDoctorSchema = z.object({
     .min(0, "Fee must be non-negative"),
   availability: z.enum(["AVAILABLE", "BUSY", "ON_LEAVE", "OFFLINE"]).default("AVAILABLE"),
   status: z.enum(["ACTIVE", "ON_LEAVE", "INACTIVE"]).default("ACTIVE"),
-  departmentId: z.string().uuid("Invalid department"),
+  departmentId: z.string().uuid("Invalid department").optional().nullable().or(z.literal("")),
   userId: z.string().uuid("Invalid user").optional().nullable(),
 });
 
@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
         consultationFee: data.consultationFee,
         availability: data.availability as "AVAILABLE" | "BUSY" | "ON_LEAVE" | "OFFLINE",
         status: data.status as "ACTIVE" | "ON_LEAVE" | "INACTIVE",
-        departmentId: data.departmentId,
+        departmentId: data.departmentId || null,
         userId: linkedUserId,
       },
       include: {

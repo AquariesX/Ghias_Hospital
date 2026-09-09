@@ -96,10 +96,10 @@ export default async function DoctorDetailPage({
             {infoRow("Email Address", doctor.email)}
             {infoRow("Phone Number", doctor.phone)}
             {infoRow("Specialization", doctor.specialization)}
-            {infoRow("Department", doctor.department.name)}
+            {infoRow("Room Number", doctor.roomNumber ? `📍 ${doctor.roomNumber}` : "Not assigned")}
+            {infoRow("Department", doctor.department?.name || "None / General OPD")}
             {infoRow("Qualifications", doctor.qualifications)}
             {infoRow("Experience", doctor.experience)}
-            {infoRow("Room Number", doctor.roomNumber)}
             {infoRow(
               "Consultation Fee",
               `PKR ${Number(doctor.consultationFee).toLocaleString()}`

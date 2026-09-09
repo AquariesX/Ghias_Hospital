@@ -67,6 +67,7 @@ export default function AddDoctorForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
+          departmentId: form.departmentId || null,
           consultationFee: parseFloat(form.consultationFee) || 0,
         }),
       });
@@ -182,45 +183,32 @@ export default function AddDoctorForm() {
 
         {/* Clinical Info */}
         <div className="bg-white border border-slate-200 rounded-lg p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-slate-800 border-b border-slate-100 pb-2">
-            Clinical Information
-          </h2>
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+            <h2 className="text-sm font-semibold text-slate-800">
+              Clinical & Room Information
+            </h2>
+            <span className="text-[11px] text-teal-700 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded font-medium">
+              Room # is primary location
+            </span>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Specialization <span className="text-rose-500">*</span>
               </label>
               <input name="specialization" value={form.specialization} onChange={handleChange}
-                className={inputClass} placeholder="Cardiology" required />
+                className={inputClass} placeholder="e.g. Cardiology / General Physician" required />
               <FieldError name="specialization" errors={errors} />
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Department <span className="text-rose-500">*</span>
+                Doctor Room Number
               </label>
-              <select name="departmentId" value={form.departmentId} onChange={handleChange}
-                className={inputClass} required>
-                <option value="">Select department...</option>
-                {departments.map((d) => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
-                ))}
-              </select>
-              <FieldError name="departmentId" errors={errors} />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Qualifications</label>
-              <input name="qualifications" value={form.qualifications} onChange={handleChange}
-                className={inputClass} placeholder="MBBS, FCPS (Cardiology)" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Experience</label>
-              <input name="experience" value={form.experience} onChange={handleChange}
-                className={inputClass} placeholder="15 Years" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Room Number</label>
               <input name="roomNumber" value={form.roomNumber} onChange={handleChange}
-                className={inputClass} placeholder="OPD-101" />
+                className={inputClass} placeholder="e.g. Room 101 / OPD-3" />
+              <p className="text-[11px] text-slate-500 mt-1">
+                Primary consultation room where patients will be directed.
+              </p>
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -230,6 +218,32 @@ export default function AddDoctorForm() {
                 value={form.consultationFee} onChange={handleChange}
                 className={inputClass} placeholder="2500" required />
               <FieldError name="consultationFee" errors={errors} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Department <span className="text-slate-400 font-normal text-[11px]">(Optional)</span>
+              </label>
+              <select name="departmentId" value={form.departmentId} onChange={handleChange}
+                className={inputClass}>
+                <option value="">No Department Assigned (Optional)</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+              <p className="text-[11px] text-slate-500 mt-1">
+                Optional division grouping. Leave blank if doctors are identified by Room Number.
+              </p>
+              <FieldError name="departmentId" errors={errors} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Qualifications</label>
+              <input name="qualifications" value={form.qualifications} onChange={handleChange}
+                className={inputClass} placeholder="MBBS, FCPS" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Experience</label>
+              <input name="experience" value={form.experience} onChange={handleChange}
+                className={inputClass} placeholder="10 Years" />
             </div>
           </div>
         </div>

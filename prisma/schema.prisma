@@ -210,8 +210,8 @@ model Doctor {
   availability    DoctorAvailability @default(AVAILABLE)
   status          DoctorStatus       @default(ACTIVE)
 
-  departmentId String
-  department   Department @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
 
   userId String? @unique
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -587,6 +587,7 @@ model Admission {
 
   doctorId              String?
   doctor                Doctor?         @relation(fields: [doctorId], references: [id], onDelete: SetNull)
+  doctorName            String?
 
   admissionDate         DateTime        @db.Date
   admissionTime         String?         // e.g. "01:20 AM"

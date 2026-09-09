@@ -296,7 +296,7 @@ export default async function AdminDashboardPage() {
                           {doc.doctorNumber} · {doc.specialization}
                         </p>
                         <p className="text-xs text-slate-400 truncate">
-                          {doc.department.name}
+                          {doc.roomNumber ? `Room ${doc.roomNumber}` : (doc.department?.name || "General")}
                         </p>
                       </div>
                       <StatusBadge status={doc.status} />

@@ -24,7 +24,7 @@ export interface DoctorAuthorizedUser {
       id: string;
       name: string;
       code: string;
-    };
+    } | null;
   };
 }
 

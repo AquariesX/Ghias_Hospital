@@ -22,7 +22,7 @@ export interface AppointmentAuthorizedUser {
     doctorNumber: string;
     firstName: string;
     lastName: string;
-    departmentId: string;
+    departmentId: string | null;
   } | null;
 }
 

@@ -598,7 +598,7 @@ export default function AppointmentBookingWizard() {
                 <option value="">-- Choose Doctor --</option>
                 {allDoctors.map((doc) => (
                   <option key={doc.id} value={doc.id}>
-                    Dr. {doc.firstName} {doc.lastName} — {doc.specialization} ({doc.departmentName}) • Fee: PKR {Number(doc.consultationFee).toLocaleString()}
+                    Dr. {doc.firstName} {doc.lastName} — {doc.specialization} {doc.roomNumber ? `(Room: ${doc.roomNumber})` : (doc.departmentName ? `(${doc.departmentName})` : "")} • Fee: PKR {Number(doc.consultationFee).toLocaleString()}
                   </option>
                 ))}
               </select>
@@ -613,10 +613,12 @@ export default function AppointmentBookingWizard() {
                   Dr. {selectedDoctor.firstName} {selectedDoctor.lastName}
                 </p>
                 <p className="text-teal-800 font-medium">
-                  {selectedDoctor.specialization} • {selectedDoctor.departmentName}
+                  {selectedDoctor.specialization} {selectedDoctor.departmentName ? `• ${selectedDoctor.departmentName}` : ""}
                 </p>
-                {selectedDoctor.roomNumber && (
-                  <p className="text-teal-700 mt-0.5 font-medium">Room: {selectedDoctor.roomNumber}</p>
+                {selectedDoctor.roomNumber ? (
+                  <p className="text-teal-700 mt-0.5 font-bold">📍 Room: {selectedDoctor.roomNumber}</p>
+                ) : (
+                  <p className="text-slate-400 mt-0.5 text-[11px]">No room assigned</p>
                 )}
               </div>
               <div className="text-right">

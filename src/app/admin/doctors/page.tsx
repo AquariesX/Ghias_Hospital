@@ -166,7 +166,7 @@ export default async function DoctorsListPage({
                     <tr className="border-b border-slate-200 bg-slate-50">
                       <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Doctor #</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Name</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 hidden md:table-cell">Specialization</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 hidden md:table-cell">Specialization & Room</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 hidden lg:table-cell">Department</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 hidden lg:table-cell">Fee (PKR)</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Availability</th>
@@ -182,8 +182,17 @@ export default async function DoctorsListPage({
                           <p className="font-medium text-slate-900">Dr. {doc.firstName} {doc.lastName}</p>
                           <p className="text-xs text-slate-400">{doc.email}</p>
                         </td>
-                        <td className="px-4 py-3 text-slate-600 hidden md:table-cell">{doc.specialization}</td>
-                        <td className="px-4 py-3 text-slate-600 hidden lg:table-cell text-xs">{doc.department.name}</td>
+                        <td className="px-4 py-3 hidden md:table-cell">
+                          <p className="text-slate-800 font-medium">{doc.specialization}</p>
+                          {doc.roomNumber ? (
+                            <p className="text-xs font-semibold text-teal-700">📍 Room: {doc.roomNumber}</p>
+                          ) : (
+                            <p className="text-[11px] text-slate-400">No room</p>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-slate-600 hidden lg:table-cell text-xs">
+                          {doc.department?.name || <span className="text-slate-400 italic">None</span>}
+                        </td>
                         <td className="px-4 py-3 text-slate-600 hidden lg:table-cell">
                           {Number(doc.consultationFee).toLocaleString()}
                         </td>

@@ -37,10 +37,10 @@ interface DoctorInfo {
   specialization: string;
   roomNumber: string | null;
   consultationFee: number | string;
-  department: {
+  department?: {
     id: string;
     name: string;
-  };
+  } | null;
 }
 
 interface QueueAppointment {
@@ -243,7 +243,7 @@ export default function DoctorQueueClient({
               >
                 {doctorsList.map((d) => (
                   <option key={d.id} value={d.id}>
-                    Dr. {d.firstName} {d.lastName} ({d.department.name})
+                    Dr. {d.firstName} {d.lastName} {d.roomNumber ? `(Room: ${d.roomNumber})` : (d.department?.name ? `(${d.department.name})` : "")}
                   </option>
                 ))}
               </select>
@@ -288,8 +288,9 @@ export default function DoctorQueueClient({
                 </span>
               </div>
               <p className="text-xs text-teal-200 mt-0.5">
-                {selectedDoctor.specialization} • Department: {selectedDoctor.department.name}
-                {selectedDoctor.roomNumber ? ` • Room: ${selectedDoctor.roomNumber}` : ""}
+                {selectedDoctor.specialization}
+                {selectedDoctor.roomNumber ? ` • 📍 Room: ${selectedDoctor.roomNumber}` : ""}
+                {selectedDoctor.department?.name ? ` • Department: ${selectedDoctor.department.name}` : ""}
               </p>
             </div>
           </div>
