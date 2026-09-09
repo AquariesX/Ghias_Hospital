@@ -8,13 +8,23 @@ const globalForPrisma = globalThis as unknown as {
   pgPool: Pool | undefined;
 };
 
-const connectionString = process.env.DATABASE_URL;
+// Fallback connection string for build-time static evaluation
+const connectionString =
+  process.env.DATABASE_URL ||
+  "postgresql://postgres:postgres@localhost:5432/gias_hospital_db?sslmode=disable";
 
-if (!connectionString) {
-  throw new Error("DATABASE_URL environment variable is not set");
-}
+const pool =
+  globalForPrisma.pgPool ??
+  new Pool({
+    connectionString,
+    ssl:
+      process.env.DATABASE_URL &&
+      !process.env.DATABASE_URL.includes("localhost") &&
+      !process.env.DATABASE_URL.includes("127.0.0.1")
+        ? { rejectUnauthorized: false }
+        : false,
+  });
 
-const pool = globalForPrisma.pgPool ?? new Pool({ connectionString });
 const adapter = new PrismaPg(pool);
 
 export const prisma =
