@@ -208,16 +208,26 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // 2. Update Patient status to DISCHARGED
+      // 2. Update Patient status to DECEASED so it shows Deceased / Death in the Patient Directory
       await tx.patient.update({
         where: { id: patient.id },
-        data: { status: PatientStatus.DISCHARGED },
+        data: { status: PatientStatus.DECEASED },
       });
 
       // 3. If admission was active, close it as DISCHARGED and automatically release assigned bed to FREE
-      if (admission && admission.status !== AdmissionStatus.DISCHARGED) {
+      let activeAdmissionToClose = admission;
+      if (!activeAdmissionToClose) {
+        activeAdmissionToClose = await tx.admission.findFirst({
+          where: {
+            patientId: patient.id,
+            status: { in: ["ADMITTED", "UNDER_TREATMENT", "DISCHARGE_PENDING"] },
+          },
+        });
+      }
+
+      if (activeAdmissionToClose && activeAdmissionToClose.status !== AdmissionStatus.DISCHARGED) {
         await tx.admission.update({
-          where: { id: admission.id },
+          where: { id: activeAdmissionToClose.id },
           data: {
             status: AdmissionStatus.DISCHARGED,
             dischargeDate: effectiveDate,
@@ -229,9 +239,9 @@ export async function POST(request: NextRequest) {
         });
 
         // Automatically release assigned bed back to FREE for immediate availability
-        if (admission.bedId) {
+        if (activeAdmissionToClose.bedId) {
           await tx.bed.update({
-            where: { id: admission.bedId },
+            where: { id: activeAdmissionToClose.bedId },
             data: { status: BedStatus.FREE },
           });
         }

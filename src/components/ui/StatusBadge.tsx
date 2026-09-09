@@ -65,7 +65,19 @@ const statusConfig: Record<string, { label: string; className: string }> = {
   },
   REFERRED: {
     label: "Referred",
-    className: "bg-indigo-50 text-indigo-700 border-indigo-200",
+    className: "bg-indigo-50 text-indigo-700 border-indigo-200 font-bold",
+  },
+  DECEASED: {
+    label: "Deceased (Death)",
+    className: "bg-slate-900 text-white border-slate-950 font-bold",
+  },
+  EXPIRED: {
+    label: "Expired (Death)",
+    className: "bg-slate-900 text-white border-slate-950 font-bold",
+  },
+  DEATH: {
+    label: "Death",
+    className: "bg-slate-900 text-white border-slate-950 font-bold",
   },
 };
 

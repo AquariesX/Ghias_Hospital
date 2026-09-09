@@ -30,6 +30,14 @@ export async function GET(request: NextRequest) {
       // Show all admission statuses
     } else if (status === "DISCHARGED") {
       where.status = AdmissionStatus.DISCHARGED;
+    } else if (status === "REFERRED") {
+      where.status = AdmissionStatus.REFERRED;
+    } else if (status === "DECEASED" || status === "EXPIRED") {
+      where.OR = [
+        { dischargeCondition: { contains: "Deceased", mode: "insensitive" } },
+        { outcome: { contains: "Expired", mode: "insensitive" } },
+        { patient: { status: "DECEASED" } },
+      ];
     } else if (status && Object.values(AdmissionStatus).includes(status as AdmissionStatus)) {
       where.status = status as AdmissionStatus;
     } else {

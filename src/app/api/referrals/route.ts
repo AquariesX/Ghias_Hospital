@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { createAuditLog } from "@/lib/audit";
 import { generateNextReferralNumber } from "@/lib/referral-number";
-import { AdmissionStatus, BedStatus } from "@prisma/client";
+import { AdmissionStatus, BedStatus, PatientStatus } from "@prisma/client";
 
 const treatmentItemSchema = z.object({
   srNo: z.number().optional(),
@@ -230,10 +230,26 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // If admission was active, mark it REFERRED and release assigned bed
-      if (admission && ["ADMITTED", "UNDER_TREATMENT", "DISCHARGE_PENDING"].includes(admission.status)) {
+      // 2. Update Patient status to REFERRED so it appears as REFERRED across the system and directory
+      await tx.patient.update({
+        where: { id: patient.id },
+        data: { status: PatientStatus.REFERRED },
+      });
+
+      // 3. If admission is provided or patient has an active admission, mark it REFERRED and release assigned bed
+      let activeAdmissionToUpdate = admission;
+      if (!activeAdmissionToUpdate) {
+        activeAdmissionToUpdate = await tx.admission.findFirst({
+          where: {
+            patientId: patient.id,
+            status: { in: ["ADMITTED", "UNDER_TREATMENT", "DISCHARGE_PENDING"] },
+          },
+        });
+      }
+
+      if (activeAdmissionToUpdate && activeAdmissionToUpdate.status !== AdmissionStatus.REFERRED) {
         await tx.admission.update({
-          where: { id: admission.id },
+          where: { id: activeAdmissionToUpdate.id },
           data: {
             status: AdmissionStatus.REFERRED,
             dischargeDate: effectiveDate,
@@ -242,10 +258,10 @@ export async function POST(request: NextRequest) {
           },
         });
 
-        // Release bed back to FREE
-        if (admission.bedId) {
+        // Release bed back to FREE for immediate availability
+        if (activeAdmissionToUpdate.bedId) {
           await tx.bed.update({
-            where: { id: admission.bedId },
+            where: { id: activeAdmissionToUpdate.bedId },
             data: { status: BedStatus.FREE },
           });
         }

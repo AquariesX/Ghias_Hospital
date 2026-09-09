@@ -34,7 +34,7 @@ const registerPatientSchema = z.object({
   ),
   allergies: z.array(z.string()).default([]),
   chronicConditions: z.array(z.string()).default([]),
-  status: z.enum(["ACTIVE", "CRITICAL", "DISCHARGED"]).default("ACTIVE"),
+  status: z.enum(["ACTIVE", "CRITICAL", "DISCHARGED", "REFERRED", "DECEASED"]).default("ACTIVE"),
 
   cnic: z.string().optional().nullable(),
   maritalStatus: z.string().optional().nullable(),
@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
       where.bloodGroup = bloodGroup as BloodGroup;
     }
 
-    if (status && ["ACTIVE", "CRITICAL", "DISCHARGED"].includes(status)) {
+    if (status && ["ACTIVE", "CRITICAL", "DISCHARGED", "REFERRED", "DECEASED"].includes(status)) {
       where.status = status as PatientStatus;
     }
 

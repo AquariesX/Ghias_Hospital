@@ -414,17 +414,25 @@ export default function PatientProfileClient({
                         ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
                         : patient.status === "CRITICAL"
                         ? "bg-rose-500/20 text-rose-300 border border-rose-500/40"
+                        : patient.status === "DECEASED"
+                        ? "bg-black/40 text-rose-300 border border-rose-400 font-bold"
+                        : patient.status === "REFERRED"
+                        ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 font-bold"
                         : "bg-slate-500/20 text-slate-300 border border-slate-500/40"
                     }`}
                   >
-                    {patient.status}
+                    {patient.status === "DECEASED" ? "Deceased (Death)" : patient.status === "REFERRED" ? "Referred" : patient.status}
                   </span>
 
-                  {/* If patient has an active admission show ADMITTED badge; if recently discharged show DISCHARGED badge */}
+                  {/* If patient has an active admission show ADMITTED badge; if referred show REFERRED; if recently discharged show DISCHARGED badge */}
                   {history.admissions.length > 0 && (
-                    history.admissions.some((adm) => adm.status !== "DISCHARGED" && adm.status !== "CANCELLED") ? (
+                    history.admissions.some((adm) => adm.status !== "DISCHARGED" && adm.status !== "CANCELLED" && adm.status !== "REFERRED") ? (
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500/30 text-rose-200 border border-rose-400/50">
                         Inpatient (Admitted)
+                      </span>
+                    ) : history.admissions[0].status === "REFERRED" ? (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-500/30 text-indigo-200 border border-indigo-400/50">
+                        Referred
                       </span>
                     ) : history.admissions[0].status === "DISCHARGED" ? (
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/30 text-emerald-200 border border-emerald-400/50">
@@ -1262,6 +1270,8 @@ export default function PatientProfileClient({
                           ? "bg-rose-100 text-rose-800"
                           : adm.status === "DISCHARGED"
                           ? "bg-emerald-100 text-emerald-800"
+                          : adm.status === "REFERRED"
+                          ? "bg-indigo-100 text-indigo-800"
                           : "bg-blue-100 text-blue-800"
                       }`}
                     >

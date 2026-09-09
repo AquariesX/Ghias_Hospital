@@ -48,6 +48,8 @@ enum PatientStatus {
   ACTIVE
   CRITICAL
   DISCHARGED
+  REFERRED
+  DECEASED
 }
 
 enum DoctorAvailability {

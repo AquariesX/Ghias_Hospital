@@ -418,9 +418,21 @@ export default function PatientListClient({ userRole }: { userRole: string }) {
                             </Link>
                           </td>
                           <td className="py-3.5 px-4 font-semibold text-slate-900">
-                            <Link href={`/patients/${apt.patient.id}`} className="hover:text-teal-700">
-                              {apt.patient.firstName} {apt.patient.lastName}
-                            </Link>
+                            <div className="flex items-center gap-2">
+                              <Link href={`/patients/${apt.patient.id}`} className="hover:text-teal-700">
+                                {apt.patient.firstName} {apt.patient.lastName}
+                              </Link>
+                              {apt.patient.status === "DECEASED" && (
+                                <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-900 text-white">
+                                  Deceased
+                                </span>
+                              )}
+                              {apt.patient.status === "REFERRED" && (
+                                <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-100 text-indigo-800">
+                                  Referred
+                                </span>
+                              )}
+                            </div>
                             <span className="block text-[11px] text-slate-400 font-mono">
                               {apt.patient.phone}
                             </span>
@@ -569,8 +581,10 @@ export default function PatientListClient({ userRole }: { userRole: string }) {
                 className="text-xs text-black bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-hidden focus:ring-1 focus:ring-teal-500 font-semibold"
               >
                 <option value="">Active Inpatients Only</option>
-                <option value="ALL">All Admissions (Active + Discharged)</option>
+                <option value="ALL">All Admissions (Active, Discharged, Referred, Death)</option>
                 <option value="DISCHARGED">Discharged Patients</option>
+                <option value="REFERRED">Referred Patients</option>
+                <option value="DECEASED">Deceased / Death Records</option>
                 <option value="ADMITTED">Status: Admitted</option>
                 <option value="UNDER_TREATMENT">Status: Under Treatment</option>
                 <option value="DISCHARGE_PENDING">Status: Discharge Pending</option>
@@ -619,9 +633,21 @@ export default function PatientListClient({ userRole }: { userRole: string }) {
                           </Link>
                         </td>
                         <td className="py-3.5 px-4 font-semibold text-slate-900">
-                          <Link href={`/patients/${adm.patient.id}`} className="hover:text-teal-700">
-                            {adm.patient.firstName} {adm.patient.lastName}
-                          </Link>
+                          <div className="flex items-center gap-2">
+                            <Link href={`/patients/${adm.patient.id}`} className="hover:text-teal-700">
+                              {adm.patient.firstName} {adm.patient.lastName}
+                            </Link>
+                            {adm.patient.status === "DECEASED" && (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-900 text-white">
+                                Deceased
+                              </span>
+                            )}
+                            {adm.patient.status === "REFERRED" && (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-100 text-indigo-800">
+                                Referred
+                              </span>
+                            )}
+                          </div>
                           <span className="block text-[11px] text-slate-400 font-mono">
                             {adm.patient.phone} • Blood: {adm.patient.bloodGroup}
                           </span>
@@ -658,7 +684,20 @@ export default function PatientListClient({ userRole }: { userRole: string }) {
                           </span>
                         </td>
                         <td className="py-3.5 px-4">
-                          <StatusBadge status={adm.status} />
+                          <div className="flex flex-col gap-1 items-start">
+                            {adm.patient.status === "DECEASED" ? (
+                              <StatusBadge status="DECEASED" />
+                            ) : adm.patient.status === "REFERRED" || adm.status === "REFERRED" ? (
+                              <StatusBadge status="REFERRED" />
+                            ) : (
+                              <StatusBadge status={adm.status} />
+                            )}
+                            {adm.patient.status === "DECEASED" && adm.status !== "DECEASED" && (
+                              <span className="text-[10px] text-slate-400 font-mono">
+                                Adm: {adm.status}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="py-3.5 px-4 text-right">
                           <div className="flex items-center justify-end gap-2">
