@@ -831,36 +831,45 @@ export default function AdmissionsClient() {
                 </div>
               </div>
 
-              {/* 10. Room & Bed Allotment (Required) */}
-              <div className="bg-slate-50/75 border border-slate-200 rounded-2xl p-4 sm:p-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <label className="block text-[11px] font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                    <BedDouble className="w-4 h-4 text-teal-700" />
-                    <span>Room & Bed Allotment *</span>
-                  </label>
+              {/* 10. Room & Bed Allotment (Required, Full Width) */}
+              <div className="sm:col-span-2 md:col-span-3 bg-slate-50/60 border border-slate-200 rounded-2xl p-5 space-y-4 shadow-2xs">
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-200/60">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-teal-50 border border-teal-200 text-teal-700 flex items-center justify-center">
+                      <BedDouble className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-slate-900 uppercase tracking-wider block">
+                        Room & Bed Allotment <span className="text-rose-600">*</span>
+                      </span>
+                      <span className="text-[11px] text-slate-500">
+                        Select patient room and choose an available FREE bed
+                      </span>
+                    </div>
+                  </div>
                   <button
                     type="button"
                     onClick={fetchAvailableRooms}
-                    className="text-[11px] text-teal-700 hover:text-teal-900 font-semibold"
+                    className="inline-flex items-center gap-1.5 text-xs text-teal-700 hover:text-teal-900 font-semibold bg-white border border-slate-200 hover:border-teal-300 px-3 py-1.5 rounded-lg transition shadow-2xs"
                   >
                     Refresh Bed Status
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Select Room */}
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1">
-                      Room No. *
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Room No. <span className="text-rose-600">*</span>
                     </label>
                     <select
                       required
                       value={selectedRoomId}
                       onChange={(e) => handleRoomChange(e.target.value)}
                       disabled={isLoadingRooms}
-                      className="w-full text-xs text-black border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white disabled:opacity-50"
+                      className="w-full text-xs text-black border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white disabled:opacity-50 font-medium"
                     >
-                      <option value="">-- Select Room --</option>
+                      <option value="">-- Select Room / Ward --</option>
                       {availableRooms.map((r) => (
                         <option key={r.id} value={r.id}>
                           Room {r.roomNumber} {r.name ? `(${r.name})` : ""} — {r.freeBeds} Free / {r.totalBeds} Beds
@@ -871,26 +880,26 @@ export default function AdmissionsClient() {
                       {availableRooms.length === 0 && !isLoadingRooms ? (
                         <span className="text-amber-600">No rooms configured. Use manual entry or configure in Admin.</span>
                       ) : (
-                        "Select from existing hospital rooms."
+                        "Select from registered hospital rooms."
                       )}
                     </span>
                   </div>
 
                   {/* Select Bed */}
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1">
-                      Bed No. (Available FREE Beds) *
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Bed No. (Available FREE Beds) <span className="text-rose-600">*</span>
                     </label>
                     <select
                       required
                       value={selectedBedId}
                       onChange={(e) => handleBedChange(e.target.value)}
                       disabled={!selectedRoomId}
-                      className="w-full text-xs text-black border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white disabled:opacity-50"
+                      className="w-full text-xs text-black border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white disabled:opacity-50 font-medium"
                     >
                       <option value="">
                         {!selectedRoomId
-                          ? "-- Select room first --"
+                          ? "-- Choose a room first --"
                           : availableRooms.find((r) => r.id === selectedRoomId)?.beds.filter((b) => b.status === "FREE").length === 0
                           ? "-- No FREE beds available in this room --"
                           : "-- Select Available Bed --"}
@@ -900,29 +909,42 @@ export default function AdmissionsClient() {
                         ?.beds.filter((b) => b.status === "FREE")
                         .map((b) => (
                           <option key={b.id} value={b.id}>
-                            {b.bedNumber} — FREE {b.notes ? `(${b.notes})` : ""}
+                            {b.bedNumber} — FREE (Available) {b.notes ? `[${b.notes}]` : ""}
                           </option>
                         ))}
                     </select>
                     <span className="text-[10px] text-slate-400 mt-1 block">
-                      Shows only available (FREE) beds. Booked beds cannot be selected.
+                      Only FREE beds can be selected. Booked/Scheduled beds are unselectable.
                     </span>
                   </div>
                 </div>
 
                 {/* Selected Room Bed Availability Matrix */}
                 {selectedRoomId && (
-                  <div className="bg-white rounded-xl p-3 border border-slate-200 space-y-2">
-                    <div className="flex items-center justify-between text-xs border-b border-slate-100 pb-2">
-                      <span className="font-bold text-slate-900">
-                        Room {availableRooms.find((r) => r.id === selectedRoomId)?.roomNumber} Availability Overview:
-                      </span>
-                      <span className="text-[11px] text-slate-500">
-                        Only <span className="font-bold text-emerald-700">FREE</span> beds are selectable
-                      </span>
+                  <div className="bg-white rounded-xl p-4 border border-slate-200/90 shadow-2xs space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs border-b border-slate-100 pb-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900">
+                          Room {availableRooms.find((r) => r.id === selectedRoomId)?.roomNumber} Bed Status Matrix:
+                        </span>
+                        <span className="text-[11px] text-slate-500">
+                          (Click any green <span className="font-bold text-emerald-700">FREE</span> bed to select)
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 text-[10px] font-semibold">
+                        <span className="flex items-center gap-1 text-emerald-700">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500" /> FREE
+                        </span>
+                        <span className="flex items-center gap-1 text-amber-700">
+                          <span className="w-2 h-2 rounded-full bg-amber-500" /> SCHEDULED
+                        </span>
+                        <span className="flex items-center gap-1 text-blue-700">
+                          <span className="w-2 h-2 rounded-full bg-blue-500" /> OCCUPIED
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 pt-1">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5">
                       {availableRooms
                         .find((r) => r.id === selectedRoomId)
                         ?.beds.map((b) => {
@@ -935,40 +957,50 @@ export default function AdmissionsClient() {
                               type="button"
                               disabled={!isFree}
                               onClick={() => handleBedChange(b.id)}
-                              className={`p-2 rounded-xl border text-left transition flex flex-col justify-between ${
+                              className={`p-3 rounded-xl border text-left transition flex flex-col justify-between min-h-[72px] ${
                                 isSelected
-                                  ? "bg-teal-800 text-white border-teal-900 ring-2 ring-teal-500/40 shadow-xs"
+                                  ? "bg-teal-800 text-white border-teal-900 ring-2 ring-teal-500/50 shadow-sm"
                                   : isFree
-                                  ? "bg-emerald-50/70 border-emerald-300 hover:bg-emerald-100 cursor-pointer"
+                                  ? "bg-emerald-50/60 border-emerald-300 text-slate-900 hover:bg-emerald-100/80 cursor-pointer shadow-2xs"
                                   : b.status === "SCHEDULED"
-                                  ? "bg-amber-50/70 border-amber-200 opacity-65 cursor-not-allowed"
-                                  : "bg-blue-50/70 border-blue-200 opacity-65 cursor-not-allowed"
+                                  ? "bg-amber-50/40 border-amber-200 text-slate-600 opacity-75 cursor-not-allowed"
+                                  : "bg-blue-50/40 border-blue-200 text-slate-600 opacity-75 cursor-not-allowed"
                               }`}
                             >
-                              <div className="flex items-center justify-between w-full">
-                                <span className={`text-xs font-bold ${isSelected ? "text-white" : "text-slate-900"}`}>
+                              <div className="flex items-center justify-between gap-1 w-full">
+                                <span className={`text-xs font-bold truncate ${isSelected ? "text-white" : "text-slate-900"}`}>
                                   {b.bedNumber}
                                 </span>
                                 <span
-                                  className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded ${
+                                  className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-full shrink-0 ${
                                     isSelected
                                       ? "bg-teal-950 text-teal-200"
                                       : isFree
-                                      ? "bg-emerald-200 text-emerald-900"
+                                      ? "bg-emerald-200/90 text-emerald-900"
                                       : b.status === "SCHEDULED"
-                                      ? "bg-amber-200 text-amber-900"
-                                      : "bg-blue-200 text-blue-900"
+                                      ? "bg-amber-200/90 text-amber-900"
+                                      : "bg-blue-200/90 text-blue-900"
                                   }`}
                                 >
                                   {isSelected ? "SELECTED" : b.status}
                                 </span>
                               </div>
                               <span
-                                className={`text-[10px] mt-1 block truncate ${
-                                  isSelected ? "text-teal-100" : "text-slate-500"
+                                className={`text-[10px] mt-1.5 block truncate ${
+                                  isSelected
+                                    ? "text-teal-100 font-medium"
+                                    : isFree
+                                    ? "text-emerald-700 font-medium"
+                                    : "text-slate-400"
                                 }`}
                               >
-                                {isFree ? "Click to select" : b.currentPatient ? `Patient: ${b.currentPatient}` : "Booked"}
+                                {isSelected
+                                  ? "Selected bed"
+                                  : isFree
+                                  ? "Click to select"
+                                  : b.currentPatient
+                                  ? `Pt: ${b.currentPatient}`
+                                  : "Unavailable"}
                               </span>
                             </button>
                           );
@@ -981,7 +1013,7 @@ export default function AdmissionsClient() {
                 {availableRooms.length === 0 && !isLoadingRooms && (
                   <div>
                     <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                      Manual Room / Bed Number *
+                      Manual Room / Bed Number <span className="text-rose-600">*</span>
                     </label>
                     <input
                       type="text"
@@ -996,7 +1028,7 @@ export default function AdmissionsClient() {
               </div>
 
               {/* 9. Doctor Selection (From PostgreSQL Doctors Table) */}
-              <div>
+              <div className="sm:col-span-1 md:col-span-2">
                 <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center gap-1">
                   <Stethoscope className="w-3.5 h-3.5 text-teal-700" />
                   <span>Attending Doctor (Dr. Name)</span>
@@ -1020,7 +1052,7 @@ export default function AdmissionsClient() {
               </div>
 
               {/* 12. Admission Date & Time (Automatic System Timestamp) */}
-              <div>
+              <div className="sm:col-span-1 md:col-span-1">
                 <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center justify-between">
                   <span className="flex items-center gap-1">
                     <Clock className="w-3.5 h-3.5 text-teal-700" />
