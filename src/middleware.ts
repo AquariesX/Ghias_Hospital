@@ -66,6 +66,23 @@ function isRoleAuthorizedForPath(role: string, pathname: string): boolean {
       role === "NURSE"
     );
   }
+  if (pathname.startsWith("/admissions")) {
+    return (
+      role === "ADMIN" ||
+      role === "RECEPTIONIST" ||
+      role === "STAFF" ||
+      role === "DOCTOR" ||
+      role === "NURSE"
+    );
+  }
+  if (pathname.startsWith("/reports")) {
+    return (
+      role === "ADMIN" ||
+      role === "DOCTOR" ||
+      role === "RECEPTIONIST" ||
+      role === "STAFF"
+    );
+  }
   return true;
 }
 
@@ -80,7 +97,9 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/staff") ||
     pathname.startsWith("/reception") ||
     pathname.startsWith("/patients") ||
-    pathname.startsWith("/appointments");
+    pathname.startsWith("/appointments") ||
+    pathname.startsWith("/admissions") ||
+    pathname.startsWith("/reports");
 
   const isLoginPath = pathname === "/login";
   const isRootPath = pathname === "/";
@@ -134,5 +153,7 @@ export const config = {
     "/reception/:path*",
     "/patients/:path*",
     "/appointments/:path*",
+    "/admissions/:path*",
+    "/reports/:path*",
   ],
 };

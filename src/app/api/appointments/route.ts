@@ -315,6 +315,33 @@ export async function POST(request: NextRequest) {
     const isToday = dateStr === todayStr;
     const initialStatus = data.status || (isToday ? AppointmentStatus.WAITING : AppointmentStatus.SCHEDULED);
 
+    // Prevent accidental duplicate appointments for the same patient, doctor, and date
+    const existingDuplicateAppointment = await prisma.appointment.findFirst({
+      where: {
+        patientId: patient.id,
+        doctorId: doctor.id,
+        appointmentDate,
+        status: {
+          in: [
+            AppointmentStatus.SCHEDULED,
+            AppointmentStatus.CONFIRMED,
+            AppointmentStatus.WAITING,
+            AppointmentStatus.IN_CONSULTATION,
+          ],
+        },
+      },
+      select: { appointmentNumber: true, tokenNumber: true, status: true },
+    });
+
+    if (existingDuplicateAppointment) {
+      return NextResponse.json(
+        {
+          error: `Patient already has an active appointment with Dr. ${doctor.firstName} ${doctor.lastName} on this date (${existingDuplicateAppointment.appointmentNumber}, Token #${existingDuplicateAppointment.tokenNumber}, Status: ${existingDuplicateAppointment.status}).`,
+        },
+        { status: 409 }
+      );
+    }
+
     // 6. Generate sequential Appointment Number
     const appointmentNumber = await generateNextAppointmentNumber();
 

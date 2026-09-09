@@ -271,6 +271,34 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Guard 1: Cannot admit a patient whose status is DECEASED
+    if (patient.status === "DECEASED") {
+      return NextResponse.json(
+        {
+          error: "Cannot create admission: Patient status is marked as DECEASED.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Guard 2: Prevent duplicate concurrent active admissions for the same patient
+    const existingActiveAdmission = await prisma.admission.findFirst({
+      where: {
+        patientId: patient.id,
+        status: { in: ["ADMITTED", "UNDER_TREATMENT", "DISCHARGE_PENDING"] },
+      },
+      select: { id: true, admissionNumber: true, roomBedNo: true },
+    });
+
+    if (existingActiveAdmission) {
+      return NextResponse.json(
+        {
+          error: `Patient already has an active admission (${existingActiveAdmission.admissionNumber}, ${existingActiveAdmission.roomBedNo || "No Bed Assigned"}). Please discharge or transfer the patient before admitting again.`,
+        },
+        { status: 409 }
+      );
+    }
+
     // Verify doctor if provided
     let doctorName: string | null = null;
     if (val.doctorId) {
