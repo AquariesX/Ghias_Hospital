@@ -258,7 +258,7 @@ export default function DischargeFormClient({
 
   // Compile document data for preview/print
   const previewDocumentData: DischargeDocumentData = {
-    hospitalName: "GIAS HOSPITAL PHALIA",
+    hospitalName: "GHIAS HOSPITAL PHALIA",
     regNumber: "REG NO. R-59488",
     title: "DISCHARGE FORM (Patient Copy)",
     generatedAt: new Date().toISOString(),

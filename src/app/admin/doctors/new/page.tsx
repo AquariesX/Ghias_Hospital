@@ -4,7 +4,7 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import AddDoctorForm from "./AddDoctorForm";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Add Doctor — GIAS Hospital Admin" };
+export const metadata = { title: "Add Doctor — GHIAS Hospital Admin" };
 
 export default async function AddDoctorPage() {
   const user = await getCurrentUser();

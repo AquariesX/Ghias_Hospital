@@ -149,7 +149,7 @@ export default function AddDoctorForm() {
                 Email Address <span className="text-rose-500">*</span>
               </label>
               <input name="email" type="email" value={form.email} onChange={handleChange}
-                className={inputClass} placeholder="dr.ahmed@giashospital.org" required />
+                className={inputClass} placeholder="dr.ahmed@ghiashospital.org" required />
               <FieldError name="email" errors={errors} />
             </div>
             <div>

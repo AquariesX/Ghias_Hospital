@@ -20,10 +20,10 @@ export async function generateMetadata({ params }: Props) {
     select: { firstName: true, lastName: true, patientNumber: true },
   });
 
-  if (!patient) return { title: "Edit Patient — GIAS Hospital" };
+  if (!patient) return { title: "Edit Patient — GHIAS Hospital" };
 
   return {
-    title: `Edit ${patient.firstName} ${patient.lastName} (${patient.patientNumber}) — GIAS Hospital`,
+    title: `Edit ${patient.firstName} ${patient.lastName} (${patient.patientNumber}) — GHIAS Hospital`,
   };
 }
 

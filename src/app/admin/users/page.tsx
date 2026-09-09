@@ -4,7 +4,7 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import UsersClient from "./UsersClient";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Users — GIAS Hospital Admin" };
+export const metadata = { title: "Users — GHIAS Hospital Admin" };
 
 export default async function UsersPage() {
   const user = await getCurrentUser();

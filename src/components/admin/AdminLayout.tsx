@@ -149,6 +149,8 @@ const navGroups: NavGroup[] = [
       { label: "Appointments (OPD)", href: "/appointments", icon: <AppointmentIcon /> },
       { label: "Admit Patient", href: "/admissions", icon: <BedIcon /> },
       { label: "Discharge Form", href: "/reception/discharge", icon: <BedIcon /> },
+      { label: "Referral Form", href: "/reception/referral", icon: <ReportIcon /> },
+      { label: "Death Certificate", href: "/reception/death-certificate", icon: <AuditIcon /> },
       { label: "Inpatients & Ward", href: "/doctor/inpatients", icon: <BedIcon /> },
       { label: "Patients", href: "/patients", icon: <PatientIcon /> },
       { label: "Doctors", href: "/admin/doctors", icon: <DoctorIcon /> },

@@ -16,9 +16,9 @@ export async function generateMetadata({ params }: Props) {
     where: { OR: [{ id }, { admissionNumber: id }] },
     include: { patient: true },
   });
-  if (!adm) return { title: "Inpatient Not Found — GIAS Hospital" };
+  if (!adm) return { title: "Inpatient Not Found — GHIAS Hospital" };
   return {
-    title: `Inpatient Care: ${adm.patient.firstName} ${adm.patient.lastName} (${adm.roomBedNo}) — GIAS Hospital`,
+    title: `Inpatient Care: ${adm.patient.firstName} ${adm.patient.lastName} (${adm.roomBedNo}) — GHIAS Hospital`,
   };
 }
 

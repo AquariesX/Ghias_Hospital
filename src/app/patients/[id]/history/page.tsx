@@ -17,9 +17,9 @@ export async function generateMetadata({ params }: Props) {
     where: { OR: [{ id }, { patientNumber: id }, { mrNumber: id }] },
     select: { firstName: true, lastName: true, mrNumber: true, patientNumber: true },
   });
-  if (!patient) return { title: "Patient History Not Found — GIAS Hospital" };
+  if (!patient) return { title: "Patient History Not Found — GHIAS Hospital" };
   return {
-    title: `Complete History: ${patient.firstName} ${patient.lastName} (${patient.mrNumber || patient.patientNumber}) — GIAS Hospital`,
+    title: `Complete History: ${patient.firstName} ${patient.lastName} (${patient.mrNumber || patient.patientNumber}) — GHIAS Hospital`,
   };
 }
 

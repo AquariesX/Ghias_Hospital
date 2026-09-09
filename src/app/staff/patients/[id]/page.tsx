@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma";
 import NursePatientClient from "./NursePatientClient";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Patient Clinical Workspace — GIAS Hospital" };
+export const metadata = { title: "Patient Clinical Workspace — GHIAS Hospital" };
 
 export default async function NursePatientPage({
   params,

@@ -18,9 +18,9 @@ export async function generateMetadata({ params }: Props) {
     where: { OR: [{ id }, { admissionNumber: id }] },
     include: { patient: true },
   });
-  if (!adm) return { title: "Discharge Workflow — GIAS Hospital" };
+  if (!adm) return { title: "Discharge Workflow — GHIAS Hospital" };
   return {
-    title: `Discharge: ${adm.patient.firstName} ${adm.patient.lastName} — GIAS Hospital`,
+    title: `Discharge: ${adm.patient.firstName} ${adm.patient.lastName} — GHIAS Hospital`,
   };
 }
 

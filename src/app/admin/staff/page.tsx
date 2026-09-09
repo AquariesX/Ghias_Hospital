@@ -10,7 +10,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import StaffRowActions from "./StaffRowActions";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Staff — GIAS Hospital Admin" };
+export const metadata = { title: "Staff — GHIAS Hospital Admin" };
 
 const PAGE_SIZE = 10;
 

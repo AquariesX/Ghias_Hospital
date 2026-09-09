@@ -7,7 +7,7 @@ import StaffInpatientsClient from "./StaffInpatientsClient";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
-  title: "Admitted Inpatients & Medication Sheets — GIAS Hospital",
+  title: "Admitted Inpatients & Medication Sheets — GHIAS Hospital",
 };
 
 export default async function StaffInpatientsPage() {

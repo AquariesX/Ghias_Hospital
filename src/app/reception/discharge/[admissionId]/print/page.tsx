@@ -82,7 +82,7 @@ export default async function DischargePrintPage({ params }: PrintPageProps) {
   const ageYears = new Date().getFullYear() - dob.getFullYear();
 
   const documentData: DischargeDocumentData = {
-    hospitalName: "GIAS HOSPITAL PHALIA",
+    hospitalName: "GHIAS HOSPITAL PHALIA",
     regNumber: "REG NO. R-59488",
     title: "DISCHARGE FORM (Patient Copy)",
     generatedAt: new Date().toISOString(),

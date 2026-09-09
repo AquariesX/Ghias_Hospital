@@ -167,8 +167,10 @@ model User {
   staffProfile  Staff?
 
   // Audit relationships
-  createdAppointments Appointment[] @relation("AppointmentCreator")
-  createdAdmissions   Admission[]   @relation("AdmissionCreator")
+  createdAppointments Appointment[]      @relation("AppointmentCreator")
+  createdAdmissions   Admission[]        @relation("AdmissionCreator")
+  createdReferrals    PatientReferral[]  @relation("ReferralCreator")
+  createdDeathCerts   DeathCertificate[] @relation("DeathCertificateCreator")
   auditLogs           AuditLog[]
 
   createdAt DateTime @default(now())
@@ -222,10 +224,12 @@ model Doctor {
   userId String? @unique
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  appointments  Appointment[]
-  admissions    Admission[]
-  consultations Consultation[]
-  prescriptions Prescription[]
+  appointments      Appointment[]
+  admissions        Admission[]
+  consultations     Consultation[]
+  prescriptions     Prescription[]
+  referrals         PatientReferral[]
+  deathCertificates DeathCertificate[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -296,11 +300,13 @@ model Patient {
   admissions               Admission[]
   consultations            Consultation[]
   vitalSigns               VitalSign[]
-  prescriptions            Prescription[]
+  prescriptions             Prescription[]
   medicationAdministrations MedicationAdministration[]
   nursingNotes             NursingNote[]
   emergencyTriages         EmergencyTriage[]
   timelineEvents           TimelineEvent[]
+  referrals                PatientReferral[]
+  deathCertificates        DeathCertificate[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -652,6 +658,8 @@ model Admission {
   medicationAdministrations MedicationAdministration[]
   nursingNotes              NursingNote[]
   statements                AdmissionStatement[]
+  referrals                 PatientReferral[]
+  deathCertificates         DeathCertificate[]
 
   createdById           String?
   createdBy             User?           @relation("AdmissionCreator", fields: [createdById], references: [id], onDelete: SetNull)
@@ -783,4 +791,87 @@ model Bed {
   @@unique([roomId, bedNumber])
   @@index([status])
   @@index([isActive])
+}
+
+/// Official hospital referral record issued for inter-facility transfer
+model PatientReferral {
+  id                    String      @id @default(uuid())
+  referralNumber        String      @unique // e.g. "REF-2026-000001"
+
+  patientId             String
+  patient               Patient     @relation(fields: [patientId], references: [id], onDelete: Restrict)
+
+  admissionId           String?
+  admission             Admission?  @relation(fields: [admissionId], references: [id], onDelete: SetNull)
+
+  doctorId              String?
+  doctor                Doctor?     @relation(fields: [doctorId], references: [id], onDelete: SetNull)
+  doctorName            String?
+
+  referralDate          DateTime    @db.Date
+  referralTime          String?     // e.g. "02:30 PM"
+
+  hospitalReferredTo    String      // Target hospital name
+  reasonOfReferral      String      @db.Text // Reason for transfer
+
+  presentingComplaints  String?     @db.Text
+  provisionalDiagnosis  String?     @db.Text
+  historyAndExamination String?     @db.Text
+  investigations        String?     @db.Text
+  finalDiagnosis        String?     @db.Text
+  procedureDone         String?     @db.Text
+
+  conditionAtReferral   String?     // Satisfactory, Fair, Poor
+  referralNotes         String?     @db.Text
+
+  treatmentGiven        String?     @db.Text // JSON stringified array of medicines given
+
+  createdById           String?
+  createdBy             User?       @relation("ReferralCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  @@index([referralNumber])
+  @@index([patientId])
+  @@index([admissionId])
+  @@index([referralDate])
+}
+
+/// Official hospital death certificate record
+model DeathCertificate {
+  id                 String      @id @default(uuid())
+  certificateNumber  String      @unique // e.g. "DC-2026-000001"
+
+  patientId          String
+  patient            Patient     @relation(fields: [patientId], references: [id], onDelete: Restrict)
+
+  admissionId        String?
+  admission          Admission?  @relation(fields: [admissionId], references: [id], onDelete: SetNull)
+
+  doctorId           String?
+  doctor             Doctor?     @relation(fields: [doctorId], references: [id], onDelete: SetNull)
+  doctorName         String?
+
+  dateOfDeath        DateTime    @db.Date
+  timeOfDeath        String      // e.g. "11:45 PM"
+  causeOfDeath       String      @db.Text
+  diagnosis          String?     @db.Text
+
+  bodyReceivedBy     String      // Name of person receiving the body
+  receivedByRelation String?     // Relationship to deceased (e.g. Son, Brother)
+  receivedByCnic     String?     // CNIC of recipient
+  receivedByPhone    String?     // Phone number
+  notes              String?     @db.Text
+
+  createdById        String?
+  createdBy          User?       @relation("DeathCertificateCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  @@index([certificateNumber])
+  @@index([patientId])
+  @@index([admissionId])
+  @@index([dateOfDeath])
 }

@@ -5,7 +5,7 @@ import ReportsClient from "@/app/reports/ReportsClient";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
-  title: "Reports & Analytics — GIAS Hospital Admin",
+  title: "Reports & Analytics — GHIAS Hospital Admin",
 };
 
 export default async function AdminReportsPage() {

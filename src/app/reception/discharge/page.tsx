@@ -8,7 +8,7 @@ import { BedDouble, Search, FileText, ArrowRight, Stethoscope, Clock, CheckCircl
 
 export const dynamic = "force-dynamic";
 export const metadata = {
-  title: "Patient Discharge Center — GIAS Hospital",
+  title: "Patient Discharge Center — GHIAS Hospital",
 };
 
 interface SearchProps {

@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma";
 import RoomsBedsClient from "./RoomsBedsClient";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Rooms & Beds Management — GIAS Hospital Admin" };
+export const metadata = { title: "Rooms & Beds Management — GHIAS Hospital Admin" };
 
 export default async function AdminRoomsBedsPage() {
   const user = await getCurrentUser();

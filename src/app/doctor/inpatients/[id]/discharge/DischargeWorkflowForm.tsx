@@ -585,7 +585,7 @@ export default function DischargeWorkflowForm({
                   className="w-4 h-4 text-teal-600 rounded focus:ring-teal-500"
                 />
                 <span>
-                  Automatically book this follow-up appointment in GIAS OPD Appointment system for {followUpDate}
+                  Automatically book this follow-up appointment in GHIAS OPD Appointment system for {followUpDate}
                 </span>
               </label>
             </div>

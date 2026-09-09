@@ -20,9 +20,9 @@ export async function generateMetadata({ params }: Props) {
     select: { firstName: true, lastName: true, patientNumber: true, mrNumber: true },
   });
 
-  if (!patient) return { title: "Discharge Form — GIAS Hospital" };
+  if (!patient) return { title: "Discharge Form — GHIAS Hospital" };
   return {
-    title: `Discharge Form: ${patient.firstName} ${patient.lastName} (${patient.mrNumber || patient.patientNumber}) — GIAS Hospital`,
+    title: `Discharge Form: ${patient.firstName} ${patient.lastName} (${patient.mrNumber || patient.patientNumber}) — GHIAS Hospital`,
   };
 }
 
