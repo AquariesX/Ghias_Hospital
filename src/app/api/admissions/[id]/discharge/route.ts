@@ -9,6 +9,7 @@ import {
   AdmissionStatus,
   AppointmentStatus,
   AppointmentType,
+  BedStatus,
   PatientStatus,
 } from "@prisma/client";
 
@@ -238,6 +239,14 @@ export async function POST(
           dischargeReferralNote: data.dischargeReferralNote?.trim() || null,
         },
       });
+
+      // Automatically release assigned bed back to FREE for immediate availability
+      if (admission.bedId) {
+        await tx.bed.update({
+          where: { id: admission.bedId },
+          data: { status: BedStatus.FREE },
+        });
+      }
 
       // Create official Prescription record if discharge medications provided
       let createdPrescriptionId: string | null = null;

@@ -33,6 +33,27 @@ interface DoctorOption {
   department?: { name: string } | null;
 }
 
+interface AvailableBed {
+  id: string;
+  bedNumber: string;
+  status: "FREE" | "SCHEDULED" | "OCCUPIED";
+  isAvailable: boolean;
+  notes: string | null;
+  currentPatient: string | null;
+}
+
+interface AvailableRoom {
+  id: string;
+  roomNumber: string;
+  name: string | null;
+  department: string | null;
+  totalBeds: number;
+  freeBeds: number;
+  scheduledBeds: number;
+  occupiedBeds: number;
+  beds: AvailableBed[];
+}
+
 interface PatientResult {
   id: string;
   patientNumber: string;
@@ -113,6 +134,10 @@ export default function AdmissionsClient() {
 
   // Admission & Bed Details
   const [admissionSource, setAdmissionSource] = useState<"OPD" | "EMERGENCY">("OPD");
+  const [availableRooms, setAvailableRooms] = useState<AvailableRoom[]>([]);
+  const [isLoadingRooms, setIsLoadingRooms] = useState(true);
+  const [selectedRoomId, setSelectedRoomId] = useState("");
+  const [selectedBedId, setSelectedBedId] = useState("");
   const [roomBedNo, setRoomBedNo] = useState("");
   const [selectedDoctorId, setSelectedDoctorId] = useState(queryDoctorId || "");
 
@@ -188,6 +213,46 @@ export default function AdmissionsClient() {
       .catch((err) => console.error("Failed to load doctors:", err))
       .finally(() => setIsLoadingDoctors(false));
   }, []);
+
+  // Load available hospital rooms and beds from PostgreSQL
+  const fetchAvailableRooms = async () => {
+    setIsLoadingRooms(true);
+    try {
+      const res = await fetch("/api/rooms/available");
+      const json = await res.json();
+      if (res.ok && Array.isArray(json.rooms)) {
+        setAvailableRooms(json.rooms);
+      }
+    } catch (err) {
+      console.error("Failed to load available rooms:", err);
+    } finally {
+      setIsLoadingRooms(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAvailableRooms();
+  }, []);
+
+  const handleRoomChange = (roomId: string) => {
+    setSelectedRoomId(roomId);
+    setSelectedBedId("");
+    const r = availableRooms.find((room) => room.id === roomId);
+    if (!r) {
+      setRoomBedNo("");
+      return;
+    }
+    setRoomBedNo(`Room ${r.roomNumber}`);
+  };
+
+  const handleBedChange = (bedId: string) => {
+    setSelectedBedId(bedId);
+    const r = availableRooms.find((room) => room.id === selectedRoomId);
+    const b = r?.beds.find((bed) => bed.id === bedId);
+    if (r && b) {
+      setRoomBedNo(`Room ${r.roomNumber} - ${b.bedNumber}`);
+    }
+  };
 
   // Helper to populate form from a patient record
   const populatePatientData = (p: PatientResult) => {
@@ -295,6 +360,7 @@ export default function AdmissionsClient() {
         address: address.trim() || undefined,
         doctorId: selectedDoctorId || undefined,
         admissionSource,
+        bedId: selectedBedId || undefined,
         roomBedNo: roomBedNo.trim(),
         provisionalDiagnosis: provisionalDiagnosis.trim() || undefined,
         finalDiagnosis: finalDiagnosis.trim() || undefined,
@@ -329,8 +395,9 @@ export default function AdmissionsClient() {
         mrNumber: mrNumber || autoMrNumber,
       });
 
-      // Refresh next MR number for future walk-ins
+      // Refresh next MR number for future walk-ins and refresh rooms
       fetchNextMRNumber();
+      fetchAvailableRooms();
     } catch (err: unknown) {
       setErrorMessage(err instanceof Error ? err.message : "Error creating admission");
     } finally {
@@ -341,12 +408,15 @@ export default function AdmissionsClient() {
   const handleResetForm = () => {
     setSuccessData(null);
     handleClearPatientLink();
+    setSelectedRoomId("");
+    setSelectedBedId("");
     setRoomBedNo("");
     setSelectedDoctorId("");
     setProvisionalDiagnosis("");
     setFinalDiagnosis("");
     setOperation("");
     setAdmissionSource("OPD");
+    fetchAvailableRooms();
   };
 
   return (
@@ -761,22 +831,168 @@ export default function AdmissionsClient() {
                 </div>
               </div>
 
-              {/* 10. Room / Bed Number (Required) */}
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Room / Bed Number *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Ward-A Bed 03, Room 204, ICU-01"
-                  value={roomBedNo}
-                  onChange={(e) => setRoomBedNo(e.target.value)}
-                  className="w-full text-xs text-black border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white"
-                />
-                <span className="text-[10px] text-slate-400 mt-1 block">
-                  Required for inpatient room/bed allotment.
-                </span>
+              {/* 10. Room & Bed Allotment (Required) */}
+              <div className="bg-slate-50/75 border border-slate-200 rounded-2xl p-4 sm:p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <label className="block text-[11px] font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <BedDouble className="w-4 h-4 text-teal-700" />
+                    <span>Room & Bed Allotment *</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={fetchAvailableRooms}
+                    className="text-[11px] text-teal-700 hover:text-teal-900 font-semibold"
+                  >
+                    Refresh Bed Status
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {/* Select Room */}
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1">
+                      Room No. *
+                    </label>
+                    <select
+                      required
+                      value={selectedRoomId}
+                      onChange={(e) => handleRoomChange(e.target.value)}
+                      disabled={isLoadingRooms}
+                      className="w-full text-xs text-black border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white disabled:opacity-50"
+                    >
+                      <option value="">-- Select Room --</option>
+                      {availableRooms.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          Room {r.roomNumber} {r.name ? `(${r.name})` : ""} — {r.freeBeds} Free / {r.totalBeds} Beds
+                        </option>
+                      ))}
+                    </select>
+                    <span className="text-[10px] text-slate-400 mt-1 block">
+                      {availableRooms.length === 0 && !isLoadingRooms ? (
+                        <span className="text-amber-600">No rooms configured. Use manual entry or configure in Admin.</span>
+                      ) : (
+                        "Select from existing hospital rooms."
+                      )}
+                    </span>
+                  </div>
+
+                  {/* Select Bed */}
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1">
+                      Bed No. (Available FREE Beds) *
+                    </label>
+                    <select
+                      required
+                      value={selectedBedId}
+                      onChange={(e) => handleBedChange(e.target.value)}
+                      disabled={!selectedRoomId}
+                      className="w-full text-xs text-black border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white disabled:opacity-50"
+                    >
+                      <option value="">
+                        {!selectedRoomId
+                          ? "-- Select room first --"
+                          : availableRooms.find((r) => r.id === selectedRoomId)?.beds.filter((b) => b.status === "FREE").length === 0
+                          ? "-- No FREE beds available in this room --"
+                          : "-- Select Available Bed --"}
+                      </option>
+                      {availableRooms
+                        .find((r) => r.id === selectedRoomId)
+                        ?.beds.filter((b) => b.status === "FREE")
+                        .map((b) => (
+                          <option key={b.id} value={b.id}>
+                            {b.bedNumber} — FREE {b.notes ? `(${b.notes})` : ""}
+                          </option>
+                        ))}
+                    </select>
+                    <span className="text-[10px] text-slate-400 mt-1 block">
+                      Shows only available (FREE) beds. Booked beds cannot be selected.
+                    </span>
+                  </div>
+                </div>
+
+                {/* Selected Room Bed Availability Matrix */}
+                {selectedRoomId && (
+                  <div className="bg-white rounded-xl p-3 border border-slate-200 space-y-2">
+                    <div className="flex items-center justify-between text-xs border-b border-slate-100 pb-2">
+                      <span className="font-bold text-slate-900">
+                        Room {availableRooms.find((r) => r.id === selectedRoomId)?.roomNumber} Availability Overview:
+                      </span>
+                      <span className="text-[11px] text-slate-500">
+                        Only <span className="font-bold text-emerald-700">FREE</span> beds are selectable
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 pt-1">
+                      {availableRooms
+                        .find((r) => r.id === selectedRoomId)
+                        ?.beds.map((b) => {
+                          const isSelected = b.id === selectedBedId;
+                          const isFree = b.status === "FREE";
+
+                          return (
+                            <button
+                              key={b.id}
+                              type="button"
+                              disabled={!isFree}
+                              onClick={() => handleBedChange(b.id)}
+                              className={`p-2 rounded-xl border text-left transition flex flex-col justify-between ${
+                                isSelected
+                                  ? "bg-teal-800 text-white border-teal-900 ring-2 ring-teal-500/40 shadow-xs"
+                                  : isFree
+                                  ? "bg-emerald-50/70 border-emerald-300 hover:bg-emerald-100 cursor-pointer"
+                                  : b.status === "SCHEDULED"
+                                  ? "bg-amber-50/70 border-amber-200 opacity-65 cursor-not-allowed"
+                                  : "bg-blue-50/70 border-blue-200 opacity-65 cursor-not-allowed"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between w-full">
+                                <span className={`text-xs font-bold ${isSelected ? "text-white" : "text-slate-900"}`}>
+                                  {b.bedNumber}
+                                </span>
+                                <span
+                                  className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded ${
+                                    isSelected
+                                      ? "bg-teal-950 text-teal-200"
+                                      : isFree
+                                      ? "bg-emerald-200 text-emerald-900"
+                                      : b.status === "SCHEDULED"
+                                      ? "bg-amber-200 text-amber-900"
+                                      : "bg-blue-200 text-blue-900"
+                                  }`}
+                                >
+                                  {isSelected ? "SELECTED" : b.status}
+                                </span>
+                              </div>
+                              <span
+                                className={`text-[10px] mt-1 block truncate ${
+                                  isSelected ? "text-teal-100" : "text-slate-500"
+                                }`}
+                              >
+                                {isFree ? "Click to select" : b.currentPatient ? `Patient: ${b.currentPatient}` : "Booked"}
+                              </span>
+                            </button>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Fallback Manual Input if no rooms are configured yet */}
+                {availableRooms.length === 0 && !isLoadingRooms && (
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Manual Room / Bed Number *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Ward-A Bed 03, Room 204, ICU-01"
+                      value={roomBedNo}
+                      onChange={(e) => setRoomBedNo(e.target.value)}
+                      className="w-full text-xs text-black border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* 9. Doctor Selection (From PostgreSQL Doctors Table) */}

@@ -154,6 +154,7 @@ const navGroups: NavGroup[] = [
       { label: "Doctors", href: "/admin/doctors", icon: <DoctorIcon /> },
       { label: "Staff", href: "/admin/staff", icon: <StaffIcon /> },
       { label: "Departments", href: "/admin/departments", icon: <DeptIcon /> },
+      { label: "Rooms & Beds", href: "/admin/rooms-beds", icon: <BedIcon /> },
     ],
   },
   {
@@ -296,6 +297,7 @@ export default function AdminLayout({ user, children }: AdminLayoutProps) {
     if (pathname.startsWith("/admin/departments/new")) return "Add Department";
     if (pathname.startsWith("/admin/departments") && pathname.includes("/edit")) return "Edit Department";
     if (pathname.startsWith("/admin/departments")) return "Departments";
+    if (pathname.startsWith("/admin/rooms-beds")) return "Rooms & Beds";
     if (pathname.startsWith("/admin/users")) return "Users";
     if (pathname.startsWith("/admin/audit-logs")) return "Audit Logs";
     return "Admin";

@@ -137,6 +137,12 @@ enum MedicationAdminStatus {
   HELD
 }
 
+enum BedStatus {
+  FREE
+  SCHEDULED
+  OCCUPIED
+}
+
 // -----------------------------------------------------------------------------
 // Models
 // -----------------------------------------------------------------------------
@@ -596,6 +602,9 @@ model Admission {
   referenceNumber       String?         // OPD MR number or ER reference
   roomBedNo             String?         // e.g. "Room 204 - Bed 1", "Ward 3 Bed 5", "ICU-02"
 
+  bedId                 String?
+  bed                   Bed?            @relation(fields: [bedId], references: [id], onDelete: SetNull)
+
   presentingComplaints  String?         @db.Text
   medicationHistory     String?         @db.Text
   familyHistory         String?         @db.Text
@@ -737,4 +746,41 @@ model AuditLog {
   @@index([action])
   @@index([entity])
   @@index([timestamp])
+}
+
+/// Hospital rooms/wards containing beds
+model Room {
+  id          String   @id @default(uuid())
+  roomNumber  String   @unique // e.g. "101", "Ward-A", "ICU-1"
+  name        String?  // e.g. "General Ward A", "Male Inpatient Room", "Intensive Care Unit"
+  department  String?  // e.g. "INPATIENT", "EMERGENCY", "OPD"
+  isActive    Boolean  @default(true)
+
+  beds        Bed[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([roomNumber])
+  @@index([isActive])
+}
+
+/// Hospital beds allocated within rooms
+model Bed {
+  id          String     @id @default(uuid())
+  bedNumber   String     // e.g. "Bed 1", "Bed 2"
+  roomId      String
+  room        Room       @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  status      BedStatus  @default(FREE)
+  isActive    Boolean    @default(true)
+  notes       String?
+
+  admissions  Admission[]
+
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@unique([roomId, bedNumber])
+  @@index([status])
+  @@index([isActive])
 }

@@ -6,7 +6,7 @@ import { canViewPatients } from "@/lib/rbac";
 import { createAuditLog } from "@/lib/audit";
 import { generateNextAdmissionNumber } from "@/lib/admission-number";
 import { generatePatientAndMRNumbers } from "@/lib/patient-number";
-import { AdmissionSource, AdmissionStatus } from "@prisma/client";
+import { AdmissionSource, AdmissionStatus, BedStatus } from "@prisma/client";
 
 const createAdmissionSchema = z.object({
   patientId: z.string().optional().nullable(),
@@ -23,6 +23,7 @@ const createAdmissionSchema = z.object({
   admissionTime: z.string().optional().nullable(),
   admissionSource: z.enum(["OPD", "EMERGENCY"]),
   referenceNumber: z.string().optional().nullable(),
+  bedId: z.string().optional().nullable(),
   roomBedNo: z.string().min(1, "Room / Bed number is required"),
   provisionalDiagnosis: z.string().optional().nullable(),
   finalDiagnosis: z.string().optional().nullable(),
@@ -292,6 +293,34 @@ export async function POST(request: NextRequest) {
       now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
 
     const admission = await prisma.$transaction(async (tx) => {
+      // Validate and atomically reserve bed if bedId is provided
+      if (val.bedId) {
+        const bed = await tx.bed.findUnique({
+          where: { id: val.bedId },
+          include: { room: true },
+        });
+
+        if (!bed) {
+          throw new Error("The selected bed could not be found.");
+        }
+
+        if (!bed.isActive) {
+          throw new Error(`Bed ${bed.bedNumber} is currently deactivated.`);
+        }
+
+        if (bed.status !== BedStatus.FREE) {
+          throw new Error(
+            `Bed "${bed.bedNumber}" in Room "${bed.room.roomNumber}" is currently ${bed.status}. Only FREE beds can be booked.`
+          );
+        }
+
+        // Atomically transition bed from FREE to SCHEDULED
+        await tx.bed.update({
+          where: { id: val.bedId },
+          data: { status: BedStatus.SCHEDULED },
+        });
+      }
+
       const newAdm = await tx.admission.create({
         data: {
           admissionNumber,
@@ -302,6 +331,7 @@ export async function POST(request: NextRequest) {
           admissionTime: effectiveAdmissionTime,
           admissionSource: val.admissionSource as AdmissionSource,
           referenceNumber: val.referenceNumber || null,
+          bedId: val.bedId || null,
           roomBedNo: val.roomBedNo.trim(),
           provisionalDiagnosis: val.provisionalDiagnosis || null,
           finalDiagnosis: val.finalDiagnosis || null,
@@ -371,6 +401,7 @@ export async function POST(request: NextRequest) {
         admissionNumber: admission.admissionNumber,
         patientName: `${patient.firstName} ${patient.lastName}`,
         roomBedNo: admission.roomBedNo,
+        bedId: admission.bedId,
         source: admission.admissionSource,
       }),
     });
@@ -387,6 +418,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (error instanceof NextResponse) return error;
     console.error("POST /api/admissions error:", error);
-    return NextResponse.json({ error: "Failed to create admission" }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Failed to create admission";
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 }

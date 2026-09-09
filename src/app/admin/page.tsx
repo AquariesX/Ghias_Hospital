@@ -45,6 +45,8 @@ export default async function AdminDashboardPage() {
     activeDepartmentCount,
     userCount,
     activeUserCount,
+    roomCount,
+    freeBedCount,
     recentPatients,
     recentDoctors,
     recentStaff,
@@ -60,6 +62,8 @@ export default async function AdminDashboardPage() {
     prisma.department.count({ where: { status: "ACTIVE" } }),
     prisma.user.count(),
     prisma.user.count({ where: { status: "ACTIVE" } }),
+    prisma.room.count(),
+    prisma.bed.count({ where: { status: "FREE", isActive: true } }),
     prisma.patient.findMany({
       take: 5,
       orderBy: { createdAt: "desc" },
@@ -137,6 +141,15 @@ export default async function AdminDashboardPage() {
       border: "border-purple-200",
     },
     {
+      label: "Rooms & Beds",
+      value: roomCount,
+      sub: `${freeBedCount} free beds`,
+      href: "/admin/rooms-beds",
+      color: "text-teal-700",
+      bg: "bg-teal-50",
+      border: "border-teal-200",
+    },
+    {
       label: "System Users",
       value: userCount,
       sub: `${activeUserCount} active`,
@@ -172,7 +185,7 @@ export default async function AdminDashboardPage() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
           {stats.map((stat) => (
             <Link key={stat.label} href={stat.href}>
               <div className={`bg-white border ${stat.border} rounded-lg p-4 hover:shadow-sm transition-shadow cursor-pointer`}>
