@@ -26,6 +26,7 @@ import {
   RotateCw,
   Info,
   ShieldAlert,
+  FileText,
 } from "lucide-react";
 
 interface PatientData {
@@ -140,6 +141,11 @@ interface HistoryData {
     roomBedNo?: string | null;
     presentingComplaints?: string | null;
     finalDiagnosis?: string | null;
+    operation?: string | null;
+    outcome?: string | null;
+    dischargeCondition?: string | null;
+    isLama?: boolean;
+    dischargeMedications?: string | null;
     status: string;
     dischargeDate?: string | null;
     dischargeSummary?: string | null;
@@ -413,6 +419,19 @@ export default function PatientProfileClient({
                   >
                     {patient.status}
                   </span>
+
+                  {/* If patient has an active admission show ADMITTED badge; if recently discharged show DISCHARGED badge */}
+                  {history.admissions.length > 0 && (
+                    history.admissions.some((adm) => adm.status !== "DISCHARGED" && adm.status !== "CANCELLED") ? (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500/30 text-rose-200 border border-rose-400/50">
+                        Inpatient (Admitted)
+                      </span>
+                    ) : history.admissions[0].status === "DISCHARGED" ? (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/30 text-emerald-200 border border-emerald-400/50">
+                        Discharged
+                      </span>
+                    ) : null
+                  )}
                 </div>
 
                 <p className="text-teal-100 text-sm mt-1 flex flex-wrap items-center gap-3">
@@ -503,13 +522,24 @@ export default function PatientProfileClient({
               <div className="pt-1.5 border-t border-white/10 text-[11px] text-teal-200 flex items-center justify-between">
                 <span>Registered: {formatDate(patient.createdAt)}</span>
               </div>
-              <Link
-                href={`/appointments/new?patientId=${patient.id}`}
-                className="mt-1 inline-flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-white text-teal-900 font-bold text-xs shadow-sm hover:bg-teal-50 transition"
-              >
-                <Calendar className="w-3.5 h-3.5 text-teal-700" />
-                <span>Book Appointment</span>
-              </Link>
+              <div className="flex flex-col gap-1.5 mt-1">
+                {history.admissions.some((adm) => adm.status !== "DISCHARGED" && adm.status !== "CANCELLED") && (
+                  <Link
+                    href={`/reception/patients/${patient.id}/discharge`}
+                    className="inline-flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-sm transition"
+                  >
+                    <BedDouble className="w-3.5 h-3.5" />
+                    <span>Discharge Form</span>
+                  </Link>
+                )}
+                <Link
+                  href={`/appointments/new?patientId=${patient.id}`}
+                  className="inline-flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-white text-teal-900 font-bold text-xs shadow-sm hover:bg-teal-50 transition"
+                >
+                  <Calendar className="w-3.5 h-3.5 text-teal-700" />
+                  <span>Book Appointment</span>
+                </Link>
+              </div>
             </div>
           </div>
         </div>
@@ -1226,6 +1256,7 @@ export default function PatientProfileClient({
                   </div>
                 </div>
 
+                {/* Clinical Details Row */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                   <div>
                     <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Room / Bed</span>
@@ -1243,12 +1274,58 @@ export default function PatientProfileClient({
                   </div>
                 </div>
 
+                {/* Additional Clinical Info if available */}
+                {(adm.operation || adm.outcome || adm.dischargeCondition) && (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50/70 p-3 rounded-xl border border-slate-200/80 text-xs">
+                    {adm.operation && (
+                      <div>
+                        <span className="text-slate-500 font-medium">Procedure:</span>
+                        <p className="font-semibold text-slate-800 mt-0.5">{adm.operation}</p>
+                      </div>
+                    )}
+                    {adm.outcome && (
+                      <div>
+                        <span className="text-slate-500 font-medium">Outcome:</span>
+                        <p className="font-semibold text-slate-800 mt-0.5">{adm.outcome}</p>
+                      </div>
+                    )}
+                    {adm.dischargeCondition && (
+                      <div>
+                        <span className="text-slate-500 font-medium">Discharge Condition:</span>
+                        <p className="font-semibold text-teal-800 mt-0.5">{adm.dischargeCondition}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {adm.dischargeSummary && (
                   <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 text-xs">
                     <span className="font-semibold text-slate-700">Discharge Summary:</span>
                     <p className="text-slate-600 mt-1">{adm.dischargeSummary}</p>
                   </div>
                 )}
+
+                {/* Actions per Admission */}
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                  {adm.status !== "DISCHARGED" && adm.status !== "CANCELLED" ? (
+                    <Link
+                      href={`/reception/patients/${patient.id}/discharge`}
+                      className="px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition inline-flex items-center gap-1.5"
+                    >
+                      <BedDouble className="w-3.5 h-3.5" />
+                      <span>Prepare Discharge Form</span>
+                    </Link>
+                  ) : (
+                    <Link
+                      href={`/reception/discharge/${adm.id}/print`}
+                      target="_blank"
+                      className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs transition inline-flex items-center gap-1.5 border border-slate-300"
+                    >
+                      <FileText className="w-3.5 h-3.5 text-teal-700" />
+                      <span>Print Discharge Form</span>
+                    </Link>
+                  )}
+                </div>
               </div>
             ))
           ) : (

@@ -629,6 +629,11 @@ model Admission {
   dischargeSummary      String?         @db.Text
   dischargeInstructions String?         @db.Text
   dischargeMedications  String?         @db.Text
+  dischargeCondition    String?         // Satisfactory, Fair, Poor
+  dischargeAdvisedByDoctor Boolean      @default(true)
+  isLama                Boolean         @default(false) // Leave Against Medical Advice
+  outcome               String?         @db.Text        // Result of treatment/procedure
+  followUpDate          DateTime?       @db.Date
   followUpInstructions  String?         @db.Text
   dischargeReferralNote String?         @db.Text
 

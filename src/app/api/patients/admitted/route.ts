@@ -23,16 +23,20 @@ export async function GET(request: NextRequest) {
     const roomBedNo = searchParams.get("roomBedNo")?.trim() || "";
     const date = searchParams.get("date") || "";
 
-    // Base condition: strictly active inpatient admissions
-    const where: Record<string, unknown> = {
-      status: {
-        in: ACTIVE_ADMISSION_STATUSES,
-      },
-    };
+    // Base condition: admissions query
+    const where: Record<string, unknown> = {};
 
-    // Filter by specific active status if requested
-    if (status && ACTIVE_ADMISSION_STATUSES.includes(status as AdmissionStatus)) {
+    if (status === "ALL") {
+      // Show all admission statuses
+    } else if (status === "DISCHARGED") {
+      where.status = AdmissionStatus.DISCHARGED;
+    } else if (status && Object.values(AdmissionStatus).includes(status as AdmissionStatus)) {
       where.status = status as AdmissionStatus;
+    } else {
+      // Default: Active inpatient admissions
+      where.status = {
+        in: ACTIVE_ADMISSION_STATUSES,
+      };
     }
 
     if (doctorId) {

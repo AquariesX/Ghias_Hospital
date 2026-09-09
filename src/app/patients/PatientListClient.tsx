@@ -566,12 +566,14 @@ export default function PatientListClient({ userRole }: { userRole: string }) {
                   setAdmittedStatus(e.target.value);
                   setAdmittedPage(1);
                 }}
-                className="text-xs text-black bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-hidden focus:ring-1 focus:ring-teal-500"
+                className="text-xs text-black bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-hidden focus:ring-1 focus:ring-teal-500 font-semibold"
               >
-                <option value="">All Active Statuses</option>
-                <option value="ADMITTED">Admitted</option>
-                <option value="UNDER_TREATMENT">Under Treatment</option>
-                <option value="DISCHARGE_PENDING">Discharge Pending</option>
+                <option value="">Active Inpatients Only</option>
+                <option value="ALL">All Admissions (Active + Discharged)</option>
+                <option value="DISCHARGED">Discharged Patients</option>
+                <option value="ADMITTED">Status: Admitted</option>
+                <option value="UNDER_TREATMENT">Status: Under Treatment</option>
+                <option value="DISCHARGE_PENDING">Status: Discharge Pending</option>
               </select>
             </div>
           </div>
@@ -669,6 +671,29 @@ export default function PatientListClient({ userRole }: { userRole: string }) {
                                 <FileCheck2 className="w-3.5 h-3.5" />
                                 <span>Consents</span>
                               </Link>
+                            )}
+
+                            {adm.status === "DISCHARGED" ? (
+                              <Link
+                                href={`/reception/discharge/${adm.id}/print`}
+                                target="_blank"
+                                className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-800 bg-slate-100 hover:bg-slate-200 border border-slate-300 px-2.5 py-1.5 rounded-lg transition"
+                                title="Print Discharge Form"
+                              >
+                                <FileCheck2 className="w-3.5 h-3.5 text-teal-700" />
+                                <span>Discharge Form</span>
+                              </Link>
+                            ) : (
+                              canManage && (
+                                <Link
+                                  href={`/reception/patients/${adm.patient.id}/discharge`}
+                                  className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2.5 py-1.5 rounded-lg transition"
+                                  title="Prepare Discharge Form"
+                                >
+                                  <BedDouble className="w-3.5 h-3.5" />
+                                  <span>Discharge</span>
+                                </Link>
+                              )
                             )}
 
                             <Link

@@ -38,7 +38,35 @@ const statusConfig: Record<string, { label: string; className: string }> = {
     label: "Offline",
     className: "bg-slate-100 text-slate-500 border-slate-200",
   },
-  // Department
+  // Admission & Inpatient Statuses
+  ADMITTED: {
+    label: "Admitted",
+    className: "bg-rose-50 text-rose-700 border-rose-200",
+  },
+  UNDER_TREATMENT: {
+    label: "Under Treatment",
+    className: "bg-blue-50 text-blue-700 border-blue-200",
+  },
+  DISCHARGE_PENDING: {
+    label: "Discharge Pending",
+    className: "bg-amber-50 text-amber-700 border-amber-200",
+  },
+  DISCHARGED: {
+    label: "Discharged",
+    className: "bg-emerald-50 text-emerald-700 border-emerald-200 font-bold",
+  },
+  CANCELLED: {
+    label: "Cancelled",
+    className: "bg-slate-100 text-slate-500 border-slate-300",
+  },
+  TRANSFERRED: {
+    label: "Transferred",
+    className: "bg-purple-50 text-purple-700 border-purple-200",
+  },
+  REFERRED: {
+    label: "Referred",
+    className: "bg-indigo-50 text-indigo-700 border-indigo-200",
+  },
 };
 
 export default function StatusBadge({ status, size = "sm" }: StatusBadgeProps) {

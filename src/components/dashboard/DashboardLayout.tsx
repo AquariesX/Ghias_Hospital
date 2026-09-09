@@ -413,6 +413,23 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
                       </Link>
                     </li>
                   )}
+                  {(user.role === "RECEPTIONIST" || user.role === "STAFF" || user.role === "ADMIN") && (
+                    <li>
+                      <Link
+                        href="/reception/discharge"
+                        className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${pathname.startsWith("/reception/discharge")
+                            ? "bg-teal-700 text-white shadow-sm"
+                            : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                          }`}
+                      >
+                        <svg className="w-4 h-4 text-rose-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+                            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                        Discharge Form
+                      </Link>
+                    </li>
+                  )}
                   <li>
                     <Link
                       href="/patients"
