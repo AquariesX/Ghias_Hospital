@@ -12,14 +12,19 @@ import {
   Stethoscope,
   ChevronRight,
   AlertCircle,
+  BedDouble,
+  ClipboardList,
 } from "lucide-react";
 
-interface AppointmentItem {
+interface QueueItem {
   id: string;
+  isAdmission?: boolean;
+  admissionId?: string;
   appointmentNumber: string;
   appointmentTime: string;
   status: string;
   reason: string;
+  roomBedNo?: string | null;
   patient: {
     id: string;
     patientNumber: string;
@@ -59,7 +64,7 @@ interface AppointmentItem {
 }
 
 export default function OpdQueueClient() {
-  const [appointments, setAppointments] = useState<AppointmentItem[]>([]);
+  const [queueItems, setQueueItems] = useState<QueueItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -80,7 +85,7 @@ export default function OpdQueueClient() {
         throw new Error(data.error || "Failed to load OPD queue");
       }
 
-      setAppointments(data.data || []);
+      setQueueItems(data.data || []);
     } catch (err: any) {
       setError(err.message || "Failed to load queue");
     } finally {
@@ -99,7 +104,7 @@ export default function OpdQueueClient() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">OPD Patient Queue</h1>
           <p className="text-sm text-slate-600 mt-0.5">
-            Identify patients, record initial vital signs, and prepare them for doctor consultation.
+            Identify OPD patients, perform initial assessments, record vitals, and prepare charts for attending doctors.
           </p>
         </div>
         <button
@@ -119,7 +124,7 @@ export default function OpdQueueClient() {
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="Search by patient name, MR Number, or APT #..."
+            placeholder="Search by patient name, MR Number, Bed, or ID..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
@@ -128,19 +133,25 @@ export default function OpdQueueClient() {
 
         <div className="flex items-center gap-2">
           <Filter className="w-4 h-4 text-slate-400" />
-          <span className="text-xs font-semibold uppercase text-slate-500">Status:</span>
-          {["ALL", "WAITING", "IN_CONSULTATION", "COMPLETED"].map((st) => (
+          <span className="text-xs font-semibold uppercase text-slate-500">Filter:</span>
+          {[
+            { id: "ALL", label: "All OPD" },
+            { id: "ADMITTED", label: "Admitted Inpatients" },
+            { id: "WAITING", label: "Waiting" },
+            { id: "IN_CONSULTATION", label: "In Consultation" },
+            { id: "COMPLETED", label: "Completed" },
+          ].map((st) => (
             <button
-              key={st}
+              key={st.id}
               type="button"
-              onClick={() => setStatusFilter(st)}
+              onClick={() => setStatusFilter(st.id)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                statusFilter === st
-                  ? "bg-teal-600 text-white"
+                statusFilter === st.id
+                  ? "bg-teal-700 text-white shadow-xs"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }`}
             >
-              {st.replace(/_/g, " ")}
+              {st.label}
             </button>
           ))}
         </div>
@@ -161,12 +172,12 @@ export default function OpdQueueClient() {
             <RefreshCw className="w-8 h-8 animate-spin text-teal-600 mx-auto mb-2" />
             <p className="text-sm font-medium">Loading OPD patient queue...</p>
           </div>
-        ) : appointments.length === 0 ? (
+        ) : queueItems.length === 0 ? (
           <div className="p-12 text-center text-slate-500">
             <Clock className="w-10 h-10 text-slate-300 mx-auto mb-3" />
             <p className="text-base font-medium text-slate-700">No patients found in OPD queue.</p>
             <p className="text-xs text-slate-400 mt-1">
-              Adjust your search filter or wait for reception to check in arriving patients.
+              New arrivals and OPD admissions from reception will automatically appear here.
             </p>
           </div>
         ) : (
@@ -176,54 +187,79 @@ export default function OpdQueueClient() {
                 <tr>
                   <th className="py-3.5 px-4">Patient</th>
                   <th className="py-3.5 px-4">MR Number</th>
-                  <th className="py-3.5 px-4">Appointment</th>
-                  <th className="py-3.5 px-4">Assigned Doctor</th>
+                  <th className="py-3.5 px-4">Intake Type / Bed</th>
+                  <th className="py-3.5 px-4">Attending Doctor</th>
                   <th className="py-3.5 px-4">Status</th>
                   <th className="py-3.5 px-4">Latest Vitals</th>
                   <th className="py-3.5 px-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {appointments.map((apt) => {
-                  const vitals = apt.patient.vitalSigns?.[0];
+                {queueItems.map((item) => {
+                  const vitals = item.patient.vitalSigns?.[0];
+                  const isAdmitted = item.isAdmission;
+
                   return (
-                    <tr key={apt.id} className="hover:bg-slate-50/75 transition-colors">
+                    <tr key={item.id} className="hover:bg-slate-50/75 transition-colors">
                       <td className="py-3.5 px-4">
                         <div className="font-semibold text-slate-900">
-                          {apt.patient.firstName} {apt.patient.lastName}
+                          {item.patient.firstName} {item.patient.lastName}
                         </div>
                         <div className="text-xs text-slate-400">
-                          {apt.patient.gender} | Phone: {apt.patient.phone}
+                          {item.patient.gender} • Blood: {item.patient.bloodGroup ? item.patient.bloodGroup.replace("_", "") : "N/A"}
                         </div>
                       </td>
+
                       <td className="py-3.5 px-4 font-mono text-xs font-semibold text-slate-700">
-                        {apt.patient.mrNumber || apt.patient.patientNumber}
+                        {item.patient.mrNumber || item.patient.patientNumber}
                       </td>
+
                       <td className="py-3.5 px-4">
-                        <div className="font-medium text-slate-800 text-xs">{apt.appointmentNumber}</div>
-                        <div className="text-xs text-slate-400">{apt.appointmentTime}</div>
+                        {isAdmitted ? (
+                          <div>
+                            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-800 bg-teal-50 border border-teal-200 px-2.5 py-1 rounded-md">
+                              <BedDouble className="w-3.5 h-3.5 text-teal-700" />
+                              <span>{item.roomBedNo || "OPD Ward"}</span>
+                            </span>
+                            <div className="text-[11px] text-slate-500 mt-1 font-mono">
+                              Adm #{item.appointmentNumber}
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <div className="font-medium text-slate-800 text-xs">{item.appointmentNumber}</div>
+                            <div className="text-xs text-slate-400">{item.appointmentTime}</div>
+                          </div>
+                        )}
                       </td>
+
                       <td className="py-3.5 px-4">
                         <div className="font-medium text-slate-800 text-xs">
-                          Dr. {apt.doctor.firstName} {apt.doctor.lastName}
+                          {item.doctor ? `Dr. ${item.doctor.firstName} ${item.doctor.lastName}` : "Assigned Physician"}
                         </div>
-                        <div className="text-xs text-slate-400">{apt.doctor.specialization}</div>
+                        <div className="text-xs text-slate-400">
+                          {item.doctor?.specialization || "OPD Consultant"}
+                        </div>
                       </td>
+
                       <td className="py-3.5 px-4">
                         <span
                           className={`text-xs font-semibold uppercase px-2.5 py-0.5 rounded-full ${
-                            apt.status === "WAITING"
+                            item.status === "ADMITTED" || item.status === "UNDER_TREATMENT"
+                              ? "bg-teal-100 text-teal-800 border border-teal-200"
+                              : item.status === "WAITING"
                               ? "bg-amber-100 text-amber-800"
-                              : apt.status === "IN_CONSULTATION"
+                              : item.status === "IN_CONSULTATION"
                               ? "bg-blue-100 text-blue-800"
-                              : apt.status === "COMPLETED"
+                              : item.status === "COMPLETED"
                               ? "bg-emerald-100 text-emerald-800"
                               : "bg-slate-100 text-slate-700"
                           }`}
                         >
-                          {apt.status}
+                          {item.status.replace(/_/g, " ")}
                         </span>
                       </td>
+
                       <td className="py-3.5 px-4">
                         {vitals ? (
                           <div className="font-mono text-xs text-slate-800">
@@ -241,14 +277,25 @@ export default function OpdQueueClient() {
                           </span>
                         )}
                       </td>
+
                       <td className="py-3.5 px-4 text-right">
-                        <Link
-                          href={`/staff/patients/${apt.patient.id}`}
-                          className="inline-flex items-center gap-1 bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors shadow-xs"
-                        >
-                          Record Vitals
-                          <ChevronRight className="w-3.5 h-3.5" />
-                        </Link>
+                        {isAdmitted ? (
+                          <Link
+                            href={`/staff/inpatients/${item.id}`}
+                            className="inline-flex items-center gap-1.5 bg-teal-800 hover:bg-teal-900 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors shadow-2xs"
+                          >
+                            <ClipboardList className="w-3.5 h-3.5" />
+                            <span>Initial Assessment &amp; Chart</span>
+                          </Link>
+                        ) : (
+                          <Link
+                            href={`/staff/patients/${item.patient.id}`}
+                            className="inline-flex items-center gap-1 bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors shadow-xs"
+                          >
+                            Record Vitals
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </Link>
+                        )}
                       </td>
                     </tr>
                   );

@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
 import FieldError from "@/components/ui/FieldError";
 
@@ -203,8 +205,24 @@ export default function PatientRegistrationForm() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+      <div className="bg-teal-50/80 border border-teal-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs">
+        <div>
+          <span className="font-bold text-teal-900 text-sm">Admitting a patient to an Inpatient Ward / Bed?</span>
+          <p className="text-teal-700 mt-0.5">
+            Use the Patient Admission Form to assign a ward, bed, attending physician, and admitting diagnosis.
+          </p>
+        </div>
+        <Link
+          href="/admissions"
+          className="inline-flex items-center gap-1.5 font-bold text-white bg-teal-800 hover:bg-teal-900 px-4 py-2 rounded-lg transition shrink-0 shadow-2xs"
+        >
+          <span>Open Admission Form</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </Link>
+      </div>
+
       <PageHeader
-        title="Admit Patient"
+        title="Register New Patient"
         subtitle="Complete patient intake, generate hospital MR number, and initiate medical record"
         backHref="/patients"
         backLabel="Back to Directory"
@@ -219,7 +237,7 @@ export default function PatientRegistrationForm() {
       {successData && (
         <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm p-4 rounded-lg shadow-xs flex items-center justify-between">
           <div>
-            <p className="font-bold">Patient Admitted Successfully!</p>
+            <p className="font-bold">Patient Registered Successfully!</p>
             <p className="text-xs text-emerald-700 mt-0.5">
               Assigned Patient #: <span className="font-mono font-bold">{successData.patientNumber}</span> | MR #:{" "}
               <span className="font-mono font-bold">{successData.mrNumber}</span>.{" "}

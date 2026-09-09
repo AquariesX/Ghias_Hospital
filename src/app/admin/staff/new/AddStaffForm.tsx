@@ -94,6 +94,15 @@ export default function AddStaffForm() {
     setErrors({});
     setGlobalError("");
 
+    // Nurse department validation
+    if (isNurse && (!form.nurseDepartment || !["OPD", "EMERGENCY"].includes(form.nurseDepartment))) {
+      setErrors((prev) => ({
+        ...prev,
+        nurseDepartment: ["Nurse working department (OPD or EMERGENCY) is required for nursing staff"],
+      }));
+      return;
+    }
+
     // Password validation if portal account is enabled
     if (createPortalAccount) {
       if (!password) {
@@ -221,13 +230,23 @@ export default function AddStaffForm() {
             </div>
             {isNurse && (
               <div className="sm:col-span-2">
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Nurse Working Department</label>
-                <select name="nurseDepartment" value={form.nurseDepartment} onChange={handleChange} className={inputClass}>
-                  <option value="">Not assigned</option>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Nurse Working Department <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  name="nurseDepartment"
+                  value={form.nurseDepartment}
+                  onChange={handleChange}
+                  required={isNurse}
+                  className={inputClass}
+                >
                   <option value="OPD">OPD (Outpatient)</option>
                   <option value="EMERGENCY">Emergency</option>
                 </select>
-                <p className="text-xs text-slate-400 mt-1">Applies to Head Nurse and Staff Nurse roles only.</p>
+                <p className="text-xs text-slate-400 mt-1">
+                  Controls department isolation. OPD nurses only access OPD admissions; Emergency nurses only access Emergency admissions.
+                </p>
+                <FieldError name="nurseDepartment" errors={errors} />
               </div>
             )}
             <div>

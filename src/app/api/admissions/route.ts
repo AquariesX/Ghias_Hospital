@@ -5,21 +5,32 @@ import { getCurrentUser } from "@/lib/auth";
 import { canViewPatients } from "@/lib/rbac";
 import { createAuditLog } from "@/lib/audit";
 import { generateNextAdmissionNumber } from "@/lib/admission-number";
+import { generatePatientAndMRNumbers } from "@/lib/patient-number";
 import { AdmissionSource, AdmissionStatus } from "@prisma/client";
 
 const createAdmissionSchema = z.object({
-  patientId: z.string().uuid("Invalid patient ID"),
-  doctorId: z.string().uuid("Invalid doctor ID").optional().nullable(),
-  admissionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format must be YYYY-MM-DD"),
+  patientId: z.string().optional().nullable(),
+  patientName: z.string().optional().nullable(),
+  fatherHusbandName: z.string().optional().nullable(),
+  relationType: z.string().optional().nullable(),
+  age: z.union([z.number(), z.string()]).optional().nullable(),
+  gender: z.enum(["MALE", "FEMALE", "OTHER"]).optional().nullable(),
+  phone: z.string().optional().nullable(),
+  cnic: z.string().optional().nullable(),
+  address: z.string().optional().nullable(),
+  doctorId: z.string().optional().nullable(),
+  admissionDate: z.string().optional().nullable(),
   admissionTime: z.string().optional().nullable(),
   admissionSource: z.enum(["OPD", "EMERGENCY"]),
   referenceNumber: z.string().optional().nullable(),
   roomBedNo: z.string().min(1, "Room / Bed number is required"),
+  provisionalDiagnosis: z.string().optional().nullable(),
+  finalDiagnosis: z.string().optional().nullable(),
+  operation: z.string().optional().nullable(),
   presentingComplaints: z.string().optional().nullable(),
   medicationHistory: z.string().optional().nullable(),
   familyHistory: z.string().optional().nullable(),
   allergies: z.array(z.string()).optional(),
-  provisionalDiagnosis: z.string().optional().nullable(),
   treatmentPlan: z.string().optional().nullable(),
   // Baseline vitals
   pulse: z.number().int().optional().nullable(),
@@ -59,7 +70,17 @@ export async function GET(request: NextRequest) {
     if (patientId) {
       where.patientId = patientId;
     }
-    if (source && (source === "OPD" || source === "EMERGENCY")) {
+
+    // Strict department visibility enforcement for nurses
+    if (user.role === "NURSE") {
+      const staff = await prisma.staff.findFirst({
+        where: { OR: [{ userId: user.id }, { email: user.email }] },
+        select: { nurseDepartment: true, role: true },
+      });
+      if (staff?.nurseDepartment) {
+        where.admissionSource = staff.nurseDepartment;
+      }
+    } else if (source && (source === "OPD" || source === "EMERGENCY")) {
       where.admissionSource = source as AdmissionSource;
     }
 
@@ -188,12 +209,65 @@ export async function POST(request: NextRequest) {
 
     const val = result.data;
 
-    // Verify patient exists
-    const patient = await prisma.patient.findUnique({
-      where: { id: val.patientId },
-    });
+    // Find or create patient
+    let patient = null;
+    if (val.patientId) {
+      patient = await prisma.patient.findUnique({
+        where: { id: val.patientId },
+      });
+    }
+
+    if (!patient && (val.cnic?.trim() || val.phone?.trim())) {
+      patient = await prisma.patient.findFirst({
+        where: {
+          OR: [
+            val.cnic?.trim() ? { cnic: val.cnic.trim() } : undefined,
+            val.phone?.trim() ? { phone: val.phone.trim() } : undefined,
+          ].filter(Boolean) as any,
+        },
+      });
+    }
+
     if (!patient) {
-      return NextResponse.json({ error: "Patient not found" }, { status: 404 });
+      if (!val.patientName || !val.patientName.trim()) {
+        return NextResponse.json({ error: "Patient Name is required" }, { status: 400 });
+      }
+
+      const { patientNumber, mrNumber } = await generatePatientAndMRNumbers();
+      const trimmedName = val.patientName.trim();
+      const nameParts = trimmedName.split(/\s+/);
+      const firstName = nameParts[0] || "Patient";
+      const lastName = nameParts.slice(1).join(" ") || ".";
+
+      let dob = new Date("1995-01-01");
+      if (val.age) {
+        const parsedAge = parseInt(String(val.age), 10);
+        if (!isNaN(parsedAge) && parsedAge >= 0 && parsedAge <= 130) {
+          const currentYear = new Date().getFullYear();
+          dob = new Date(`${currentYear - parsedAge}-01-01`);
+        }
+      }
+
+      patient = await prisma.patient.create({
+        data: {
+          patientNumber,
+          mrNumber,
+          firstName,
+          lastName,
+          gender: val.gender || "MALE",
+          dateOfBirth: dob,
+          phone: val.phone?.trim() || "N/A",
+          cnic: val.cnic?.trim() || null,
+          address: val.address?.trim() || null,
+          relationType: val.relationType?.trim() || "Father",
+          relatedPersonName: val.fatherHusbandName?.trim() || null,
+          bloodGroup: "B_POSITIVE",
+          emergencyContactName: val.fatherHusbandName?.trim() || trimmedName,
+          emergencyContactPhone: val.phone?.trim() || "N/A",
+          emergencyContactRelation: val.relationType?.trim() || "Guardian",
+          status: "ACTIVE",
+        },
+      });
     }
 
     // Verify doctor if provided
@@ -209,22 +283,33 @@ export async function POST(request: NextRequest) {
 
     const admissionNumber = await generateNextAdmissionNumber();
 
+    const now = new Date();
+    const effectiveAdmissionDate = val.admissionDate
+      ? new Date(val.admissionDate)
+      : now;
+    const effectiveAdmissionTime =
+      val.admissionTime ||
+      now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+
     const admission = await prisma.$transaction(async (tx) => {
       const newAdm = await tx.admission.create({
         data: {
           admissionNumber,
-          patientId: val.patientId,
+          patientId: patient.id,
           doctorId: val.doctorId || null,
-          admissionDate: new Date(val.admissionDate),
-          admissionTime: val.admissionTime || new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
+          doctorName,
+          admissionDate: effectiveAdmissionDate,
+          admissionTime: effectiveAdmissionTime,
           admissionSource: val.admissionSource as AdmissionSource,
           referenceNumber: val.referenceNumber || null,
           roomBedNo: val.roomBedNo.trim(),
+          provisionalDiagnosis: val.provisionalDiagnosis || null,
+          finalDiagnosis: val.finalDiagnosis || null,
+          operation: val.operation || null,
           presentingComplaints: val.presentingComplaints || null,
           medicationHistory: val.medicationHistory || null,
           familyHistory: val.familyHistory || null,
           allergies: val.allergies || patient.allergies || [],
-          provisionalDiagnosis: val.provisionalDiagnosis || null,
           treatmentPlan: val.treatmentPlan || null,
           pulse: val.pulse || null,
           temperature: val.temperature ? val.temperature : null,
@@ -241,7 +326,7 @@ export async function POST(request: NextRequest) {
       if (val.pulse || val.systolicBP || val.diastolicBP || val.temperature) {
         await tx.vitalSign.create({
           data: {
-            patientId: val.patientId,
+            patientId: patient.id,
             admissionId: newAdm.id,
             encounterType: "INPATIENT",
             systolicBP: val.systolicBP || null,
@@ -262,7 +347,7 @@ export async function POST(request: NextRequest) {
       // Add timeline event
       await tx.timelineEvent.create({
         data: {
-          patientId: val.patientId,
+          patientId: patient.id,
           title: "Patient Admitted",
           eventType: "PATIENT_ADMITTED",
           description: `Admitted to ${val.roomBedNo} via ${val.admissionSource} (Adm #${admissionNumber})${doctorName ? ` under care of ${doctorName}` : ""}.`,
@@ -295,6 +380,7 @@ export async function POST(request: NextRequest) {
         success: true,
         message: "Admission recorded successfully",
         data: admission,
+        admission: admission,
       },
       { status: 201 }
     );

@@ -616,6 +616,7 @@ model Admission {
   provisionalDiagnosis  String?         @db.Text
   investigations        String?         @db.Text
   finalDiagnosis        String?         @db.Text
+  operation             String?         @db.Text
 
   nutritionalStatus     String?         @db.Text
   advisedDiet           String?         @db.Text

@@ -382,8 +382,8 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
                   {(user.role === "RECEPTIONIST" || user.role === "STAFF" || user.role === "ADMIN") && (
                     <li>
                       <Link
-                        href="/patients/new"
-                        className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${pathname === "/patients/new"
+                        href="/admissions"
+                        className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${pathname === "/admissions"
                             ? "bg-teal-700 text-white shadow-sm"
                             : "text-slate-300 hover:bg-slate-800 hover:text-white"
                           }`}

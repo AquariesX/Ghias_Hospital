@@ -102,6 +102,7 @@ export async function GET(request: NextRequest) {
           bloodGroup: true,
           status: true,
           cnic: true,
+          address: true,
           relationType: true,
           relatedPersonName: true,
           emergencyContactName: true,

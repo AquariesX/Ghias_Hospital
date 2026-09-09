@@ -61,6 +61,7 @@ export default async function StaffDashboardPage() {
         urgentCount,
         normalCount,
         erQueue,
+        erAdmissions,
       ] = await Promise.all([
         prisma.appointment.count({
           where: { appointmentDate: { gte: todayStart, lte: todayEnd }, isEmergency: true },
@@ -102,6 +103,39 @@ export default async function StaffDashboardPage() {
             },
           },
         }),
+        prisma.admission.findMany({
+          where: {
+            admissionSource: "EMERGENCY",
+            status: { in: ["ADMITTED", "UNDER_TREATMENT", "DISCHARGE_PENDING"] },
+          },
+          orderBy: { admissionDate: "desc" },
+          take: 10,
+          include: {
+            patient: {
+              select: {
+                id: true,
+                patientNumber: true,
+                mrNumber: true,
+                firstName: true,
+                lastName: true,
+                gender: true,
+                dateOfBirth: true,
+                phone: true,
+                bloodGroup: true,
+                allergies: true,
+                vitalSigns: { orderBy: { recordedAt: "desc" }, take: 1 },
+              },
+            },
+            doctor: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                specialization: true,
+              },
+            },
+          },
+        }),
       ]);
 
       return (
@@ -118,20 +152,34 @@ export default async function StaffDashboardPage() {
               department="EMERGENCY"
               role={staff?.role || "STAFF_NURSE"}
               shift={staff?.shift || null}
+              admittedInpatients={erAdmissions}
               erMetrics={{
-                totalCases: Math.max(totalEmergencyAppointments, totalTriageToday),
-                critical: criticalCount,
+                totalCases: Math.max(totalEmergencyAppointments, totalTriageToday) + erAdmissions.length,
+                critical: criticalCount + erAdmissions.filter((a) => a.status === "ADMITTED").length,
                 high: highCount,
                 urgent: urgentCount,
                 normal: normalCount,
               }}
-              queue={erQueue.map((item) => ({
-                id: item.id,
-                patient: item.patient,
-                priority: item.priority,
-                chiefComplaint: item.chiefComplaint,
-                triagedAt: item.triagedAt,
-              }))}
+              queue={[
+                ...erAdmissions.map((adm) => ({
+                  id: adm.id,
+                  isAdmission: true,
+                  patient: adm.patient,
+                  priority: "CRITICAL",
+                  chiefComplaint: adm.provisionalDiagnosis || "Emergency Inpatient Admission",
+                  triagedAt: new Date(adm.admissionDate),
+                  roomBedNo: adm.roomBedNo,
+                })),
+                ...erQueue.map((item) => ({
+                  id: item.id,
+                  isAdmission: false,
+                  patient: item.patient,
+                  priority: item.priority,
+                  chiefComplaint: item.chiefComplaint,
+                  triagedAt: item.triagedAt,
+                  roomBedNo: null,
+                })),
+              ]}
             />
           </div>
         </DashboardLayout>
@@ -144,6 +192,7 @@ export default async function StaffDashboardPage() {
         inConsultationCount,
         completedCount,
         opdQueue,
+        opdAdmissions,
       ] = await Promise.all([
         prisma.appointment.count({
           where: { appointmentDate: { gte: todayStart, lte: todayEnd }, isEmergency: false },
@@ -193,6 +242,39 @@ export default async function StaffDashboardPage() {
             },
           },
         }),
+        prisma.admission.findMany({
+          where: {
+            admissionSource: "OPD",
+            status: { in: ["ADMITTED", "UNDER_TREATMENT", "DISCHARGE_PENDING"] },
+          },
+          orderBy: { admissionDate: "desc" },
+          take: 10,
+          include: {
+            patient: {
+              select: {
+                id: true,
+                patientNumber: true,
+                mrNumber: true,
+                firstName: true,
+                lastName: true,
+                gender: true,
+                dateOfBirth: true,
+                phone: true,
+                bloodGroup: true,
+                allergies: true,
+                vitalSigns: { orderBy: { recordedAt: "desc" }, take: 1 },
+              },
+            },
+            doctor: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                specialization: true,
+              },
+            },
+          },
+        }),
       ]);
 
       return (
@@ -209,20 +291,42 @@ export default async function StaffDashboardPage() {
               department="OPD"
               role={staff?.role || "STAFF_NURSE"}
               shift={staff?.shift || null}
+              admittedInpatients={opdAdmissions}
               opdMetrics={{
-                totalPatients: totalOpdPatients,
-                waiting: waitingCount,
-                inConsultation: inConsultationCount,
+                totalPatients: totalOpdPatients + opdAdmissions.length,
+                waiting: waitingCount + opdAdmissions.filter((a) => a.status === "ADMITTED").length,
+                inConsultation: inConsultationCount + opdAdmissions.filter((a) => a.status === "UNDER_TREATMENT").length,
                 completed: completedCount,
               }}
-              queue={opdQueue.map((item) => ({
-                id: item.id,
-                patient: item.patient,
-                doctor: item.doctor,
-                department: item.department,
-                appointmentTime: item.appointmentTime,
-                status: item.status,
-              }))}
+              queue={[
+                ...opdAdmissions.map((adm) => ({
+                  id: adm.id,
+                  isAdmission: true,
+                  patient: adm.patient,
+                  doctor: adm.doctor ? {
+                    firstName: adm.doctor.firstName,
+                    lastName: adm.doctor.lastName,
+                    specialization: adm.doctor.specialization,
+                    roomNumber: adm.roomBedNo,
+                  } : null,
+                  department: {
+                    name: adm.roomBedNo || "OPD Inpatient Ward",
+                  },
+                  appointmentTime: adm.admissionTime || "Inpatient Ward",
+                  status: adm.status,
+                  roomBedNo: adm.roomBedNo,
+                })),
+                ...opdQueue.map((item) => ({
+                  id: item.id,
+                  isAdmission: false,
+                  patient: item.patient,
+                  doctor: item.doctor,
+                  department: item.department,
+                  appointmentTime: item.appointmentTime,
+                  status: item.status,
+                  roomBedNo: null,
+                })),
+              ]}
             />
           </div>
         </DashboardLayout>
@@ -321,13 +425,22 @@ export default async function StaffDashboardPage() {
                   <span>New Appointment</span>
                 </Link>
                 {canRegister && (
-                  <Link
-                    href="/patients/new"
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm shadow-sm transition"
-                  >
-                    <BedDouble className="w-4 h-4" />
-                    <span>Admit Patient</span>
-                  </Link>
+                  <>
+                    <Link
+                      href="/patients/new"
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 font-bold text-sm shadow-xs transition"
+                    >
+                      <UserPlus className="w-4 h-4 text-teal-700" />
+                      <span>Register Patient</span>
+                    </Link>
+                    <Link
+                      href="/admissions"
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-teal-800 hover:bg-teal-900 text-white font-bold text-sm shadow-sm transition"
+                    >
+                      <BedDouble className="w-4 h-4" />
+                      <span>Admit Patient</span>
+                    </Link>
+                  </>
                 )}
               </div>
             )}

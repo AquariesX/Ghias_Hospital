@@ -11,7 +11,7 @@ const ACTIVE_ADMISSION_STATUSES: AdmissionStatus[] = [
 
 export async function GET(request: NextRequest) {
   try {
-    await requirePatientAccess(request);
+    const user = await requirePatientAccess(request);
 
     const { searchParams } = request.nextUrl;
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
@@ -39,7 +39,16 @@ export async function GET(request: NextRequest) {
       where.doctorId = doctorId;
     }
 
-    if (source && (source === "OPD" || source === "EMERGENCY")) {
+    // Nurse department isolation enforced server-side
+    if (user.role === "NURSE") {
+      const staff = await prisma.staff.findFirst({
+        where: { OR: [{ userId: user.id }, { email: user.email }] },
+        select: { nurseDepartment: true, role: true },
+      });
+      if (staff?.nurseDepartment) {
+        where.admissionSource = staff.nurseDepartment;
+      }
+    } else if (source && (source === "OPD" || source === "EMERGENCY")) {
       where.admissionSource = source as AdmissionSource;
     }
 

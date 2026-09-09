@@ -147,7 +147,7 @@ const navGroups: NavGroup[] = [
     label: "Hospital Management",
     items: [
       { label: "Appointments (OPD)", href: "/appointments", icon: <AppointmentIcon /> },
-      { label: "Admit Patient", href: "/patients/new", icon: <BedIcon /> },
+      { label: "Admit Patient", href: "/admissions", icon: <BedIcon /> },
       { label: "Inpatients & Ward", href: "/doctor/inpatients", icon: <BedIcon /> },
       { label: "Patients", href: "/patients", icon: <PatientIcon /> },
       { label: "Doctors", href: "/admin/doctors", icon: <DoctorIcon /> },

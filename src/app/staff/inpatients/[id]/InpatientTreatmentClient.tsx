@@ -144,6 +144,7 @@ export default function InpatientTreatmentClient({
   const [provisionalDiagnosis, setProvisionalDiagnosis] = useState(admission.provisionalDiagnosis || "");
   const [investigations, setInvestigations] = useState(admission.investigations || "");
   const [finalDiagnosis, setFinalDiagnosis] = useState(admission.finalDiagnosis || "");
+  const [operation, setOperation] = useState(admission.operation || "");
 
   // Nutrition & Treatment
   const [nutritionalStatus, setNutritionalStatus] = useState(admission.nutritionalStatus || "Normal");
@@ -182,6 +183,7 @@ export default function InpatientTreatmentClient({
         provisionalDiagnosis: provisionalDiagnosis.trim() || null,
         investigations: investigations.trim() || null,
         finalDiagnosis: finalDiagnosis.trim() || null,
+        operation: operation.trim() || null,
         nutritionalStatus: nutritionalStatus.trim() || null,
         weight: weight ? parseFloat(weight) : null,
         height: height ? parseFloat(height) : null,
@@ -609,6 +611,19 @@ export default function InpatientTreatmentClient({
                     value={finalDiagnosis}
                     onChange={(e) => setFinalDiagnosis(e.target.value)}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-semibold text-emerald-800 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Operation / Surgical Procedure (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Laparoscopic Cholecystectomy, Appendectomy"
+                    value={operation}
+                    onChange={(e) => setOperation(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                   />
                 </div>
               </div>

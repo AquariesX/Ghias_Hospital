@@ -10,13 +10,45 @@ import {
   Stethoscope,
   ChevronRight,
   Flame,
+  BedDouble,
+  ClipboardList,
 } from "lucide-react";
+
+export interface AdmittedInpatientItem {
+  id: string;
+  admissionNumber: string;
+  roomBedNo: string | null;
+  admissionSource: string;
+  admissionDate: Date | string;
+  admissionTime: string | null;
+  status: string;
+  provisionalDiagnosis?: string | null;
+  operation?: string | null;
+  doctor?: {
+    id?: string;
+    firstName: string;
+    lastName: string;
+    specialization: string;
+  } | null;
+  doctorName?: string | null;
+  patient: {
+    id: string;
+    patientNumber: string;
+    mrNumber: string | null;
+    firstName: string;
+    lastName: string;
+    gender: string;
+    bloodGroup: string;
+    allergies?: string[];
+  };
+}
 
 interface NurseDashboardViewProps {
   nurseName: string;
   department: "OPD" | "EMERGENCY" | null;
   role: string;
   shift: string | null;
+  admittedInpatients?: AdmittedInpatientItem[];
   opdMetrics?: {
     totalPatients: number;
     waiting: number;
@@ -32,6 +64,8 @@ interface NurseDashboardViewProps {
   };
   queue: Array<{
     id: string;
+    isAdmission?: boolean;
+    roomBedNo?: string | null;
     patient: {
       id: string;
       patientNumber: string;
@@ -39,7 +73,7 @@ interface NurseDashboardViewProps {
       firstName: string;
       lastName: string;
       gender: string;
-      dateOfBirth: Date;
+      dateOfBirth: Date | string;
       phone: string;
       bloodGroup: string;
       allergies: string[];
@@ -49,7 +83,7 @@ interface NurseDashboardViewProps {
         pulse: number | null;
         temperature: any;
         oxygenSaturation: number | null;
-        recordedAt: Date;
+        recordedAt: Date | string;
       }>;
     };
     doctor?: {
@@ -65,7 +99,7 @@ interface NurseDashboardViewProps {
     status?: string;
     priority?: string;
     chiefComplaint?: string;
-    triagedAt?: Date;
+    triagedAt?: Date | string;
   }>;
 }
 
@@ -74,6 +108,7 @@ export default function NurseDashboardView({
   department,
   role,
   shift,
+  admittedInpatients,
   opdMetrics,
   erMetrics,
   queue,
@@ -337,12 +372,21 @@ export default function NurseDashboardView({
                             {item.doctor ? `Dr. ${item.doctor.firstName} ${item.doctor.lastName}` : "General"}
                           </td>
                           <td className="py-3 px-4 text-xs text-slate-600">
-                            {item.department?.name || "OPD"}
+                            {item.roomBedNo ? (
+                              <span className="inline-flex items-center gap-1 font-bold text-teal-800 bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
+                                <BedDouble className="w-3 h-3 text-teal-700" />
+                                {item.roomBedNo}
+                              </span>
+                            ) : (
+                              item.department?.name || "OPD"
+                            )}
                           </td>
                           <td className="py-3 px-4">
                             <span
                               className={`text-[11px] font-semibold uppercase px-2 py-0.5 rounded-full ${
-                                item.status === "WAITING"
+                                item.status === "ADMITTED" || item.status === "UNDER_TREATMENT"
+                                  ? "bg-teal-100 text-teal-800 border border-teal-200"
+                                  : item.status === "WAITING"
                                   ? "bg-amber-100 text-amber-800"
                                   : item.status === "IN_CONSULTATION"
                                   ? "bg-blue-100 text-blue-800"
@@ -370,17 +414,142 @@ export default function NurseDashboardView({
                         )}
                       </td>
                       <td className="py-3 px-4 text-right space-x-2">
-                        <Link
-                          href={`/staff/patients/${item.patient.id}`}
-                          className="inline-flex items-center gap-1 text-xs font-semibold bg-teal-50 text-teal-700 hover:bg-teal-100 px-3 py-1.5 rounded-md border border-teal-200 transition-colors"
-                        >
-                          Record Vitals
-                          <ChevronRight className="w-3.5 h-3.5" />
-                        </Link>
+                        {item.isAdmission ? (
+                          <Link
+                            href={`/staff/inpatients/${item.id}`}
+                            className="inline-flex items-center gap-1 text-xs font-bold bg-teal-800 text-white hover:bg-teal-900 px-3 py-1.5 rounded-lg shadow-2xs transition-colors"
+                          >
+                            <ClipboardList className="w-3.5 h-3.5" />
+                            <span>Initial Assessment &amp; Chart</span>
+                          </Link>
+                        ) : (
+                          <Link
+                            href={`/staff/patients/${item.patient.id}`}
+                            className="inline-flex items-center gap-1 text-xs font-semibold bg-teal-50 text-teal-700 hover:bg-teal-100 px-3 py-1.5 rounded-md border border-teal-200 transition-colors"
+                          >
+                            Record Vitals
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </Link>
+                        )}
                       </td>
                     </tr>
                   );
                 })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Admitted Inpatients Section */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+        <div className="p-4 sm:p-5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-teal-50 text-teal-700 rounded-lg">
+              <BedDouble className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold text-slate-900">
+                  Admitted Inpatients ({department || "Ward"})
+                </h2>
+                {admittedInpatients && admittedInpatients.length > 0 && (
+                  <span className="text-xs font-bold bg-teal-100 text-teal-800 px-2 py-0.5 rounded-full">
+                    {admittedInpatients.length} Active
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500">
+                {isEmergency
+                  ? "Emergency admitted inpatients awaiting or receiving clinical treatment"
+                  : "OPD referred inpatients admitted to general or specialized wards"}
+              </p>
+            </div>
+          </div>
+
+          <Link
+            href="/staff/inpatients"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-teal-700 hover:text-teal-900 bg-teal-50 hover:bg-teal-100 px-3 py-1.5 rounded-lg border border-teal-200 transition"
+          >
+            <span>All Inpatients &amp; Medication Sheets</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+
+        {!admittedInpatients || admittedInpatients.length === 0 ? (
+          <div className="p-10 text-center text-slate-500">
+            <BedDouble className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+            <p className="text-sm font-semibold text-slate-700">
+              No active inpatients currently admitted via {department || "your department"}.
+            </p>
+            <p className="text-xs text-slate-400 mt-1">
+              When receptionists admit patients under {department || "your ward"}, they will immediately appear here for your initial assessment.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm text-slate-600 border-collapse">
+              <thead className="bg-slate-50 text-slate-700 text-xs font-bold uppercase border-b border-slate-200">
+                <tr>
+                  <th className="py-3 px-4">Patient</th>
+                  <th className="py-3 px-4">MR Number</th>
+                  <th className="py-3 px-4">Bed / Room</th>
+                  <th className="py-3 px-4">Attending Doctor</th>
+                  <th className="py-3 px-4">Admitted Time</th>
+                  <th className="py-3 px-4">Diagnosis</th>
+                  <th className="py-3 px-4 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {admittedInpatients.map((adm) => (
+                  <tr key={adm.id} className="hover:bg-slate-50/75 transition-colors">
+                    <td className="py-3 px-4">
+                      <div className="font-semibold text-slate-900">
+                        {adm.patient.firstName} {adm.patient.lastName}
+                      </div>
+                      <div className="text-xs text-slate-400">
+                        {adm.patient.gender} • Blood: {adm.patient.bloodGroup ? adm.patient.bloodGroup.replace("_", "") : "N/A"}
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 font-mono text-xs font-semibold text-slate-700">
+                      {adm.patient.mrNumber || adm.patient.patientNumber}
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className="inline-flex items-center font-bold text-xs bg-slate-100 text-slate-800 px-2 py-0.5 rounded border border-slate-200">
+                        {adm.roomBedNo}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-xs text-slate-800">
+                      {adm.doctor
+                        ? `Dr. ${adm.doctor.firstName} ${adm.doctor.lastName}`
+                        : adm.doctorName || "Assigned Physician"}
+                    </td>
+                    <td className="py-3 px-4 text-xs text-slate-500">
+                      <div>
+                        {adm.admissionDate instanceof Date
+                          ? adm.admissionDate.toLocaleDateString()
+                          : typeof adm.admissionDate === "string"
+                          ? adm.admissionDate.split("T")[0]
+                          : "Today"}
+                      </div>
+                      {adm.admissionTime && (
+                        <div className="text-[11px] text-slate-400 font-mono">{adm.admissionTime}</div>
+                      )}
+                    </td>
+                    <td className="py-3 px-4 text-xs text-slate-700 max-w-xs truncate">
+                      {adm.provisionalDiagnosis || "General Inpatient Care"}
+                    </td>
+                    <td className="py-3 px-4 text-right">
+                      <Link
+                        href={`/staff/inpatients/${adm.id}`}
+                        className="inline-flex items-center gap-1 text-xs font-bold bg-teal-800 text-white hover:bg-teal-900 px-3 py-1.5 rounded-lg shadow-2xs transition-colors"
+                      >
+                        <ClipboardList className="w-3.5 h-3.5" />
+                        <span>Initial Assessment &amp; Chart</span>
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

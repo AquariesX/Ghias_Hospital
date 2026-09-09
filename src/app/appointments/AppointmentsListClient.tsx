@@ -340,8 +340,8 @@ export default function AppointmentsListClient() {
               className="w-full p-2 text-xs rounded-lg border border-slate-300 text-black bg-white focus:ring-1 focus:ring-teal-500"
             >
               <option value="">All Departments</option>
-              {departments.map((d) => (
-                <option key={d.id} value={d.id}>
+              {departments.map((d, index) => (
+                <option key={`${d.id}-${index}`} value={d.id}>
                   {d.name}
                 </option>
               ))}

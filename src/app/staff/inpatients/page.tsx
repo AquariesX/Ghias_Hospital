@@ -28,16 +28,23 @@ export default async function StaffInpatientsPage() {
   });
 
   // Query active admitted patients (ADMITTED, UNDER_TREATMENT, DISCHARGE_PENDING)
-  const admissions = await prisma.admission.findMany({
-    where: {
-      status: {
-        in: [
-          AdmissionStatus.ADMITTED,
-          AdmissionStatus.UNDER_TREATMENT,
-          AdmissionStatus.DISCHARGE_PENDING,
-        ],
-      },
+  const whereClause: any = {
+    status: {
+      in: [
+        AdmissionStatus.ADMITTED,
+        AdmissionStatus.UNDER_TREATMENT,
+        AdmissionStatus.DISCHARGE_PENDING,
+      ],
     },
+  };
+
+  // Strict nurse department visibility
+  if (user.role === "NURSE" && staff?.nurseDepartment) {
+    whereClause.admissionSource = staff.nurseDepartment;
+  }
+
+  const admissions = await prisma.admission.findMany({
+    where: whereClause,
     orderBy: { admissionDate: "desc" },
     include: {
       patient: {

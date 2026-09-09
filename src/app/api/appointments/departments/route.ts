@@ -50,14 +50,21 @@ export async function GET(request: NextRequest) {
     ]);
 
     if (unassignedDoctors.length > 0) {
-      const fallbackDeptId = departments[0]?.id || "";
-      departments.push({
-        id: fallbackDeptId,
-        code: "GEN",
-        name: "General Consultation / OPD",
-        description: "Doctors assigned to consultation rooms",
-        doctors: unassignedDoctors,
-      });
+      const existingOpd = departments.find(
+        (d) => d.code === "OPD" || d.code === "GEN" || d.name.toLowerCase().includes("opd")
+      );
+      if (existingOpd) {
+        // Merge unassigned doctors into existing OPD department without creating duplicate department
+        existingOpd.doctors = [...existingOpd.doctors, ...unassignedDoctors];
+      } else {
+        departments.push({
+          id: "general-opd-unassigned",
+          code: "GEN",
+          name: "General Consultation / OPD",
+          description: "Doctors assigned to consultation rooms",
+          doctors: unassignedDoctors,
+        });
+      }
     }
 
     return NextResponse.json({ departments });

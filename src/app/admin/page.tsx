@@ -251,7 +251,7 @@ export default async function AdminDashboardPage() {
           )}
           <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
             <Link
-              href="/patients/new"
+              href="/admissions"
               className="text-xs font-medium text-teal-700 hover:text-teal-900 transition-colors"
             >
               + Admit Patient
@@ -400,7 +400,8 @@ export default async function AdminDashboardPage() {
         {/* Quick Links */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {[
-            { label: "Admit Patient", href: "/patients/new", icon: "🏥" },
+            { label: "Admit Patient", href: "/admissions", icon: "🏥" },
+            { label: "Register Patient", href: "/patients/new", icon: "➕" },
             { label: "Patients Directory", href: "/patients", icon: "📋" },
             { label: "Add Doctor", href: "/admin/doctors/new", icon: "👨‍⚕️" },
             { label: "Add Staff", href: "/admin/staff/new", icon: "👤" },
