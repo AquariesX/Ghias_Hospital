@@ -42,6 +42,16 @@ export function isAuthorizedForPath(role: UserRole | string, pathname: string): 
     return role === "ADMIN" || role === "RECEPTIONIST" || role === "STAFF";
   }
 
+  if (pathname.startsWith("/emergency")) {
+    return (
+      role === "ADMIN" ||
+      role === "DOCTOR" ||
+      role === "NURSE" ||
+      role === "RECEPTIONIST" ||
+      role === "STAFF"
+    );
+  }
+
   if (pathname.startsWith("/patients")) {
     return canViewPatients(role);
   }

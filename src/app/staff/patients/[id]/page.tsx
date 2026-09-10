@@ -49,6 +49,52 @@ export default async function NursePatientPage({
           orderBy: { appointmentDate: "desc" },
           take: 5,
         },
+        consultations: {
+          orderBy: { consultationDate: "desc" },
+          include: {
+            doctor: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                specialization: true,
+                roomNumber: true,
+              },
+            },
+          },
+          take: 30,
+        },
+        prescriptions: {
+          orderBy: { createdAt: "desc" },
+          include: {
+            items: true,
+            doctor: {
+              select: {
+                firstName: true,
+                lastName: true,
+                specialization: true,
+              },
+            },
+          },
+          take: 20,
+        },
+        medicationAdministrations: {
+          orderBy: { administeredAt: "desc" },
+          take: 50,
+        },
+        admissions: {
+          orderBy: { admissionDate: "desc" },
+          include: {
+            doctor: {
+              select: {
+                firstName: true,
+                lastName: true,
+                specialization: true,
+              },
+            },
+          },
+          take: 10,
+        },
       },
     }),
   ]);
@@ -57,7 +103,7 @@ export default async function NursePatientPage({
     notFound();
   }
 
-  // Convert Decimal fields to numbers for client components
+  // Convert Decimal fields to numbers and Dates to strings for client components
   const sanitizedPatient = {
     ...patient,
     dateOfBirth: patient.dateOfBirth.toISOString(),
@@ -77,11 +123,39 @@ export default async function NursePatientPage({
       ...t,
       temperature: t.temperature ? Number(t.temperature) : null,
       triagedAt: t.triagedAt.toISOString(),
+      admissionDateTime: t.admissionDateTime ? t.admissionDateTime.toISOString() : null,
+      dischargeDateTime: t.dischargeDateTime ? t.dischargeDateTime.toISOString() : null,
     })),
     appointments: patient.appointments.map((a) => ({
       ...a,
       consultationFee: Number(a.consultationFee),
       appointmentDate: a.appointmentDate.toISOString(),
+    })),
+    consultations: patient.consultations.map((c) => ({
+      ...c,
+      consultationDate: c.consultationDate.toISOString(),
+    })),
+    prescriptions: patient.prescriptions.map((p) => ({
+      ...p,
+      createdAt: p.createdAt.toISOString(),
+      updatedAt: p.updatedAt.toISOString(),
+    })),
+    medicationAdministrations: patient.medicationAdministrations.map((m) => ({
+      ...m,
+      administeredAt: m.administeredAt.toISOString(),
+      createdAt: m.createdAt.toISOString(),
+    })),
+    admissions: patient.admissions.map((adm) => ({
+      ...adm,
+      admissionDate: adm.admissionDate.toISOString(),
+      dischargeDate: adm.dischargeDate ? adm.dischargeDate.toISOString() : null,
+      pulse: adm.pulse ?? null,
+      temperature: adm.temperature ? Number(adm.temperature) : null,
+      systolicBP: adm.systolicBP ?? null,
+      diastolicBP: adm.diastolicBP ?? null,
+      weight: adm.weight ? Number(adm.weight) : null,
+      height: adm.height ? Number(adm.height) : null,
+      bmi: adm.bmi ? Number(adm.bmi) : null,
     })),
   };
 

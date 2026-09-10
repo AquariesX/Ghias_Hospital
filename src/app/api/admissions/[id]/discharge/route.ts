@@ -321,11 +321,16 @@ export async function POST(
         }
       }
 
-      // Update Patient status to ACTIVE, ensuring permanently searchable and intact
+      // Update Patient status to DISCHARGED or DECEASED for medical record lock
+      const resolvedPatientStatus =
+        data.outcome === "Expired" || data.dischargeCondition?.toLowerCase().includes("deceased")
+          ? PatientStatus.DECEASED
+          : PatientStatus.DISCHARGED;
+
       await tx.patient.update({
         where: { id: admission.patientId },
         data: {
-          status: PatientStatus.ACTIVE,
+          status: resolvedPatientStatus,
         },
       });
 

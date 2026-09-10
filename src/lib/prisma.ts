@@ -4,7 +4,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
 // Schema revision token to force-reload PrismaClient in dev when schema changes
-const SCHEMA_REVISION = "2026-09-10-v3-ipd-admission";
+const SCHEMA_REVISION = "2026-09-11-v4-emergency-triage";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;

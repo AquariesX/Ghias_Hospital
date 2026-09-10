@@ -50,11 +50,41 @@ export async function POST(
 
     const patient = await prisma.patient.findUnique({
       where: { id: patientId },
-      select: { id: true, firstName: true, lastName: true },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        status: true,
+        admissions: {
+          select: { dischargeDate: true },
+          orderBy: { admissionDate: "desc" },
+          take: 1,
+        },
+        emergencyTriages: {
+          select: { dischargeDateTime: true },
+          orderBy: { triagedAt: "desc" },
+          take: 1,
+        },
+      },
     });
 
     if (!patient) {
       return NextResponse.json({ error: "Patient not found" }, { status: 404 });
+    }
+
+    const isDischarged =
+      patient.status === "DISCHARGED" ||
+      patient.status === "DECEASED" ||
+      Boolean(patient.admissions?.[0]?.dischargeDate) ||
+      Boolean(patient.emergencyTriages?.[0]?.dischargeDateTime);
+
+    if (isDischarged) {
+      return NextResponse.json(
+        {
+          error: "Patient file is locked and read-only. Nursing notes cannot be added or modified after patient discharge.",
+        },
+        { status: 403 }
+      );
     }
 
     const body = await request.json();

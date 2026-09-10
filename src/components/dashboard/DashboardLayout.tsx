@@ -117,6 +117,41 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
                 </ul>
               </div>
 
+              {/* Emergency & Triage for Doctor */}
+              <div>
+                <div className="px-3 text-[11px] font-semibold uppercase tracking-wider text-rose-400 mb-2 flex items-center justify-between">
+                  <span>Emergency &amp; Triage</span>
+                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
+                </div>
+                <ul className="space-y-1">
+                  <li>
+                    <Link
+                      href="/emergency"
+                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${pathname === "/emergency"
+                          ? "bg-rose-700 text-white shadow-sm"
+                          : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                        }`}
+                    >
+                      <svg className="w-4 h-4 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      Emergency Triage Queue
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/emergency?new=true"
+                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors text-slate-300 hover:bg-slate-800 hover:text-white`}
+                    >
+                      <svg className="w-4 h-4 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      + Add Emergency Patient
+                    </Link>
+                  </li>
+                </ul>
+              </div>
+
               {/* Clinical Section */}
               <div>
                 <div className="px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2">
@@ -281,9 +316,9 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
                   {(user.nurseDepartment === "EMERGENCY" || user.staffRole === "HEAD_NURSE") && (
                     <li>
                       <Link
-                        href="/staff/emergency"
-                        className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${pathname === "/staff/emergency"
-                            ? "bg-teal-700 text-white shadow-sm"
+                        href="/emergency"
+                        className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${pathname === "/emergency"
+                            ? "bg-rose-700 text-white shadow-sm"
                             : "text-slate-300 hover:bg-slate-800 hover:text-white"
                           }`}
                       >
@@ -348,6 +383,49 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
                       Dashboard
                     </Link>
                   </li>
+                </ul>
+              </div>
+
+              {/* Emergency & Triage Section for Receptionist & Staff */}
+              <div>
+                <div className="px-3 text-[11px] font-semibold uppercase tracking-wider text-rose-400 mb-2 flex items-center justify-between">
+                  <span>Emergency &amp; Triage</span>
+                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
+                </div>
+                <ul className="space-y-1">
+                  <li>
+                    <Link
+                      href="/emergency"
+                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${pathname === "/emergency"
+                          ? "bg-rose-700 text-white shadow-sm"
+                          : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                        }`}
+                    >
+                      <svg className="w-4 h-4 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      Emergency Queue &amp; Triage
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/emergency?new=true"
+                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors text-slate-300 hover:bg-slate-800 hover:text-white`}
+                    >
+                      <svg className="w-4 h-4 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      + Add Emergency Patient
+                    </Link>
+                  </li>
+                </ul>
+              </div>
+
+              <div>
+                <div className="px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                  Clinical &amp; Administrative
+                </div>
+                <ul className="space-y-1">
                   <li>
                     <Link
                       href="/appointments"
@@ -522,8 +600,7 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
                 </div>
                 <ul className="space-y-1 text-slate-400 text-sm">
                   {[
-                    { name: "Emergency & Triage", phase: "Phase 6" },
-                    { name: "Medication & MAR", phase: "Phase 6" },
+                    { name: "Medication & MAR", phase: "Active" },
                     { name: "Pharmacy & Labs", phase: "Phase 7" },
                     { name: "Billing & Reports", phase: "Phase 8" },
                   ].map((item) => (

@@ -577,6 +577,16 @@ model EmergencyTriage {
 
   chiefComplaint String            @db.Text
   priority       EmergencyPriority @default(NORMAL) // CRITICAL, URGENT, NORMAL
+  triageLevel    String?           // RESUSCITATION, EMERGENCY, URGENT, SEMI_URGENT, NON_URGENT
+  targetTime     String?           // Response time e.g. "within 2 minutes"
+
+  admissionDateTime DateTime?      // Date/Time of admission (timestamp)
+  dischargeDateTime DateTime?      // Date/Time of discharge (timestamp)
+
+  provisionalDiagnosis String?     @db.Text
+  finalDiagnosis       String?     @db.Text
+  medicationSheet      Json?       // Dynamic medication sheet entries
+
   painScore      Int?              // 0-10
   generalCondition String?
   observations   String?           @db.Text
@@ -591,7 +601,11 @@ model EmergencyTriage {
   triagedById   String?
   triagedByName String
 
+  admissionId   String?
+  admission     Admission?        @relation(fields: [admissionId], references: [id], onDelete: SetNull)
+
   triagedAt DateTime @default(now())
+  updatedAt DateTime @updatedAt @default(now())
 
   @@index([patientId])
   @@index([priority])
@@ -666,6 +680,7 @@ model Admission {
   prescriptions             Prescription[]
   medicationAdministrations MedicationAdministration[]
   nursingNotes              NursingNote[]
+  emergencyTriages          EmergencyTriage[]
   statements                AdmissionStatement[]
   referrals                 PatientReferral[]
   deathCertificates         DeathCertificate[]

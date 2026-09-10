@@ -1,4 +1,8 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Users,
   Clock,
@@ -12,6 +16,9 @@ import {
   Flame,
   BedDouble,
   ClipboardList,
+  X,
+  RefreshCw,
+  AlertCircle,
 } from "lucide-react";
 
 export interface AdmittedInpatientItem {
@@ -64,6 +71,10 @@ interface NurseDashboardViewProps {
   };
   queue: Array<{
     id: string;
+    triageId?: string | null;
+    admissionId?: string | null;
+    dischargeDateTime?: string | null;
+    triageLevel?: string | null;
     isAdmission?: boolean;
     roomBedNo?: string | null;
     patient: {
@@ -113,7 +124,73 @@ export default function NurseDashboardView({
   erMetrics,
   queue,
 }: NurseDashboardViewProps) {
+  const router = useRouter();
+  const [localQueue, setLocalQueue] = useState(queue);
+  const [dischargeModalOpen, setDischargeModalOpen] = useState(false);
+  const [itemToDischarge, setItemToDischarge] = useState<any | null>(null);
+  const [dischargeDateTime, setDischargeDateTime] = useState("");
+  const [dischargeCondition, setDischargeCondition] = useState("Satisfactory / Discharged Home");
+  const [dischargeSummary, setDischargeSummary] = useState("");
+  const [dischargeInstructions, setDischargeInstructions] = useState("");
+  const [dischargeMedications, setDischargeMedications] = useState("");
+  const [dischargeFinalDiagnosis, setDischargeFinalDiagnosis] = useState("");
+  const [discharging, setDischarging] = useState(false);
+  const [dischargeError, setDischargeError] = useState<string | null>(null);
+
   const isEmergency = department === "EMERGENCY";
+
+  const handleOpenDischarge = (item: any) => {
+    setItemToDischarge(item);
+    setDischargeDateTime(new Date().toISOString().slice(0, 16));
+    setDischargeCondition("Satisfactory / Discharged Home");
+    setDischargeFinalDiagnosis("");
+    setDischargeSummary("");
+    setDischargeInstructions("Take prescribed discharge medications, rest, return if symptoms recur.");
+    setDischargeMedications("");
+    setDischargeError(null);
+    setDischargeModalOpen(true);
+  };
+
+  const handleConfirmDischarge = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!itemToDischarge) return;
+    try {
+      setDischarging(true);
+      setDischargeError(null);
+      const res = await fetch("/api/staff/emergency/discharge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          triageId: itemToDischarge.triageId || itemToDischarge.id,
+          admissionId: itemToDischarge.admissionId,
+          dischargeDateTime: dischargeDateTime || new Date().toISOString(),
+          dischargeCondition,
+          dischargeSummary: dischargeSummary.trim() || undefined,
+          dischargeInstructions: dischargeInstructions.trim() || undefined,
+          dischargeMedications: dischargeMedications.trim() || undefined,
+          finalDiagnosis: dischargeFinalDiagnosis.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to discharge emergency patient");
+      }
+      setLocalQueue((prev) =>
+        prev.map((q) =>
+          q.id === itemToDischarge.id
+            ? { ...q, dischargeDateTime: dischargeDateTime || new Date().toISOString() }
+            : q
+        )
+      );
+      setDischargeModalOpen(false);
+      setItemToDischarge(null);
+      router.refresh();
+    } catch (err: any) {
+      setDischargeError(err.message || "Failed to discharge emergency patient");
+    } finally {
+      setDischarging(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -286,7 +363,7 @@ export default function NurseDashboardView({
             </p>
           </div>
           <Link
-            href={isEmergency ? "/staff/emergency" : "/staff/opd"}
+            href={isEmergency ? "/emergency" : "/staff/opd"}
             className="inline-flex items-center gap-1.5 text-xs font-medium text-teal-600 hover:text-teal-800"
           >
             View Full Queue
@@ -315,7 +392,7 @@ export default function NurseDashboardView({
                   <th className="py-3 px-4">MR Number</th>
                   {isEmergency ? (
                     <>
-                      <th className="py-3 px-4">Priority</th>
+                      <th className="py-3 px-4">Priority / Triage</th>
                       <th className="py-3 px-4">Chief Complaint</th>
                     </>
                   ) : (
@@ -330,7 +407,7 @@ export default function NurseDashboardView({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {queue.map((item) => {
+                {localQueue.map((item) => {
                   const latestVital = item.patient.vitalSigns?.[0];
                   return (
                     <tr key={item.id} className="hover:bg-slate-50/75 transition-colors">
@@ -351,11 +428,11 @@ export default function NurseDashboardView({
                             <span
                               className={`text-xs font-bold uppercase px-2 py-0.5 rounded-full border ${
                                 item.priority === "CRITICAL"
-                                  ? "bg-rose-50 text-rose-700 border-rose-200"
+                                  ? "bg-red-100 text-red-800 border-red-300 font-extrabold"
                                   : item.priority === "HIGH"
-                                  ? "bg-amber-50 text-amber-700 border-amber-200"
+                                  ? "bg-amber-100 text-amber-900 border-amber-300 font-bold"
                                   : item.priority === "URGENT"
-                                  ? "bg-blue-50 text-blue-700 border-blue-200"
+                                  ? "bg-purple-100 text-purple-900 border-purple-300"
                                   : "bg-slate-100 text-slate-700 border-slate-200"
                               }`}
                             >
@@ -413,7 +490,18 @@ export default function NurseDashboardView({
                           <span className="text-amber-600 font-medium text-xs">Pending Vitals</span>
                         )}
                       </td>
-                      <td className="py-3 px-4 text-right space-x-2">
+                      <td className="py-3 px-4 text-right space-x-1.5 whitespace-nowrap">
+                        {isEmergency && !item.dischargeDateTime && (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenDischarge(item)}
+                            className="inline-flex items-center gap-1 text-xs font-bold bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 px-2.5 py-1.5 rounded-lg transition-colors shadow-2xs"
+                            title="Discharge patient from Emergency"
+                          >
+                            <ArrowRight className="w-3.5 h-3.5" />
+                            Discharge
+                          </button>
+                        )}
                         {item.isAdmission ? (
                           <Link
                             href={`/staff/inpatients/${item.id}`}
@@ -555,6 +643,156 @@ export default function NurseDashboardView({
           </div>
         )}
       </div>
+
+      {/* Discharge Patient Modal */}
+      {dischargeModalOpen && itemToDischarge && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-6 max-h-[92vh] flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-rose-900 to-slate-900 text-white shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-rose-600 flex items-center justify-center text-white">
+                  <ArrowRight className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold">Emergency Patient Discharge</h3>
+                  <p className="text-xs text-rose-200">
+                    {itemToDischarge.patient.firstName} {itemToDischarge.patient.lastName} • MR# {itemToDischarge.patient.mrNumber || itemToDischarge.patient.patientNumber}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDischargeModalOpen(false)}
+                className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmDischarge} className="p-6 overflow-y-auto space-y-4 text-sm flex-1">
+              {dischargeError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-semibold flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{dischargeError}</span>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
+                    Date &amp; Time of Discharge *
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={dischargeDateTime}
+                    onChange={(e) => setDischargeDateTime(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-rose-500 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
+                    Discharge Condition *
+                  </label>
+                  <select
+                    value={dischargeCondition}
+                    onChange={(e) => setDischargeCondition(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-rose-500"
+                  >
+                    <option value="Satisfactory / Discharged Home">Satisfactory / Discharged Home</option>
+                    <option value="Stable">Stable</option>
+                    <option value="Transferred to IPD Ward">Transferred to IPD Ward</option>
+                    <option value="Referred to Higher Facility">Referred to Higher Facility</option>
+                    <option value="LAMA (Left Against Medical Advice)">LAMA (Left Against Medical Advice)</option>
+                    <option value="Deceased">Deceased</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
+                  Final Clinical Diagnosis
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Acute Gastritis, Resolved Vasovagal Syncope, Stable Angina"
+                  value={dischargeFinalDiagnosis}
+                  onChange={(e) => setDischargeFinalDiagnosis(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-rose-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
+                  Discharge Clinical Summary
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Emergency treatment given, patient stabilized, vitals within normal limits..."
+                  value={dischargeSummary}
+                  onChange={(e) => setDischargeSummary(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-rose-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
+                  Discharge Advice &amp; Instructions
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Rest advised, follow up in OPD after 3 days..."
+                  value={dischargeInstructions}
+                  onChange={(e) => setDischargeInstructions(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-rose-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
+                  Discharge / Home Medications
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="e.g. Tab Panadol 500mg TDS, Syp Gaviscon 2 tsp TDS after meals..."
+                  value={dischargeMedications}
+                  onChange={(e) => setDischargeMedications(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-rose-500"
+                />
+              </div>
+
+              <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setDischargeModalOpen(false)}
+                  disabled={discharging}
+                  className="px-4 py-2 border border-slate-300 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={discharging}
+                  className="inline-flex items-center gap-2 bg-rose-600 hover:bg-rose-700 text-white px-5 py-2 rounded-xl text-sm font-bold transition shadow-xs disabled:opacity-50"
+                >
+                  {discharging ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      Discharging...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-4 h-4" />
+                      Confirm Patient Discharge
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

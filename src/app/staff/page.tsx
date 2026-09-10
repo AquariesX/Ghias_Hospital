@@ -15,6 +15,7 @@ import {
   Plus,
   BedDouble,
   FileCheck2,
+  Flame,
 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -82,9 +83,14 @@ export default async function StaffDashboardPage() {
           where: { triagedAt: { gte: todayStart, lte: todayEnd }, priority: "NORMAL" },
         }),
         prisma.emergencyTriage.findMany({
-          where: { triagedAt: { gte: todayStart, lte: todayEnd } },
+          where: {
+            OR: [
+              { dischargeDateTime: null },
+              { triagedAt: { gte: new Date(Date.now() - 48 * 60 * 60 * 1000) } },
+            ],
+          },
           orderBy: { triagedAt: "desc" },
-          take: 8,
+          take: 16,
           include: {
             patient: {
               select: {
@@ -99,6 +105,12 @@ export default async function StaffDashboardPage() {
                 bloodGroup: true,
                 allergies: true,
                 vitalSigns: { orderBy: { recordedAt: "desc" }, take: 1 },
+              },
+            },
+            admission: {
+              select: {
+                id: true,
+                status: true,
               },
             },
           },
@@ -163,6 +175,10 @@ export default async function StaffDashboardPage() {
               queue={[
                 ...erAdmissions.map((adm) => ({
                   id: adm.id,
+                  triageId: null,
+                  admissionId: adm.id,
+                  dischargeDateTime: null,
+                  triageLevel: "RESUSCITATION",
                   isAdmission: true,
                   patient: adm.patient,
                   priority: "CRITICAL",
@@ -172,6 +188,10 @@ export default async function StaffDashboardPage() {
                 })),
                 ...erQueue.map((item) => ({
                   id: item.id,
+                  triageId: item.id,
+                  admissionId: item.admission?.id || null,
+                  dischargeDateTime: item.dischargeDateTime ? item.dischargeDateTime.toISOString() : null,
+                  triageLevel: item.triageLevel || "EMERGENCY",
                   isAdmission: false,
                   patient: item.patient,
                   priority: item.priority,
@@ -418,12 +438,21 @@ export default async function StaffDashboardPage() {
             {canBook && (
               <div className="flex flex-wrap items-center gap-2">
                 <Link
-                  href="/appointments/new"
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm shadow-sm transition"
+                  href="/emergency?new=true"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm shadow-md transition"
                 >
-                  <Plus className="w-4 h-4 stroke-[3]" />
-                  <span>New Appointment</span>
+                  <Flame className="w-4 h-4" />
+                  <span>+ Emergency Patient</span>
                 </Link>
+                {canBook && (
+                  <Link
+                    href="/appointments/new"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm shadow-sm transition"
+                  >
+                    <Plus className="w-4 h-4 stroke-[3]" />
+                    <span>New Appointment</span>
+                  </Link>
+                )}
                 {canRegister && (
                   <>
                     <Link
@@ -465,13 +494,22 @@ export default async function StaffDashboardPage() {
             <p className="text-xs text-amber-600 mt-1">Patients in clinic waiting area</p>
           </div>
 
-          <div className="bg-white p-5 rounded-xl border border-rose-200 bg-rose-50/20 shadow-xs">
-            <span className="text-[11px] font-bold text-rose-800 uppercase tracking-wider block">
-              Emergency Triage
-            </span>
+          <Link
+            href="/emergency"
+            className="bg-white p-5 rounded-xl border border-rose-200 bg-rose-50/30 shadow-xs hover:border-rose-400 hover:shadow-md transition cursor-pointer group"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-rose-800 uppercase tracking-wider block">
+                Emergency Triage
+              </span>
+              <span className="w-2 h-2 rounded-full bg-rose-600 animate-ping" />
+            </div>
             <p className="text-3xl font-extrabold text-rose-700 mt-1">{todayEmergencyCount}</p>
-            <p className="text-xs text-rose-600 mt-1">High/Critical priority cases</p>
-          </div>
+            <p className="text-xs text-rose-600 font-medium mt-1 group-hover:underline flex items-center gap-1">
+              <span>View Emergency Queue</span>
+              <ArrowRight className="w-3 h-3" />
+            </p>
+          </Link>
 
           <div className="bg-white p-5 rounded-xl border border-emerald-200 bg-emerald-50/20 shadow-xs">
             <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider block">
@@ -484,6 +522,30 @@ export default async function StaffDashboardPage() {
 
         {/* Quick Receptionist Action Tiles */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Emergency Triage Quick Action */}
+          <Link
+            href="/emergency"
+            className="bg-gradient-to-br from-rose-600 to-red-700 hover:from-rose-700 hover:to-red-800 text-white p-5 rounded-xl shadow-md hover:shadow-lg transition flex flex-col justify-between group"
+          >
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="p-2.5 rounded-lg bg-white/15 w-fit text-white">
+                  <Flame className="w-5 h-5 stroke-[2.5]" />
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-wider bg-white/20 text-white px-2 py-0.5 rounded">
+                  24/7 ER
+                </span>
+              </div>
+              <h2 className="text-base font-bold">Emergency &amp; Triage</h2>
+              <p className="text-xs text-rose-100 mt-1">
+                Register emergency patients, select 5-tier triage level, record vitals &amp; dispatch to nurse.
+              </p>
+            </div>
+            <div className="flex items-center gap-1 text-xs font-bold mt-4 text-rose-100 group-hover:translate-x-1 transition">
+              <span>Launch Emergency Station</span>
+              <ArrowRight className="w-4 h-4" />
+            </div>
+          </Link>
           {canBook && (
             <Link
               href="/appointments/new"

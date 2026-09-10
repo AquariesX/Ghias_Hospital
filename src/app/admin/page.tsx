@@ -51,6 +51,8 @@ export default async function AdminDashboardPage() {
     recentDoctors,
     recentStaff,
     recentAuditLogs,
+    emergencyTriageCount,
+    criticalTriageCount,
   ] = await Promise.all([
     prisma.patient.count(),
     prisma.patient.count({ where: { status: "ACTIVE" } }),
@@ -101,6 +103,8 @@ export default async function AdminDashboardPage() {
         timestamp: true,
       },
     }),
+    prisma.emergencyTriage.count(),
+    prisma.emergencyTriage.count({ where: { OR: [{ triageLevel: "RESUSCITATION" }, { priority: "CRITICAL" }] } }),
   ]);
 
   const stats = [
@@ -181,6 +185,48 @@ export default async function AdminDashboardPage() {
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span className="text-xs text-emerald-700 font-medium">System Online</span>
             </div>
+          </div>
+        </div>
+
+        {/* Emergency Triage Quick Access Bar */}
+        <div className="bg-gradient-to-r from-rose-900 via-slate-900 to-slate-900 text-white rounded-xl p-5 border border-rose-800/60 shadow-md flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-rose-600 flex items-center justify-center text-white shrink-0 shadow-sm">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-rose-400 animate-ping inline-block" />
+                <span className="text-xs font-black uppercase tracking-wider text-rose-300">
+                  Ghias Hospital Phalia • Emergency &amp; Triage Module
+                </span>
+              </div>
+              <h2 className="text-base font-bold text-white mt-0.5">
+                Emergency Queue &amp; Registry: <span className="text-rose-300 font-extrabold">{emergencyTriageCount} Cases Recorded</span>
+                {criticalTriageCount > 0 && (
+                  <span className="ml-2 text-xs font-bold px-2 py-0.5 bg-rose-500/40 text-rose-200 border border-rose-400/40 rounded-full">
+                    {criticalTriageCount} Critical Resuscitation
+                  </span>
+                )}
+              </h2>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Link
+              href="/emergency"
+              className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition shadow-xs"
+            >
+              Emergency Queue Board &rarr;
+            </Link>
+            <Link
+              href="/emergency?new=true"
+              className="px-4 py-2 bg-white hover:bg-slate-100 text-slate-900 rounded-lg text-xs font-bold transition shadow-xs"
+            >
+              + Add Emergency Patient
+            </Link>
           </div>
         </div>
 
