@@ -16,6 +16,7 @@ import {
   Copy,
   Check,
 } from "lucide-react";
+import AppointmentPrintSlip, { AppointmentSlipData } from "@/components/appointments/AppointmentPrintSlip";
 
 interface AppointmentData {
   id: string;
@@ -92,6 +93,28 @@ export default function AppointmentDetailsClient({
   const [isUpdating, setIsUpdating] = useState<boolean>(false);
   const [showCancelModal, setShowCancelModal] = useState<boolean>(false);
   const [cancelReason, setCancelReason] = useState<string>("");
+  const [showPrintSlip, setShowPrintSlip] = useState<boolean>(false);
+
+  const slipData: AppointmentSlipData = {
+    appointmentNumber: appointment.appointmentNumber,
+    tokenNumber: appointment.tokenNumber || 1,
+    mrNumber: appointment.patient.mrNumber || appointment.patient.patientNumber,
+    patientNumber: appointment.patient.patientNumber,
+    patientName: `${appointment.patient.firstName} ${appointment.patient.lastName}`,
+    patientPhone: appointment.patient.phone,
+    patientGender: appointment.patient.gender,
+    doctorName: `Dr. ${appointment.doctor.firstName} ${appointment.doctor.lastName}`,
+    specialization: appointment.doctor.specialization,
+    departmentName: appointment.department.name,
+    roomNumber: appointment.doctor.roomNumber,
+    appointmentDate: appointment.appointmentDate,
+    appointmentTime: appointment.appointmentTime,
+    appointmentType: appointment.appointmentType,
+    consultationFee: appointment.consultationFee,
+    reason: appointment.reason,
+    createdByName: appointment.createdBy ? `${appointment.createdBy.firstName} ${appointment.createdBy.lastName}` : null,
+    createdAt: appointment.createdAt,
+  };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -163,11 +186,11 @@ export default function AppointmentDetailsClient({
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={handlePrint}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold transition"
+            onClick={() => setShowPrintSlip(true)}
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-xs transition cursor-pointer"
           >
             <Printer className="w-4 h-4" />
-            <span>Print Slip</span>
+            <span>Print Appointment Slip</span>
           </button>
 
           {canManage && appointment.status === "SCHEDULED" && (
@@ -313,18 +336,19 @@ export default function AppointmentDetailsClient({
                 </Link>
               </div>
 
-              <div className="text-sm space-y-1.5">
+              <div className="text-sm space-y-2">
                 <p className="font-bold text-slate-900 text-base">
                   {appointment.patient.firstName} {appointment.patient.lastName}
                 </p>
-                <p className="text-xs font-mono text-slate-700">
-                  Patient #: <strong>{appointment.patient.patientNumber}</strong>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-500 font-semibold">Primary MR #:</span>
+                  <span className="font-mono font-bold text-xs bg-teal-50 text-teal-800 border border-teal-200 px-2.5 py-0.5 rounded-md">
+                    {appointment.patient.mrNumber || appointment.patient.patientNumber}
+                  </span>
+                </div>
+                <p className="text-xs font-mono text-slate-500">
+                  System ID: {appointment.patient.patientNumber}
                 </p>
-                {appointment.patient.mrNumber && (
-                  <p className="text-xs font-mono text-slate-700">
-                    MR #: <strong>{appointment.patient.mrNumber}</strong>
-                  </p>
-                )}
                 <p className="text-xs text-slate-600">
                   Gender: {appointment.patient.gender} | Blood: {appointment.patient.bloodGroup}
                 </p>
@@ -494,6 +518,14 @@ export default function AppointmentDetailsClient({
             </div>
           </div>
         </div>
+      )}
+      {/* Appointment Slip Modal */}
+      {showPrintSlip && (
+        <AppointmentPrintSlip
+          data={slipData}
+          isModal={true}
+          onClose={() => setShowPrintSlip(false)}
+        />
       )}
     </div>
   );

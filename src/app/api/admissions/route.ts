@@ -5,11 +5,12 @@ import { getCurrentUser } from "@/lib/auth";
 import { canViewPatients } from "@/lib/rbac";
 import { createAuditLog } from "@/lib/audit";
 import { generateNextAdmissionNumber } from "@/lib/admission-number";
-import { generatePatientAndMRNumbers } from "@/lib/patient-number";
-import { AdmissionSource, AdmissionStatus, BedStatus } from "@prisma/client";
+import { generateNextPatientNumber } from "@/lib/patient-number";
+import { AdmissionSource, AdmissionStatus, BedStatus, Prisma } from "@prisma/client";
 
 const createAdmissionSchema = z.object({
   patientId: z.string().optional().nullable(),
+  mrNumber: z.string().optional().nullable(),
   patientName: z.string().optional().nullable(),
   fatherHusbandName: z.string().optional().nullable(),
   relationType: z.string().optional().nullable(),
@@ -219,14 +220,15 @@ export async function POST(request: NextRequest) {
     }
 
     if (!patient && (val.cnic?.trim() || val.phone?.trim())) {
-      patient = await prisma.patient.findFirst({
-        where: {
-          OR: [
-            val.cnic?.trim() ? { cnic: val.cnic.trim() } : undefined,
-            val.phone?.trim() ? { phone: val.phone.trim() } : undefined,
-          ].filter(Boolean) as any,
-        },
-      });
+      const conditions: Prisma.PatientWhereInput[] = [];
+      if (val.cnic?.trim()) conditions.push({ cnic: val.cnic.trim() });
+      if (val.phone?.trim()) conditions.push({ phone: val.phone.trim() });
+
+      if (conditions.length > 0) {
+        patient = await prisma.patient.findFirst({
+          where: { OR: conditions },
+        });
+      }
     }
 
     if (!patient) {
@@ -234,7 +236,26 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Patient Name is required" }, { status: 400 });
       }
 
-      const { patientNumber, mrNumber } = await generatePatientAndMRNumbers();
+      const finalMrNumber = val.mrNumber?.trim();
+      if (!finalMrNumber) {
+        return NextResponse.json(
+          { error: "Medical Record (MR) Number is required for new patient admission." },
+          { status: 400 }
+        );
+      }
+
+      const existingWithMr = await prisma.patient.findUnique({
+        where: { mrNumber: finalMrNumber },
+      });
+      if (existingWithMr) {
+        return NextResponse.json(
+          { error: `MR Number "${finalMrNumber}" is already registered to another patient (${existingWithMr.firstName} ${existingWithMr.lastName}).` },
+          { status: 409 }
+        );
+      }
+
+      const patientNumber = await generateNextPatientNumber();
+
       const trimmedName = val.patientName.trim();
       const nameParts = trimmedName.split(/\s+/);
       const firstName = nameParts[0] || "Patient";
@@ -252,7 +273,7 @@ export async function POST(request: NextRequest) {
       patient = await prisma.patient.create({
         data: {
           patientNumber,
-          mrNumber,
+          mrNumber: finalMrNumber,
           firstName,
           lastName,
           gender: val.gender || "MALE",

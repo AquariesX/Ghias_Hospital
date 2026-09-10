@@ -28,6 +28,7 @@ import {
   ShieldAlert,
   FileText,
 } from "lucide-react";
+import SafeHtmlContent from "@/components/ui/SafeHtmlContent";
 
 interface PatientData {
   id: string;
@@ -184,6 +185,7 @@ interface HistoryData {
     patientCondition: string;
     intervention?: string | null;
     response?: string | null;
+    notes?: string | null;
   }>;
   timelineEvents: Array<{
     id: string;
@@ -1469,21 +1471,28 @@ export default function PatientProfileClient({
 
                 <div className="text-sm">
                   <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Clinical Observation</span>
-                  <p className="text-slate-800 mt-1 whitespace-pre-wrap">{note.observation}</p>
+                  <SafeHtmlContent content={note.observation} className="text-slate-800 mt-1" />
                 </div>
 
                 {note.patientCondition && (
                   <div className="text-sm">
                     <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Condition</span>
-                    <p className="text-slate-800 mt-0.5">{note.patientCondition}</p>
+                    <p className="text-slate-800 mt-0.5 font-medium">{note.patientCondition}</p>
                   </div>
                 )}
 
                 {note.intervention && (
                   <div className="text-sm bg-teal-50/50 p-3 rounded-lg border border-teal-100">
                     <span className="text-xs font-semibold text-teal-800 uppercase tracking-wider">Intervention / Response</span>
-                    <p className="text-teal-900 mt-0.5">{note.intervention}</p>
+                    <SafeHtmlContent content={note.intervention} className="text-teal-900 mt-0.5" />
                     {note.response && <p className="text-teal-700 text-xs mt-1">Response: {note.response}</p>}
+                  </div>
+                )}
+
+                {note.notes && (
+                  <div className="text-sm bg-amber-50/60 p-3 rounded-lg border border-amber-200/70">
+                    <span className="text-xs font-semibold text-amber-800 uppercase tracking-wider">Additional Notes / Handoff</span>
+                    <SafeHtmlContent content={note.notes} className="text-amber-950 mt-0.5" />
                   </div>
                 )}
               </div>

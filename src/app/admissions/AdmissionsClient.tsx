@@ -13,7 +13,6 @@ import {
   ArrowRight,
   FileCheck2,
   Clock,
-  Calendar,
   Sparkles,
   Phone,
   CreditCard,
@@ -173,45 +172,42 @@ export default function AdmissionsClient() {
     return () => clearInterval(timer);
   }, []);
 
-  // Fetch next sequential MR Number
+  // Fetch next sequential MR Number on demand
   const fetchNextMRNumber = async () => {
     try {
       const res = await fetch("/api/patients/next-number");
       const json = await res.json();
       if (res.ok && json.data?.mrNumber) {
         setAutoMrNumber(json.data.mrNumber);
-        if (!isExistingPatient) {
-          setMrNumber(json.data.mrNumber);
-        }
-      } else {
-        setAutoMrNumber("MR-AUTO");
-        if (!isExistingPatient) {
-          setMrNumber("MR-AUTO");
-        }
+        setMrNumber(json.data.mrNumber);
+      } else if (res.ok && json.mrNumber) {
+        setAutoMrNumber(json.mrNumber);
+        setMrNumber(json.mrNumber);
       }
     } catch (err) {
       console.error("Failed to load next MR number:", err);
-      setAutoMrNumber("MR-AUTO");
-      if (!isExistingPatient) {
-        setMrNumber("MR-AUTO");
-      }
     }
   };
 
-  useEffect(() => {
-    fetchNextMRNumber();
-  }, []);
-
   // Load active doctors from PostgreSQL
   useEffect(() => {
+    let isMounted = true;
     fetch("/api/doctors")
       .then((r) => r.json())
       .then((data) => {
-        const list = Array.isArray(data.data) ? data.data : Array.isArray(data.doctors) ? data.doctors : [];
-        setDoctors(list);
+        if (isMounted) {
+          const list = Array.isArray(data.data) ? data.data : Array.isArray(data.doctors) ? data.doctors : [];
+          setDoctors(list);
+        }
       })
       .catch((err) => console.error("Failed to load doctors:", err))
-      .finally(() => setIsLoadingDoctors(false));
+      .finally(() => {
+        if (isMounted) setIsLoadingDoctors(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Load available hospital rooms and beds from PostgreSQL
@@ -231,7 +227,22 @@ export default function AdmissionsClient() {
   };
 
   useEffect(() => {
-    fetchAvailableRooms();
+    let isMounted = true;
+    fetch("/api/rooms/available")
+      .then((res) => res.json())
+      .then((json) => {
+        if (isMounted && Array.isArray(json.rooms)) {
+          setAvailableRooms(json.rooms);
+        }
+      })
+      .catch((err) => console.error("Failed to load available rooms:", err))
+      .finally(() => {
+        if (isMounted) setIsLoadingRooms(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleRoomChange = (roomId: string) => {
@@ -285,12 +296,12 @@ export default function AdmissionsClient() {
 
   // Debounced search for quick-fill
   useEffect(() => {
-    if (!patientSearch.trim() || patientSearch.trim().length < 2) {
-      setSearchResults([]);
-      return;
-    }
-
     const timer = setTimeout(async () => {
+      if (!patientSearch.trim() || patientSearch.trim().length < 2) {
+        setSearchResults([]);
+        return;
+      }
+
       setIsSearching(true);
       try {
         const res = await fetch(`/api/patients?search=${encodeURIComponent(patientSearch.trim())}&limit=6`);
@@ -305,7 +316,7 @@ export default function AdmissionsClient() {
       }
     }, 300);
 
-    return () => clearInterval(timer);
+    return () => clearTimeout(timer);
   }, [patientSearch]);
 
   // Clear patient link and reset to fresh walk-in patient form
@@ -350,6 +361,7 @@ export default function AdmissionsClient() {
     try {
       const payload = {
         patientId: selectedPatientId || undefined,
+        mrNumber: mrNumber.trim() || undefined,
         patientName: patientName.trim(),
         fatherHusbandName: fatherHusbandName.trim() || undefined,
         relationType: relationType || "Father",
@@ -618,25 +630,34 @@ export default function AdmissionsClient() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 text-xs">
-              {/* 1. M.R. No (AUTO-GENERATED, Read-only) */}
+              {/* 1. M.R. No (Manual Entry for Walk-In, Read-only if existing) */}
               <div className="sm:col-span-1">
                 <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center justify-between">
                   <span>M.R. No *</span>
-                  <span className="text-[9px] bg-slate-200 text-slate-700 px-1.5 py-0.2 rounded font-bold uppercase">
-                    Auto-Generated
+                  <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${
+                    isExistingPatient ? "bg-slate-200 text-slate-700" : "bg-teal-100 text-teal-800"
+                  }`}>
+                    {isExistingPatient ? "Linked" : "Manual Entry"}
                   </span>
                 </label>
                 <div className="relative">
                   <input
                     type="text"
-                    readOnly
-                    value={mrNumber || autoMrNumber}
-                    className="w-full text-xs font-mono font-bold text-teal-950 bg-slate-100 border border-slate-300 rounded-xl p-2.5 focus:outline-hidden cursor-not-allowed"
-                    title="M.R. Number is auto-generated by the system"
+                    required
+                    readOnly={isExistingPatient}
+                    value={mrNumber}
+                    onChange={(e) => setMrNumber(e.target.value)}
+                    placeholder="e.g. MR-000123"
+                    className={`w-full text-xs font-mono font-bold rounded-xl p-2.5 border transition ${
+                      isExistingPatient
+                        ? "text-teal-950 bg-slate-100 border-slate-300 cursor-not-allowed"
+                        : "text-slate-900 bg-white border-slate-300 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 shadow-2xs"
+                    }`}
+                    title={isExistingPatient ? "Loaded from patient record" : "Enter manual MR Number"}
                   />
                 </div>
                 <span className="text-[10px] text-slate-400 mt-1 block">
-                  Official system generated medical record number.
+                  {isExistingPatient ? "Loaded from registered patient record." : "Enter patient manual MR number."}
                 </span>
               </div>
 
@@ -849,7 +870,7 @@ export default function AdmissionsClient() {
                   </div>
                   <button
                     type="button"
-                    onClick={fetchAvailableRooms}
+                    onClick={() => fetchAvailableRooms()}
                     className="inline-flex items-center gap-1.5 text-xs text-teal-700 hover:text-teal-900 font-semibold bg-white border border-slate-200 hover:border-teal-300 px-3 py-1.5 rounded-lg transition shadow-2xs"
                   >
                     Refresh Bed Status

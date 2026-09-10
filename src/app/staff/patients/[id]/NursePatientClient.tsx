@@ -4,19 +4,16 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   HeartPulse,
-  Activity,
   FileText,
-  Clock,
   ArrowLeft,
   AlertTriangle,
   CheckCircle,
-  Plus,
-  Calendar,
-  Phone,
   Flame,
-  User,
   ShieldAlert,
+  Palette,
 } from "lucide-react";
+import RichNoteEditor from "@/components/ui/RichNoteEditor";
+import SafeHtmlContent from "@/components/ui/SafeHtmlContent";
 
 interface VitalSign {
   id: string;
@@ -85,7 +82,7 @@ interface PatientData {
   vitalSigns: VitalSign[];
   nursingNotes: NursingNote[];
   emergencyTriages: EmergencyTriage[];
-  appointments: any[];
+  appointments: Array<Record<string, unknown>>;
 }
 
 interface NursePatientClientProps {
@@ -197,8 +194,8 @@ export default function NursePatientClient({
       setHeight("");
       setPainScore("");
       setObservations("");
-    } catch (err: any) {
-      setVitalsError(err.message || "Failed to save vitals");
+    } catch (err: unknown) {
+      setVitalsError(err instanceof Error ? err.message : "Failed to save vitals");
     } finally {
       setVitalsSubmitting(false);
     }
@@ -206,6 +203,13 @@ export default function NursePatientClient({
 
   const handleRecordNote = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const cleanObs = noteObservation.replace(/<[^>]*>/g, "").trim();
+    if (!cleanObs && !noteObservation.includes("<span")) {
+      setNoteError("Please enter clinical observations before saving.");
+      return;
+    }
+
     setNoteSubmitting(true);
     setNoteError(null);
     setNoteSuccess(null);
@@ -243,8 +247,8 @@ export default function NursePatientClient({
       setNoteIntervention("");
       setNoteResponse("");
       setNoteAdditional("");
-    } catch (err: any) {
-      setNoteError(err.message || "Failed to save note");
+    } catch (err: unknown) {
+      setNoteError(err instanceof Error ? err.message : "Failed to save note");
     } finally {
       setNoteSubmitting(false);
     }
@@ -737,30 +741,50 @@ export default function NursePatientClient({
             )}
 
             <form onSubmit={handleRecordNote} className="space-y-4">
+              {/* Patient Condition with Quick Presets */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Patient Condition <span className="text-rose-600">*</span>
                 </label>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {[
+                    { label: "Stable", color: "bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100" },
+                    { label: "Alert & Oriented", color: "bg-teal-50 text-teal-700 border-teal-300 hover:bg-teal-100" },
+                    { label: "Guarded / Fair", color: "bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100" },
+                    { label: "Severe Pain", color: "bg-orange-50 text-orange-700 border-orange-300 hover:bg-orange-100" },
+                    { label: "Critical", color: "bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100" },
+                    { label: "Post-Op Recovery", color: "bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100" },
+                  ].map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => setNoteCondition(preset.label)}
+                      className={`text-[11px] font-semibold px-2 py-0.5 rounded-md border transition-colors ${preset.color} ${
+                        noteCondition === preset.label ? "ring-2 ring-teal-500 font-bold" : ""
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
                 <input
                   type="text"
                   value={noteCondition}
                   onChange={(e) => setNoteCondition(e.target.value)}
-                  placeholder="e.g. Conscious, Oriented, Mild distress..."
+                  placeholder="e.g. Conscious, Oriented, Mild distress, Stable..."
                   className="w-full p-2 border border-slate-300 rounded-lg text-sm"
                   required
                 />
               </div>
 
+              {/* Rich Clinical Observation with Color Toolbar */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Clinical Observation <span className="text-rose-600">*</span>
-                </label>
-                <textarea
-                  rows={3}
+                <RichNoteEditor
+                  label="Clinical Observation & Patient Notes"
                   value={noteObservation}
-                  onChange={(e) => setNoteObservation(e.target.value)}
-                  placeholder="Detailed nursing observations..."
-                  className="w-full p-2 border border-slate-300 rounded-lg text-sm"
+                  onChange={setNoteObservation}
+                  placeholder="Write clinical observations... You can highlight or color any word, line, or text with the color toolbar above."
+                  minHeight="140px"
                   required
                 />
               </div>
@@ -773,7 +797,7 @@ export default function NursePatientClient({
                   rows={2}
                   value={noteIntervention}
                   onChange={(e) => setNoteIntervention(e.target.value)}
-                  placeholder="Nursing actions taken (e.g. Oxygen administered, positioned upright)..."
+                  placeholder="Nursing actions taken (e.g. Oxygen administered, IV fluid started, positioned upright)..."
                   className="w-full p-2 border border-slate-300 rounded-lg text-sm"
                 />
               </div>
@@ -786,29 +810,28 @@ export default function NursePatientClient({
                   type="text"
                   value={noteResponse}
                   onChange={(e) => setNoteResponse(e.target.value)}
-                  placeholder="e.g. Patient reported relief, distress lessened..."
+                  placeholder="e.g. Patient reported relief, distress lessened, vitals normalized..."
                   className="w-full p-2 border border-slate-300 rounded-lg text-sm"
                 />
               </div>
 
+              {/* Rich Additional Notes / Handoff */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Additional Notes
-                </label>
-                <textarea
-                  rows={2}
+                <RichNoteEditor
+                  label="Additional Notes / Handoff Details (Optional)"
                   value={noteAdditional}
-                  onChange={(e) => setNoteAdditional(e.target.value)}
-                  placeholder="Handoff details or follow-up instructions..."
-                  className="w-full p-2 border border-slate-300 rounded-lg text-sm"
+                  onChange={setNoteAdditional}
+                  placeholder="Optional handoff instructions or follow-up notes..."
+                  minHeight="80px"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={noteSubmitting}
-                className="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-xs disabled:opacity-50"
+                className="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-xs disabled:opacity-50 flex items-center justify-center gap-2"
               >
+                <Palette className="w-4 h-4" />
                 {noteSubmitting ? "Saving Note..." : "Save Nursing Note"}
               </button>
             </form>
@@ -820,6 +843,7 @@ export default function NursePatientClient({
               <h2 className="text-base font-bold text-slate-900">
                 Nursing Notes History ({patient.nursingNotes.length})
               </h2>
+              <span className="text-xs text-slate-400">Clinical Timeline &amp; Color Coded</span>
             </div>
 
             {patient.nursingNotes.length === 0 ? (
@@ -828,50 +852,89 @@ export default function NursePatientClient({
                 <p className="text-sm">No nursing notes recorded for this patient yet.</p>
               </div>
             ) : (
-              <div className="space-y-4 max-h-[550px] overflow-y-auto pr-1">
-                {patient.nursingNotes.map((note) => (
-                  <div
-                    key={note.id}
-                    className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2 hover:bg-slate-50 transition-colors"
-                  >
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold uppercase text-teal-700 bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
-                        {note.department}
-                      </span>
-                      <span className="text-slate-400 font-mono">
-                        {new Date(note.recordedAt).toLocaleString()}
-                      </span>
-                    </div>
+              <div className="space-y-4 max-h-[580px] overflow-y-auto pr-1">
+                {patient.nursingNotes.map((note) => {
+                  const isCritical =
+                    note.patientCondition?.toLowerCase().includes("critical") ||
+                    note.patientCondition?.toLowerCase().includes("deteriorat");
+                  const isStable =
+                    note.patientCondition?.toLowerCase().includes("stable") ||
+                    note.patientCondition?.toLowerCase().includes("alert");
 
-                    <div>
-                      <span className="text-xs font-semibold text-slate-700">Condition: </span>
-                      <span className="text-xs text-slate-900 font-medium">{note.patientCondition}</span>
-                    </div>
-
-                    <div>
-                      <span className="text-xs font-semibold text-slate-700">Observation: </span>
-                      <p className="text-xs text-slate-800 whitespace-pre-wrap mt-0.5">{note.observation}</p>
-                    </div>
-
-                    {note.intervention && (
-                      <div>
-                        <span className="text-xs font-semibold text-slate-700">Intervention: </span>
-                        <p className="text-xs text-slate-800 whitespace-pre-wrap mt-0.5">{note.intervention}</p>
+                  return (
+                    <div
+                      key={note.id}
+                      className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3 hover:bg-slate-50 transition-colors shadow-2xs"
+                    >
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold uppercase text-teal-700 bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
+                            {note.department}
+                          </span>
+                          <span
+                            className={`px-2 py-0.5 rounded text-[11px] font-bold border ${
+                              isCritical
+                                ? "bg-rose-100 text-rose-800 border-rose-200"
+                                : isStable
+                                ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                                : "bg-amber-100 text-amber-800 border-amber-200"
+                            }`}
+                          >
+                            {note.patientCondition}
+                          </span>
+                        </div>
+                        <span className="text-slate-400 font-mono text-[11px]">
+                          {new Date(note.recordedAt).toLocaleString()}
+                        </span>
                       </div>
-                    )}
 
-                    {note.response && (
                       <div>
-                        <span className="text-xs font-semibold text-slate-700">Response: </span>
-                        <span className="text-xs text-slate-800">{note.response}</span>
+                        <span className="text-xs font-semibold text-slate-700 block mb-0.5">
+                          Observation:
+                        </span>
+                        <SafeHtmlContent
+                          content={note.observation}
+                          className="text-xs text-slate-800 bg-white p-2.5 rounded-lg border border-slate-200/80"
+                        />
                       </div>
-                    )}
 
-                    <div className="pt-2 border-t border-slate-200/60 text-[11px] text-slate-400">
-                      Recorded by: {note.recordedByName}
+                      {note.intervention && (
+                        <div>
+                          <span className="text-xs font-semibold text-slate-700 block mb-0.5">
+                            Intervention:
+                          </span>
+                          <SafeHtmlContent
+                            content={note.intervention}
+                            className="text-xs text-slate-800 bg-white p-2.5 rounded-lg border border-slate-200/80"
+                          />
+                        </div>
+                      )}
+
+                      {note.response && (
+                        <div>
+                          <span className="text-xs font-semibold text-slate-700">Response: </span>
+                          <span className="text-xs text-slate-800 font-medium">{note.response}</span>
+                        </div>
+                      )}
+
+                      {note.notes && (
+                        <div className="p-2.5 bg-amber-50/70 border border-amber-200/80 rounded-lg">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800 block mb-0.5">
+                            Handoff / Additional Notes:
+                          </span>
+                          <SafeHtmlContent
+                            content={note.notes}
+                            className="text-xs text-amber-950"
+                          />
+                        </div>
+                      )}
+
+                      <div className="pt-2 border-t border-slate-200/60 text-[11px] text-slate-400 flex items-center justify-between">
+                        <span>Recorded by: <strong className="text-slate-700">{note.recordedByName}</strong></span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

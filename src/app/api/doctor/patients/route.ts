@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireDoctorAuth } from "@/lib/doctor-auth";
-import { generatePatientAndMRNumbers } from "@/lib/patient-number";
+import { generateNextPatientNumber } from "@/lib/patient-number";
 import { createAuditLog } from "@/lib/audit";
 import { Gender, BloodGroup, Prisma } from "@prisma/client";
 
@@ -80,6 +80,7 @@ export async function GET(request: NextRequest) {
 }
 
 interface RegisterPatientPayload {
+  mrNumber: string;
   firstName: string;
   lastName: string;
   phone: string;
@@ -103,6 +104,7 @@ export async function POST(request: NextRequest) {
 
     // Validation
     const errors: string[] = [];
+    if (!body.mrNumber?.trim()) errors.push("Medical Record (MR) Number is required");
     if (!body.firstName?.trim()) errors.push("First name is required");
     if (!body.lastName?.trim()) errors.push("Last name is required");
     if (!body.phone?.trim()) errors.push("Phone number is required");
@@ -113,6 +115,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: errors.join(". ") },
         { status: 400 }
+      );
+    }
+
+    const cleanMrNumber = body.mrNumber.trim();
+
+    // Check MR Number duplicate
+    const existingMR = await prisma.patient.findUnique({
+      where: { mrNumber: cleanMrNumber },
+      select: { id: true, patientNumber: true },
+    });
+    if (existingMR) {
+      return NextResponse.json(
+        { error: `Patient already registered with MR Number ${cleanMrNumber} (${existingMR.patientNumber})` },
+        { status: 409 }
       );
     }
 
@@ -130,7 +146,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const { patientNumber, mrNumber } = await generatePatientAndMRNumbers();
+    const patientNumber = await generateNextPatientNumber();
+    const mrNumber = cleanMrNumber;
 
     const newPatient = await prisma.$transaction(async (tx) => {
       const p = await tx.patient.create({

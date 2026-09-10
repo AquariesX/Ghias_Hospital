@@ -217,6 +217,9 @@ model Doctor {
   /// Current consultation fee in PKR (e.g. 2000.00).
   /// Note: When appointments are booked, this fee is snapshotted into the Appointment record.
   consultationFee Decimal            @db.Decimal(10, 2)
+  regularFee      Decimal?           @db.Decimal(10, 2)
+  followUpFee     Decimal?           @db.Decimal(10, 2)
+  emergencyFee    Decimal?           @db.Decimal(10, 2)
   availability    DoctorAvailability @default(AVAILABLE)
   status          DoctorStatus       @default(ACTIVE)
 
@@ -324,6 +327,7 @@ model Patient {
 model Appointment {
   id                String            @id @default(uuid())
   appointmentNumber String            @unique // e.g. "APT-2026-000001"
+  mrNumber          String?           // Patient Medical Record Number (e.g. "MR-000123")
 
   patientId String
   patient   Patient @relation(fields: [patientId], references: [id], onDelete: Restrict)
@@ -363,6 +367,7 @@ model Appointment {
   updatedAt DateTime @updatedAt
 
   @@index([appointmentNumber])
+  @@index([mrNumber])
   @@index([patientId])
   @@index([doctorId])
   @@index([departmentId])

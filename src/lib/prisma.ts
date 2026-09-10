@@ -3,10 +3,30 @@ import { Pool } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
+// Schema revision token to force-reload PrismaClient in dev when schema changes
+const SCHEMA_REVISION = "2026-09-10-v2-fees-and-mr";
+
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
   pgPool: Pool | undefined;
+  schemaRevision: string | undefined;
 };
+
+// Discard stale in-memory client if schema was regenerated during active dev session
+if (
+  process.env.NODE_ENV !== "production" &&
+  globalForPrisma.schemaRevision !== SCHEMA_REVISION
+) {
+  if (globalForPrisma.prisma) {
+    try {
+      globalForPrisma.prisma.$disconnect();
+    } catch {
+      // ignore
+    }
+  }
+  globalForPrisma.prisma = undefined;
+  globalForPrisma.schemaRevision = SCHEMA_REVISION;
+}
 
 // Fallback connection string for build-time static evaluation
 const connectionString =
@@ -37,6 +57,7 @@ export const prisma =
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
   globalForPrisma.pgPool = pool;
+  globalForPrisma.schemaRevision = SCHEMA_REVISION;
 }
 
 export default prisma;

@@ -4,11 +4,11 @@ import prisma from "@/lib/prisma";
 import { requireStaffAuth } from "@/lib/staff-auth";
 
 const nursingNoteSchema = z.object({
-  observation: z.string().min(2, "Observation is required").max(2000),
-  patientCondition: z.string().min(2, "Patient condition is required").max(2000),
-  intervention: z.string().max(2000).optional().nullable(),
-  response: z.string().max(2000).optional().nullable(),
-  notes: z.string().max(2000).optional().nullable(),
+  observation: z.string().min(2, "Observation is required").max(25000),
+  patientCondition: z.string().min(2, "Patient condition is required").max(5000),
+  intervention: z.string().max(25000).optional().nullable(),
+  response: z.string().max(25000).optional().nullable(),
+  notes: z.string().max(25000).optional().nullable(),
   department: z.enum(["OPD", "EMERGENCY", "INPATIENT"]).optional().nullable(),
   admissionId: z.string().uuid().optional().nullable(),
 });

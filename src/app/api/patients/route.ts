@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { requirePatientAccess, requirePatientManage } from "@/lib/patient-auth";
-import { generatePatientAndMRNumbers } from "@/lib/patient-number";
+import { generateNextPatientNumber } from "@/lib/patient-number";
 import { createAuditLog } from "@/lib/audit";
 import { Gender, BloodGroup, PatientStatus } from "@prisma/client";
 
 const PAGE_SIZE = 10;
 
 const registerPatientSchema = z.object({
+  mrNumber: z.string().min(1, "MR Number is required").max(100, "MR Number must be under 100 characters"),
   firstName: z.string().min(1, "First name is required").max(100),
   lastName: z.string().min(1, "Last name is required").max(100),
   gender: z.enum(["MALE", "FEMALE", "OTHER"], { message: "Select a valid gender" }),
@@ -181,15 +182,32 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Generate safe unique numbers
-    const { patientNumber, mrNumber } = await generatePatientAndMRNumbers();
+    // Validate manual MR Number uniqueness
+    const cleanMrNumber = val.mrNumber.trim();
+    const existingWithMr = await prisma.patient.findUnique({
+      where: { mrNumber: cleanMrNumber },
+      select: { id: true, patientNumber: true, firstName: true, lastName: true },
+    });
+
+    if (existingWithMr) {
+      return NextResponse.json(
+        {
+          error: `A patient with MR Number "${cleanMrNumber}" is already registered (${existingWithMr.patientNumber}: ${existingWithMr.firstName} ${existingWithMr.lastName})`,
+          details: { mrNumber: ["This MR Number is already assigned to another patient"] },
+        },
+        { status: 409 }
+      );
+    }
+
+    // Generate safe unique patient number
+    const patientNumber = await generateNextPatientNumber();
 
     // Create Patient record with initial timeline event in transaction
     const patient = await prisma.$transaction(async (tx) => {
       const newPatient = await tx.patient.create({
         data: {
           patientNumber,
-          mrNumber,
+          mrNumber: cleanMrNumber,
           firstName: val.firstName.trim(),
           lastName: val.lastName.trim(),
           gender: val.gender as Gender,
@@ -218,7 +236,7 @@ export async function POST(request: NextRequest) {
           patientId: newPatient.id,
           title: "Patient Registered",
           eventType: "PATIENT_REGISTERED",
-          description: `Registered at GIAS Hospital Front Desk with MR Number ${mrNumber} and Patient Number ${patientNumber}.`,
+          description: `Registered at GIAS Hospital Front Desk with MR Number ${cleanMrNumber} and Patient Number ${patientNumber}.`,
           performerName: `${user.firstName} ${user.lastName}`,
           performerRole: user.role,
         },

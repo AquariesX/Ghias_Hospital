@@ -101,8 +101,16 @@ export default async function DoctorDetailPage({
             {infoRow("Qualifications", doctor.qualifications)}
             {infoRow("Experience", doctor.experience)}
             {infoRow(
-              "Consultation Fee",
-              `PKR ${Number(doctor.consultationFee).toLocaleString()}`
+              "The Regular Fee",
+              `PKR ${Number(doctor.regularFee || doctor.consultationFee).toLocaleString()}`
+            )}
+            {infoRow(
+              "Follow UP Fee",
+              `PKR ${Number(doctor.followUpFee || Math.round(Number(doctor.consultationFee) * 0.5)).toLocaleString()}`
+            )}
+            {infoRow(
+              "Emergency Fee",
+              `PKR ${Number(doctor.emergencyFee || Math.round(Number(doctor.consultationFee) * 1.5)).toLocaleString()}`
             )}
             {infoRow(
               "Linked System User",

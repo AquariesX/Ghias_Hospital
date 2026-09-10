@@ -16,6 +16,9 @@ const updateDoctorSchema = z.object({
   experience: z.string().optional().nullable(),
   roomNumber: z.string().optional().nullable(),
   consultationFee: z.number().min(0).optional(),
+  regularFee: z.number().min(0).optional(),
+  followUpFee: z.number().min(0).optional(),
+  emergencyFee: z.number().min(0).optional(),
   availability: z.enum(["AVAILABLE", "BUSY", "ON_LEAVE", "OFFLINE"]).optional(),
   status: z.enum(["ACTIVE", "ON_LEAVE", "INACTIVE"]).optional(),
   departmentId: z.string().uuid().optional().nullable().or(z.literal("")),
@@ -144,9 +147,12 @@ export async function PUT(
           departmentId: reqDeptId && reqDeptId.trim() !== "" ? reqDeptId : null,
         }),
         userId: linkedUserId,
-        consultationFee: parsed.data.consultationFee !== undefined
-          ? parsed.data.consultationFee
-          : undefined,
+        consultationFee: parsed.data.regularFee !== undefined
+          ? parsed.data.regularFee
+          : (parsed.data.consultationFee !== undefined ? parsed.data.consultationFee : undefined),
+        regularFee: parsed.data.regularFee !== undefined ? parsed.data.regularFee : undefined,
+        followUpFee: parsed.data.followUpFee !== undefined ? parsed.data.followUpFee : undefined,
+        emergencyFee: parsed.data.emergencyFee !== undefined ? parsed.data.emergencyFee : undefined,
       },
       include: {
         department: { select: { id: true, name: true, code: true } },

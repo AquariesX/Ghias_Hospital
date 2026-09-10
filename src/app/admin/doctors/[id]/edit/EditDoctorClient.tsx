@@ -22,7 +22,10 @@ interface DoctorData {
   qualifications: string | null;
   experience: string | null;
   roomNumber: string | null;
-  consultationFee: string;
+  consultationFee: string | number;
+  regularFee?: string | number | null;
+  followUpFee?: string | number | null;
+  emergencyFee?: string | number | null;
   availability: string;
   status: string;
   departmentId: string | null;
@@ -43,7 +46,8 @@ export default function EditDoctorClient() {
 
   const [form, setForm] = useState({
     firstName: "", lastName: "", specialization: "", phone: "", email: "", password: "",
-    qualifications: "", experience: "", roomNumber: "", consultationFee: "",
+    qualifications: "", experience: "", roomNumber: "",
+    regularFee: "", followUpFee: "", emergencyFee: "", consultationFee: "",
     availability: "AVAILABLE", status: "ACTIVE", departmentId: "",
   });
 
@@ -64,6 +68,10 @@ export default function EditDoctorClient() {
         }
 
         const doc: DoctorData = docData.data;
+        const reg = doc.regularFee != null ? String(doc.regularFee) : String(doc.consultationFee);
+        const fol = doc.followUpFee != null ? String(doc.followUpFee) : String(Math.round(Number(reg) * 0.5));
+        const emg = doc.emergencyFee != null ? String(doc.emergencyFee) : String(Math.round(Number(reg) * 1.5));
+
         setDoctorNumber(doc.doctorNumber);
         setForm({
           firstName: doc.firstName,
@@ -75,7 +83,10 @@ export default function EditDoctorClient() {
           qualifications: doc.qualifications || "",
           experience: doc.experience || "",
           roomNumber: doc.roomNumber || "",
-          consultationFee: String(doc.consultationFee),
+          regularFee: reg,
+          followUpFee: fol,
+          emergencyFee: emg,
+          consultationFee: reg,
           availability: doc.availability,
           status: doc.status,
           departmentId: doc.departmentId || "",
@@ -103,12 +114,9 @@ export default function EditDoctorClient() {
     setErrors({});
     setGlobalError("");
 
-    const fee = parseFloat(form.consultationFee);
-    if (isNaN(fee)) {
-      setErrors({ consultationFee: ["Please enter a valid fee"] });
-      setIsSubmitting(false);
-      return;
-    }
+    const regFee = parseFloat(form.regularFee) || parseFloat(form.consultationFee) || 0;
+    const folFee = parseFloat(form.followUpFee) || Math.round(regFee * 0.5);
+    const emgFee = parseFloat(form.emergencyFee) || Math.round(regFee * 1.5);
 
     try {
       const res = await fetch(`/api/admin/doctors/${id}`, {
@@ -117,7 +125,10 @@ export default function EditDoctorClient() {
         body: JSON.stringify({
           ...form,
           departmentId: form.departmentId || null,
-          consultationFee: fee,
+          regularFee: regFee,
+          followUpFee: folFee,
+          emergencyFee: emgFee,
+          consultationFee: regFee,
           qualifications: form.qualifications || null,
           experience: form.experience || null,
           roomNumber: form.roomNumber || null,
@@ -303,12 +314,75 @@ export default function EditDoctorClient() {
                 Primary consultation room where patients will be directed.
               </p>
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Consultation Fee (PKR) <span className="text-rose-500">*</span>
-              </label>
-              <input name="consultationFee" type="number" min="0" step="50" value={form.consultationFee} onChange={handleChange} className={inputClass} required />
-              <FieldError name="consultationFee" errors={errors} />
+            {/* Doctor Fee Schedule: Regular, Follow UP, Emergency */}
+            <div className="sm:col-span-2 bg-teal-50/50 p-4 rounded-xl border border-teal-200">
+              <div className="mb-3">
+                <span className="text-xs font-bold uppercase tracking-wider text-teal-900 block">
+                  Consultation Fee Schedule (PKR)
+                </span>
+                <p className="text-[11px] text-teal-700">
+                  Update all 3 clinical visit fee tiers for this doctor.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-800 mb-1">
+                    The Regular Fee <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    name="regularFee"
+                    type="number"
+                    min="0"
+                    step="50"
+                    value={form.regularFee || form.consultationFee}
+                    onChange={handleChange}
+                    className={inputClass}
+                    placeholder="e.g. 2000"
+                    required
+                  />
+                  <p className="text-[10px] text-slate-500 mt-0.5">Standard new consultation</p>
+                  <FieldError name="regularFee" errors={errors} />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-800 mb-1">
+                    Follow UP Fee <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    name="followUpFee"
+                    type="number"
+                    min="0"
+                    step="50"
+                    value={form.followUpFee}
+                    onChange={handleChange}
+                    className={inputClass}
+                    placeholder="e.g. 1000"
+                    required
+                  />
+                  <p className="text-[10px] text-slate-500 mt-0.5">Follow-up checkups / review</p>
+                  <FieldError name="followUpFee" errors={errors} />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-800 mb-1">
+                    Emergency Fee <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    name="emergencyFee"
+                    type="number"
+                    min="0"
+                    step="50"
+                    value={form.emergencyFee}
+                    onChange={handleChange}
+                    className={inputClass}
+                    placeholder="e.g. 3000"
+                    required
+                  />
+                  <p className="text-[10px] text-slate-500 mt-0.5">Stat / Emergency consults</p>
+                  <FieldError name="emergencyFee" errors={errors} />
+                </div>
+              </div>
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">

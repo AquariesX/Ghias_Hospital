@@ -10,7 +10,9 @@ import {
   Eye,
   ChevronLeft,
   ChevronRight,
+  Printer,
 } from "lucide-react";
+import AppointmentPrintSlip, { AppointmentSlipData } from "@/components/appointments/AppointmentPrintSlip";
 
 interface AppointmentItem {
   id: string;
@@ -82,6 +84,9 @@ export default function AppointmentsListClient() {
   const [statusModalApt, setStatusModalApt] = useState<AppointmentItem | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState<boolean>(false);
   const [cancelReason, setCancelReason] = useState<string>("");
+
+  // Print Token Slip modal
+  const [printSlipApt, setPrintSlipApt] = useState<AppointmentItem | null>(null);
 
   // Fetch departments for dropdown filters
   useEffect(() => {
@@ -456,11 +461,12 @@ export default function AppointmentsListClient() {
                         >
                           {apt.patient.firstName} {apt.patient.lastName}
                         </Link>
-                        <div className="text-xs text-slate-500 flex items-center gap-2 mt-0.5">
-                          {apt.patient.mrNumber && (
-                            <span className="font-mono text-slate-600">MR: {apt.patient.mrNumber}</span>
-                          )}
-                          <span>{apt.patient.phone}</span>
+                        <div className="text-xs text-slate-500 flex flex-wrap items-center gap-1.5 mt-0.5">
+                          <span className="font-mono text-[11px] font-bold bg-teal-50 text-teal-800 border border-teal-200 px-1.5 py-0.5 rounded">
+                            MR: {apt.patient.mrNumber || apt.patient.patientNumber}
+                          </span>
+                          <span className="text-slate-400">•</span>
+                          <span className="font-mono text-slate-600">{apt.patient.phone}</span>
                         </div>
                       </div>
                     </td>
@@ -514,6 +520,15 @@ export default function AppointmentsListClient() {
 
                     <td className="py-3.5 px-4 text-right whitespace-nowrap">
                       <div className="inline-flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setPrintSlipApt(apt)}
+                          className="p-1.5 rounded-md hover:bg-teal-50 text-teal-700 hover:text-teal-900 transition cursor-pointer border border-transparent hover:border-teal-200"
+                          title="Print Token Slip"
+                        >
+                          <Printer className="w-4 h-4" />
+                        </button>
+
                         <Link
                           href={`/appointments/${apt.id}`}
                           className="p-1.5 rounded-md hover:bg-slate-100 text-slate-600 hover:text-teal-700 transition"
@@ -663,6 +678,33 @@ export default function AppointmentsListClient() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Printable Slip Modal */}
+      {printSlipApt && (
+        <AppointmentPrintSlip
+          data={{
+            appointmentNumber: printSlipApt.appointmentNumber,
+            tokenNumber: printSlipApt.tokenNumber || 1,
+            mrNumber: printSlipApt.patient.mrNumber || printSlipApt.patient.patientNumber,
+            patientNumber: printSlipApt.patient.patientNumber,
+            patientName: `${printSlipApt.patient.firstName} ${printSlipApt.patient.lastName}`,
+            patientPhone: printSlipApt.patient.phone,
+            patientGender: printSlipApt.patient.gender,
+            doctorName: `Dr. ${printSlipApt.doctor.firstName} ${printSlipApt.doctor.lastName}`,
+            specialization: printSlipApt.doctor.specialization,
+            departmentName: printSlipApt.department.name,
+            roomNumber: printSlipApt.doctor.roomNumber,
+            appointmentDate: printSlipApt.appointmentDate,
+            appointmentTime: printSlipApt.appointmentTime,
+            appointmentType: printSlipApt.appointmentType,
+            consultationFee: printSlipApt.consultationFee,
+            reason: printSlipApt.reason,
+            createdByName: printSlipApt.createdBy ? `${printSlipApt.createdBy.firstName} ${printSlipApt.createdBy.lastName}` : null,
+          }}
+          isModal={true}
+          onClose={() => setPrintSlipApt(null)}
+        />
       )}
     </div>
   );

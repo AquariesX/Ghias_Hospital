@@ -10,19 +10,21 @@ import {
   ClipboardList,
   FileText,
   Bed,
-  User,
   Calendar,
   AlertTriangle,
   Stethoscope,
   HeartPulse,
-  Phone,
   ShieldAlert,
   CheckCircle2,
   RefreshCw,
-  Sparkles,
+  Plus,
+  Minus,
+  Palette,
 } from "lucide-react";
 import StatusBadge from "@/components/ui/StatusBadge";
 import MedicationSheet, { MedicationAdminItem, PrescriptionGroup } from "@/components/inpatient/MedicationSheet";
+import SafeHtmlContent from "@/components/ui/SafeHtmlContent";
+import RichNoteEditor from "@/components/ui/RichNoteEditor";
 
 interface InpatientTreatmentProps {
   admission: {
@@ -93,6 +95,7 @@ interface InpatientTreatmentProps {
       patientCondition: string;
       intervention: string | null;
       response: string | null;
+      notes?: string | null;
       recordedByName: string;
       recordedAt: string;
     }>;
@@ -110,6 +113,70 @@ export default function InpatientTreatmentClient({
   const [activeTab, setActiveTab] = useState<
     "procedure" | "medications" | "overview" | "vitals" | "notes" | "prescriptions"
   >("procedure");
+
+  // Ward Nursing Notes State
+  const [nursingNotes, setNursingNotes] = useState(admission.nursingNotes);
+  const [showAddNote, setShowAddNote] = useState(true);
+  const [noteSubmitting, setNoteSubmitting] = useState(false);
+  const [noteSuccess, setNoteSuccess] = useState<string | null>(null);
+  const [noteError, setNoteError] = useState<string | null>(null);
+
+  const [noteCondition, setNoteCondition] = useState("");
+  const [noteObservation, setNoteObservation] = useState("");
+  const [noteIntervention, setNoteIntervention] = useState("");
+  const [noteResponse, setNoteResponse] = useState("");
+  const [noteAdditional, setNoteAdditional] = useState("");
+
+  const handleRecordWardNote = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const cleanObs = noteObservation.replace(/<[^>]*>/g, "").trim();
+    if (!cleanObs && !noteObservation.includes("<span")) {
+      setNoteError("Please enter clinical observations before saving.");
+      return;
+    }
+
+    setNoteSubmitting(true);
+    setNoteError(null);
+    setNoteSuccess(null);
+
+    try {
+      const payload = {
+        observation: noteObservation.trim(),
+        patientCondition: noteCondition.trim() || "Stable",
+        intervention: noteIntervention.trim() || null,
+        response: noteResponse.trim() || null,
+        notes: noteAdditional.trim() || null,
+        department: "INPATIENT",
+        admissionId: admission.id,
+      };
+
+      const res = await fetch(`/api/staff/patients/${admission.patient.id}/nursing-notes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to save nursing note");
+      }
+
+      setNoteSuccess("Ward nursing note recorded successfully.");
+      setNursingNotes((prev) => [data.data, ...prev]);
+
+      // Reset form
+      setNoteCondition("");
+      setNoteObservation("");
+      setNoteIntervention("");
+      setNoteResponse("");
+      setNoteAdditional("");
+    } catch (err: unknown) {
+      setNoteError(err instanceof Error ? err.message : "Failed to save note");
+    } finally {
+      setNoteSubmitting(false);
+    }
+  };
 
   // Nurse Clinical Assessment & Procedure State
   const [presentingComplaints, setPresentingComplaints] = useState(admission.presentingComplaints || "");
@@ -205,8 +272,8 @@ export default function InpatientTreatmentClient({
       setSaveSuccess(true);
       router.refresh();
       setTimeout(() => setSaveSuccess(false), 5000);
-    } catch (err: any) {
-      setSaveError(err.message || "An unexpected error occurred while saving.");
+    } catch (err: unknown) {
+      setSaveError(err instanceof Error ? err.message : "An unexpected error occurred while saving.");
     } finally {
       setIsSaving(false);
     }
@@ -321,7 +388,7 @@ export default function InpatientTreatmentClient({
           { key: "medications", label: `Medication Sheet (${admission.medicationAdministrations.length})`, icon: Pill },
           { key: "overview", label: "Overview & Summary", icon: FileText },
           { key: "vitals", label: `Vitals History (${admission.vitalSigns.length})`, icon: Activity },
-          { key: "notes", label: `Nursing Notes (${admission.nursingNotes.length})`, icon: ClipboardList },
+          { key: "notes", label: `Nursing Notes (${nursingNotes.length})`, icon: ClipboardList },
           { key: "prescriptions", label: `Doctor Orders (${admission.prescriptions.length})`, icon: Calendar },
         ].map((tab) => {
           const Icon = tab.icon;
@@ -330,7 +397,7 @@ export default function InpatientTreatmentClient({
             <button
               key={tab.key}
               type="button"
-              onClick={() => setActiveTab(tab.key as any)}
+              onClick={() => setActiveTab(tab.key as typeof activeTab)}
               className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition whitespace-nowrap ${
                 isActive
                   ? "border-teal-600 text-teal-700 bg-teal-50/50"
@@ -956,59 +1023,319 @@ export default function InpatientTreatmentClient({
 
       {/* TAB CONTENT: Nursing Notes */}
       {activeTab === "notes" && (
-        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-            <h3 className="font-bold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-2">
-              <ClipboardList className="w-4 h-4 text-blue-600" />
-              <span>Ward Nursing Notes &amp; Observations</span>
-            </h3>
-            <span className="text-xs text-slate-500 font-mono">
-              {admission.nursingNotes.length} note(s)
-            </span>
+        <div className="space-y-6">
+          {/* Header Card & Add Note Toggle */}
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-teal-700 bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
+                    Inpatient Ward
+                  </span>
+                  <span className="text-xs text-slate-400 font-mono">
+                    {admission.roomBedNo}
+                  </span>
+                </div>
+                <h3 className="font-bold text-slate-900 text-base mt-1 flex items-center gap-2">
+                  <ClipboardList className="w-5 h-5 text-teal-600" />
+                  <span>Ward Nursing Notes &amp; Observations</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Record shift observations, vital signs assessment, nurse interventions, and handoffs with rich text and color styling.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-mono font-semibold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
+                  {nursingNotes.length} note(s) logged
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowAddNote(!showAddNote)}
+                  className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg transition shadow-xs ${
+                    showAddNote
+                      ? "bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
+                      : "bg-teal-600 text-white hover:bg-teal-700 shadow-teal-700/10"
+                  }`}
+                >
+                  {showAddNote ? (
+                    <>
+                      <Minus className="w-4 h-4" />
+                      <span>Hide Note Form</span>
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4" />
+                      <span>Add Nursing Note</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
 
-          {admission.nursingNotes.length === 0 ? (
-            <p className="text-xs text-slate-400 italic py-8 text-center">
-              No nursing notes recorded for this admission yet.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {admission.nursingNotes.map((note) => (
-                <div
-                  key={note.id}
-                  className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-1.5"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-900">
-                      Condition: {note.patientCondition}
-                    </span>
-                    <span className="font-mono text-[11px] text-slate-500">
-                      {new Date(note.recordedAt).toLocaleString([], {
-                        month: "short",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                  </div>
-                  <p className="text-slate-700">{note.observation}</p>
-                  {note.intervention && (
-                    <p className="text-slate-500 text-[11px]">
-                      <span className="font-semibold text-slate-600">Intervention:</span> {note.intervention}
-                    </p>
-                  )}
-                  {note.response && (
-                    <p className="text-slate-500 text-[11px]">
-                      <span className="font-semibold text-slate-600">Response:</span> {note.response}
-                    </p>
-                  )}
-                  <p className="text-[10px] text-slate-400 pt-1 border-t border-slate-200/60">
-                    Recorded by Nurse: {note.recordedByName}
-                  </p>
+          {/* Add Nursing Note Form (Collapsible / Default Open) */}
+          {showAddNote && (
+            <div className="bg-white border border-teal-200/80 rounded-xl p-6 shadow-xs space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <Palette className="w-4 h-4 text-teal-600" />
+                  <span>New Ward Nursing Note</span>
+                </h4>
+                <span className="text-[11px] text-teal-700 bg-teal-50 px-2 py-0.5 rounded border border-teal-200 font-medium">
+                  Linked to Admission #{admission.admissionNumber}
+                </span>
+              </div>
+
+              {noteSuccess && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 text-xs flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                  <span>{noteSuccess}</span>
                 </div>
-              ))}
+              )}
+
+              {noteError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0 text-rose-600" />
+                  <span>{noteError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleRecordWardNote} className="space-y-4">
+                {/* Patient Condition with Quick Presets */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Patient Condition <span className="text-rose-600">*</span>
+                  </label>
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {[
+                      { label: "Stable", color: "bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100" },
+                      { label: "Alert & Oriented", color: "bg-teal-50 text-teal-700 border-teal-300 hover:bg-teal-100" },
+                      { label: "Post-Op Recovery", color: "bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100" },
+                      { label: "Guarded / Fair", color: "bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100" },
+                      { label: "Severe Pain", color: "bg-orange-50 text-orange-700 border-orange-300 hover:bg-orange-100" },
+                      { label: "Critical", color: "bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100" },
+                    ].map((preset) => (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        onClick={() => setNoteCondition(preset.label)}
+                        className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-md border transition-colors ${preset.color} ${
+                          noteCondition === preset.label ? "ring-2 ring-teal-500 font-bold" : ""
+                        }`}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="text"
+                    value={noteCondition}
+                    onChange={(e) => setNoteCondition(e.target.value)}
+                    placeholder="e.g. Stable, Post-Op day 1, Resting comfortably..."
+                    className="w-full p-2.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                    required
+                  />
+                </div>
+
+                {/* Clinical Observation with Color Toolbar */}
+                <div>
+                  <RichNoteEditor
+                    label="Ward Clinical Observation & Notes"
+                    value={noteObservation}
+                    onChange={setNoteObservation}
+                    placeholder="Write detailed inpatient observation... Select text to apply text color or highlight (Red for critical, Green for normal, Blue for meds, etc.)."
+                    minHeight="140px"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Intervention Taken (Optional)
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={noteIntervention}
+                      onChange={(e) => setNoteIntervention(e.target.value)}
+                      placeholder="e.g. IV fluids infused, wound dressing changed, nebulization given..."
+                      className="w-full p-2.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Patient Response (Optional)
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={noteResponse}
+                      onChange={(e) => setNoteResponse(e.target.value)}
+                      placeholder="e.g. Patient expressed comfort, pain score reduced from 7 to 2..."
+                      className="w-full p-2.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Additional Notes / Handoff */}
+                <div>
+                  <RichNoteEditor
+                    label="Next Shift Handoff / Special Instructions (Optional)"
+                    value={noteAdditional}
+                    onChange={setNoteAdditional}
+                    placeholder="Instructions for incoming nursing shift, doctor call reminders, or monitoring schedule..."
+                    minHeight="80px"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNoteCondition("");
+                      setNoteObservation("");
+                      setNoteIntervention("");
+                      setNoteResponse("");
+                      setNoteAdditional("");
+                      setShowAddNote(false);
+                    }}
+                    className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={noteSubmitting}
+                    className="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-bold transition shadow-xs disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {noteSubmitting ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>Saving Note...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>Save Ward Note</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
             </div>
           )}
+
+          {/* Historical Nursing Notes List */}
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider flex items-center gap-2">
+                <ClipboardList className="w-4 h-4 text-blue-600" />
+                <span>Admission Notes History ({nursingNotes.length})</span>
+              </h4>
+              <span className="text-xs text-slate-400">Chronological Record</span>
+            </div>
+
+            {nursingNotes.length === 0 ? (
+              <div className="p-8 text-center text-slate-400 space-y-2">
+                <ClipboardList className="w-8 h-8 mx-auto text-slate-300" />
+                <p className="text-sm">No nursing notes recorded for this admission yet.</p>
+                {!showAddNote && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAddNote(true)}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-600 hover:text-teal-700 bg-teal-50 px-3 py-1.5 rounded-lg border border-teal-200 mt-2"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add First Nursing Note</span>
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {nursingNotes.map((note) => {
+                  const isCritical =
+                    note.patientCondition?.toLowerCase().includes("critical") ||
+                    note.patientCondition?.toLowerCase().includes("deteriorat");
+                  const isStable =
+                    note.patientCondition?.toLowerCase().includes("stable") ||
+                    note.patientCondition?.toLowerCase().includes("alert");
+
+                  return (
+                    <div
+                      key={note.id}
+                      className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-2.5 hover:bg-slate-100/60 transition shadow-2xs"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`px-2 py-0.5 rounded text-[11px] font-bold border ${
+                              isCritical
+                                ? "bg-rose-100 text-rose-800 border-rose-200"
+                                : isStable
+                                ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                                : "bg-amber-100 text-amber-800 border-amber-200"
+                            }`}
+                          >
+                            {note.patientCondition}
+                          </span>
+                        </div>
+                        <span className="font-mono text-[11px] text-slate-500">
+                          {new Date(note.recordedAt).toLocaleString([], {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </div>
+
+                      <div>
+                        <span className="text-[11px] font-semibold text-slate-600 block mb-0.5">
+                          Clinical Observation:
+                        </span>
+                        <div className="bg-white p-2.5 rounded-lg border border-slate-200/80 text-slate-800">
+                          <SafeHtmlContent content={note.observation} />
+                        </div>
+                      </div>
+
+                      {note.intervention && (
+                        <div className="text-slate-700 text-[11px]">
+                          <span className="font-semibold text-slate-600 block mb-0.5">
+                            Intervention:
+                          </span>
+                          <div className="bg-white p-2 rounded border border-slate-200/60">
+                            <SafeHtmlContent content={note.intervention} />
+                          </div>
+                        </div>
+                      )}
+
+                      {note.response && (
+                        <p className="text-slate-600 text-[11px]">
+                          <span className="font-semibold text-slate-700">Patient Response:</span>{" "}
+                          {note.response}
+                        </p>
+                      )}
+
+                      {note.notes && (
+                        <div className="p-2.5 bg-amber-50/80 border border-amber-200/80 rounded-lg text-[11px]">
+                          <span className="font-bold text-amber-900 block mb-0.5">
+                            Shift Handoff / Special Notes:
+                          </span>
+                          <SafeHtmlContent content={note.notes} className="text-amber-950" />
+                        </div>
+                      )}
+
+                      <p className="text-[10px] text-slate-400 pt-1 border-t border-slate-200/60">
+                        Recorded by Nurse: <strong className="text-slate-700 font-medium">{note.recordedByName}</strong>
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

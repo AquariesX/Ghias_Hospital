@@ -18,7 +18,9 @@ import {
   ArrowLeft,
   Sparkles,
   BedDouble,
+  Hash,
 } from "lucide-react";
+import AppointmentPrintSlip, { AppointmentSlipData } from "@/components/appointments/AppointmentPrintSlip";
 
 interface Doctor {
   id: string;
@@ -28,6 +30,9 @@ interface Doctor {
   specialization: string;
   roomNumber: string | null;
   consultationFee: number | string;
+  regularFee?: number | string | null;
+  followUpFee?: number | string | null;
+  emergencyFee?: number | string | null;
   availability: string;
   status: string;
 }
@@ -48,21 +53,8 @@ interface PatientSearchMatch {
   phone: string;
 }
 
-interface SuccessData {
+interface SuccessData extends AppointmentSlipData {
   id: string;
-  appointmentNumber: string;
-  tokenNumber: number;
-  patientName: string;
-  patientPhone: string;
-  patientNumber: string;
-  mrNumber: string | null;
-  doctorName: string;
-  departmentName: string;
-  roomNumber: string | null;
-  appointmentDate: string;
-  appointmentTime: string;
-  appointmentType: string;
-  consultationFee: string;
   queuePosition: number;
 }
 
@@ -70,11 +62,15 @@ export default function AppointmentBookingWizard() {
   const searchParams = useSearchParams();
   const preselectedPatientId = searchParams.get("patientId");
 
-  // Form State - Basic Information
+  // Form State - MR Number & Patient Information
+  const [patientMR, setPatientMR] = useState("");
   const [patientName, setPatientName] = useState("");
   const [patientPhone, setPatientPhone] = useState("");
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const [selectedPatientMR, setSelectedPatientMR] = useState<string | null>(null);
+  const [isLookingUpMR, setIsLookingUpMR] = useState(false);
+  const [mrLookupStatus, setMrLookupStatus] = useState<{ found: boolean; message: string } | null>(null);
+  const [suggestingMR, setSuggestingMR] = useState(false);
 
   // Doctor & Department State
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -129,7 +125,10 @@ export default function AppointmentBookingWizard() {
             setSelectedPatientId(data.patient.id);
             setPatientName(`${data.patient.firstName} ${data.patient.lastName}`);
             setPatientPhone(data.patient.phone || "");
-            setSelectedPatientMR(data.patient.mrNumber || data.patient.patientNumber);
+            const mr = data.patient.mrNumber || data.patient.patientNumber;
+            setSelectedPatientMR(mr);
+            setPatientMR(mr);
+            setMrLookupStatus({ found: true, message: `Verified Registered Patient: ${data.patient.firstName} ${data.patient.lastName}` });
           }
         }
       } catch (err) {
@@ -157,6 +156,18 @@ export default function AppointmentBookingWizard() {
   // Selected doctor object
   const selectedDoctor = allDoctors.find((d) => d.id === selectedDoctorId);
 
+  // Dynamic fee calculation based on Doctor's 3 fees (Regular, Follow-up, Emergency)
+  const doctorFees = useMemo(() => {
+    if (!selectedDoctor) {
+      return { regular: 1000, followUp: 500, emergency: 2000, active: 1000 };
+    }
+    const reg = selectedDoctor.regularFee != null ? Number(selectedDoctor.regularFee) : Number(selectedDoctor.consultationFee);
+    const fol = selectedDoctor.followUpFee != null ? Number(selectedDoctor.followUpFee) : Math.round(reg * 0.5);
+    const emg = selectedDoctor.emergencyFee != null ? Number(selectedDoctor.emergencyFee) : Math.round(reg * 1.5);
+    const active = appointmentType === "EMERGENCY" ? emg : appointmentType === "FOLLOW_UP" ? fol : reg;
+    return { regular: reg, followUp: fol, emergency: emg, active };
+  }, [selectedDoctor, appointmentType]);
+
   // Live patient search as user types name or phone
   useEffect(() => {
     const query = patientName.trim();
@@ -172,7 +183,7 @@ export default function AppointmentBookingWizard() {
         const res = await fetch(`/api/patients?search=${encodeURIComponent(query)}&limit=5`);
         if (res.ok) {
           const data = await res.json();
-          const items: PatientSearchMatch[] = data.data || [];
+          const items: PatientSearchMatch[] = data.data || data.patients || [];
           setPatientMatches(items);
           setShowPatientDropdown(items.length > 0);
         }
@@ -191,13 +202,90 @@ export default function AppointmentBookingWizard() {
     setSelectedPatientId(p.id);
     setPatientName(`${p.firstName} ${p.lastName}`);
     setPatientPhone(p.phone);
-    setSelectedPatientMR(p.mrNumber || p.patientNumber);
+    const mr = p.mrNumber || p.patientNumber;
+    setSelectedPatientMR(mr);
+    setPatientMR(mr);
+    setMrLookupStatus({ found: true, message: `Registered patient verified: ${p.firstName} ${p.lastName}` });
     setShowPatientDropdown(false);
   };
 
   const handleClearSelectedPatient = () => {
     setSelectedPatientId(null);
     setSelectedPatientMR(null);
+    setPatientMR("");
+    setPatientName("");
+    setPatientPhone("");
+    setMrLookupStatus(null);
+  };
+
+  // Lookup Patient by MR Number directly
+  const handleLookupMR = async (overrideMR?: string) => {
+    const val = (overrideMR !== undefined ? overrideMR : patientMR).trim();
+    if (!val) {
+      setMrLookupStatus(null);
+      return;
+    }
+    setIsLookingUpMR(true);
+    try {
+      const res = await fetch(`/api/patients?search=${encodeURIComponent(val)}&limit=5`);
+      if (res.ok) {
+        const json = await res.json();
+        const list: PatientSearchMatch[] = json.patients || json.data || [];
+        const match = list.find((p) =>
+          (p.mrNumber && p.mrNumber.toLowerCase() === val.toLowerCase()) ||
+          (p.patientNumber && p.patientNumber.toLowerCase() === val.toLowerCase())
+        );
+
+        if (match) {
+          setSelectedPatientId(match.id);
+          setPatientName(`${match.firstName} ${match.lastName}`);
+          setPatientPhone(match.phone || "");
+          const cleanMR = match.mrNumber || match.patientNumber;
+          setSelectedPatientMR(cleanMR);
+          setPatientMR(cleanMR);
+          setMrLookupStatus({
+            found: true,
+            message: `Found registered patient: ${match.firstName} ${match.lastName} (${match.phone || "No phone"})`,
+          });
+          return;
+        }
+      }
+      setSelectedPatientId(null);
+      setSelectedPatientMR(null);
+      setMrLookupStatus({
+        found: false,
+        message: `MR #${val} is unregistered. Enter Name and Phone below to book & register walk-in patient.`,
+      });
+    } catch (err) {
+      console.error("Failed to lookup MR number:", err);
+    } finally {
+      setIsLookingUpMR(false);
+    }
+  };
+
+  // Suggest Next MR Number
+  const handleSuggestMR = async () => {
+    setSuggestingMR(true);
+    try {
+      const res = await fetch("/api/patients/next-number");
+      if (res.ok) {
+        const data = await res.json();
+        const nextMR = data.mrNumber || data.data?.mrNumber;
+        if (nextMR) {
+          setPatientMR(nextMR);
+          setSelectedPatientId(null);
+          setSelectedPatientMR(null);
+          setMrLookupStatus({
+            found: false,
+            message: `Suggested new MR #${nextMR}. Enter patient demographics below.`,
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Failed to suggest MR:", err);
+    } finally {
+      setSuggestingMR(false);
+    }
   };
 
   // Submit appointment
@@ -224,6 +312,7 @@ export default function AppointmentBookingWizard() {
 
     try {
       const payload = {
+        mrNumber: patientMR.trim() || undefined,
         patientId: selectedPatientId || undefined,
         patientName: patientName.trim(),
         patientPhone: patientPhone.trim(),
@@ -256,14 +345,16 @@ export default function AppointmentBookingWizard() {
         patientName: patientName.trim(),
         patientPhone: patientPhone.trim(),
         patientNumber: data.appointment.patient?.patientNumber || "PAT-NEW",
-        mrNumber: data.appointment.patient?.mrNumber || null,
+        mrNumber: data.appointment.patient?.mrNumber || patientMR.trim() || null,
         doctorName: selectedDoctor ? `Dr. ${selectedDoctor.firstName} ${selectedDoctor.lastName}` : "Attending Doctor",
+        specialization: selectedDoctor?.specialization,
         departmentName: selectedDoctor?.departmentName || "General OPD",
         roomNumber: selectedDoctor?.roomNumber || null,
         appointmentDate,
         appointmentTime: data.appointment.appointmentTime || new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }),
         appointmentType,
-        consultationFee: String(data.appointment.consultationFee || (selectedDoctor?.consultationFee ?? "1000")),
+        consultationFee: String(data.appointment.consultationFee || doctorFees.active),
+        reason: reason.trim() || "Doctor Consultation",
         queuePosition: data.queuePosition || 1,
       });
     } catch {
@@ -274,10 +365,12 @@ export default function AppointmentBookingWizard() {
   };
 
   const resetForm = () => {
+    setPatientMR("");
     setPatientName("");
     setPatientPhone("");
     setSelectedPatientId(null);
     setSelectedPatientMR(null);
+    setMrLookupStatus(null);
     setSelectedDoctorId("");
     setAppointmentType("REGULAR");
     setReason("");
@@ -290,121 +383,28 @@ export default function AppointmentBookingWizard() {
   // --------------------------------------------------------------------------
   if (successData) {
     return (
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div className="bg-white rounded-2xl border border-emerald-200 shadow-lg p-6 sm:p-8 text-center space-y-6">
-          <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
-            <Check className="w-9 h-9 stroke-[3]" />
-          </div>
+      <div className="max-w-xl mx-auto space-y-4">
+        {/* Navigation Actions (Hidden during print) */}
+        <div className="flex items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-xs print:hidden">
+          <button
+            type="button"
+            onClick={resetForm}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-50 border border-teal-200 hover:bg-teal-100 text-teal-800 font-bold text-xs transition cursor-pointer"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Book Another Appointment</span>
+          </button>
 
-          <div>
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
-              OPD Appointment Confirmed
-            </span>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-3">
-              Appointment Token Issued
-            </h1>
-            <p className="text-sm text-slate-600 mt-1">
-              Patient is added to the doctor&apos;s outpatient consultation queue.
-            </p>
-          </div>
-
-          {/* Printable Token Slip Card */}
-          <div className="bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl p-6 text-left max-w-lg mx-auto space-y-4 font-sans print:border-solid print:bg-white">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-              <div>
-                <span className="text-[10px] font-bold text-teal-700 uppercase tracking-wider block">
-                  Daily Token #
-                </span>
-                <span className="font-mono font-black text-3xl text-teal-900 block leading-tight">
-                  #{successData.tokenNumber}
-                </span>
-                <span className="text-[11px] font-mono text-slate-500 block mt-0.5">
-                  Ref: {successData.appointmentNumber}
-                </span>
-              </div>
-              <div className="text-right">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                  Queue Position
-                </span>
-                <span className="inline-flex items-center px-3.5 py-1.5 rounded-lg bg-teal-700 text-white font-mono font-black text-xl shadow-xs mt-1">
-                  #{successData.queuePosition}
-                </span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 text-xs">
-              <div>
-                <span className="text-slate-500 font-medium">Patient:</span>
-                <p className="font-bold text-slate-900 text-sm">{successData.patientName}</p>
-                <p className="text-slate-600 font-mono mt-0.5">Phone: {successData.patientPhone}</p>
-                {successData.mrNumber && (
-                  <p className="text-teal-700 font-mono text-[11px] font-semibold">MR: {successData.mrNumber}</p>
-                )}
-              </div>
-              <div>
-                <span className="text-slate-500 font-medium">Doctor:</span>
-                <p className="font-bold text-slate-900 text-sm">{successData.doctorName}</p>
-                <p className="text-slate-600">{successData.departmentName}</p>
-                {successData.roomNumber && (
-                  <p className="text-slate-500 font-medium mt-0.5">Room: {successData.roomNumber}</p>
-                )}
-              </div>
-              <div>
-                <span className="text-slate-500 font-medium">Date &amp; Time:</span>
-                <p className="font-bold text-slate-900">{successData.appointmentDate}</p>
-                <p className="text-slate-700">{successData.appointmentTime}</p>
-              </div>
-              <div>
-                <span className="text-slate-500 font-medium">Consultation Fee:</span>
-                <p className="font-extrabold text-emerald-700 text-base">
-                  PKR {Number(successData.consultationFee).toLocaleString()}
-                </p>
-                <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                  <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                    Paid at Reception
-                  </span>
-                  <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                    successData.appointmentType === "EMERGENCY"
-                      ? "bg-rose-100 text-rose-800 border border-rose-200"
-                      : successData.appointmentType === "FOLLOW_UP"
-                      ? "bg-sky-100 text-sky-800 border border-sky-200"
-                      : "bg-slate-200 text-slate-800"
-                  }`}>
-                    {successData.appointmentType === "FOLLOW_UP" ? "Follow-up" : successData.appointmentType === "EMERGENCY" ? "Emergency" : "Regular"}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-semibold text-sm shadow-sm transition"
-            >
-              <Printer className="w-4 h-4" />
-              <span>Print Token Slip</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={resetForm}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-sm transition"
-            >
-              <RotateCcw className="w-4 h-4" />
-              <span>Book Another</span>
-            </button>
-
-            <Link
-              href="/appointments"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-sm transition"
-            >
-              <span>Appointments List</span>
-            </Link>
-          </div>
+          <Link
+            href="/appointments"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition"
+          >
+            <span>All Appointments List →</span>
+          </Link>
         </div>
+
+        {/* Official Printable Slip Component */}
+        <AppointmentPrintSlip data={successData} />
       </div>
     );
   }
@@ -472,12 +472,12 @@ export default function AppointmentBookingWizard() {
 
       {/* Booking Form */}
       <form onSubmit={handleBookAppointment} className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6">
-        {/* Section 1: Basic Patient Details */}
+        {/* Section 1: Basic Patient Details & Primary MR Number */}
         <div className="space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-2">
             <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
               <span className="w-6 h-6 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-xs font-bold">1</span>
-              Patient Information
+              Patient Identification (MR Number)
             </h2>
             {selectedPatientId && (
               <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
@@ -485,13 +485,88 @@ export default function AppointmentBookingWizard() {
                 <button
                   type="button"
                   onClick={handleClearSelectedPatient}
-                  className="ml-1 text-slate-400 hover:text-rose-600 font-bold"
+                  className="ml-1 text-slate-400 hover:text-rose-600 font-bold cursor-pointer"
                   title="Clear selection"
                 >
                   ×
                 </button>
               </span>
             )}
+          </div>
+
+          {/* Primary Patient MR Number input with live lookup & auto-suggest */}
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <Hash className="w-3.5 h-3.5 text-teal-600" />
+                <span>Patient MR Number (Medical Record #)</span>
+              </label>
+              <button
+                type="button"
+                onClick={handleSuggestMR}
+                disabled={suggestingMR}
+                className="text-[11px] font-semibold text-teal-700 hover:text-teal-900 bg-teal-50 hover:bg-teal-100 px-2.5 py-1 rounded-md border border-teal-200 transition cursor-pointer disabled:opacity-50"
+                title="Auto-suggest the next sequential hospital MR number"
+              >
+                {suggestingMR ? "Generating..." : "+ Next Available MR"}
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  placeholder="e.g. MR-2026-0001 or type existing MR #"
+                  value={patientMR}
+                  onChange={(e) => {
+                    const val = e.target.value.toUpperCase();
+                    setPatientMR(val);
+                    if (selectedPatientId) setSelectedPatientId(null);
+                    setMrLookupStatus(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleLookupMR();
+                    }
+                  }}
+                  className="w-full text-sm font-mono font-bold uppercase pl-3 pr-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleLookupMR()}
+                disabled={isLookingUpMR || !patientMR.trim()}
+                className="px-3.5 py-2 text-xs font-bold rounded-lg bg-teal-600 hover:bg-teal-700 text-white transition flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs shrink-0"
+              >
+                {isLookingUpMR ? (
+                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Search className="w-3.5 h-3.5" />
+                )}
+                <span>Lookup MR</span>
+              </button>
+            </div>
+
+            {/* MR Lookup Feedback */}
+            {mrLookupStatus && (
+              <div className={`text-xs p-2 rounded-lg flex items-center gap-2 ${
+                mrLookupStatus.found
+                  ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                  : "bg-amber-50 text-amber-800 border border-amber-200"
+              }`}>
+                {mrLookupStatus.found ? (
+                  <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                )}
+                <span className="font-medium">{mrLookupStatus.message}</span>
+              </div>
+            )}
+            <p className="text-[11px] text-slate-500">
+              The MR Number stays consistent throughout all modules (OPD, Inpatient, Nursing, Pharmacy, and Billing).
+            </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -528,7 +603,7 @@ export default function AppointmentBookingWizard() {
                         key={match.id}
                         type="button"
                         onClick={() => handleSelectExistingPatient(match)}
-                        className="w-full text-left px-3 py-2 text-xs hover:bg-teal-50 flex items-center justify-between group transition"
+                        className="w-full text-left px-3 py-2 text-xs hover:bg-teal-50 flex items-center justify-between group transition cursor-pointer"
                       >
                         <div>
                           <p className="font-bold text-slate-900 group-hover:text-teal-900">
@@ -568,7 +643,7 @@ export default function AppointmentBookingWizard() {
           </div>
         </div>
 
-        {/* Section 2: Doctor Selection */}
+        {/* Section 2: Doctor Selection & 3-Tier Fee Schedule */}
         <div className="space-y-4 pt-2">
           <div className="flex items-center justify-between border-b border-slate-100 pb-2">
             <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
@@ -577,7 +652,7 @@ export default function AppointmentBookingWizard() {
             </h2>
             {selectedDoctor && (
               <span className="text-xs font-bold text-emerald-700">
-                Fee: PKR {Number(selectedDoctor.consultationFee).toLocaleString()}
+                Active Fee: PKR {Number(doctorFees.active).toLocaleString()}
               </span>
             )}
           </div>
@@ -598,34 +673,52 @@ export default function AppointmentBookingWizard() {
                 <option value="">-- Choose Doctor --</option>
                 {allDoctors.map((doc) => (
                   <option key={doc.id} value={doc.id}>
-                    Dr. {doc.firstName} {doc.lastName} — {doc.specialization} {doc.roomNumber ? `(Room: ${doc.roomNumber})` : (doc.departmentName ? `(${doc.departmentName})` : "")} • Fee: PKR {Number(doc.consultationFee).toLocaleString()}
+                    Dr. {doc.firstName} {doc.lastName} — {doc.specialization} {doc.roomNumber ? `(Room: ${doc.roomNumber})` : (doc.departmentName ? `(${doc.departmentName})` : "")} • Reg: PKR {Number(doc.regularFee ?? doc.consultationFee).toLocaleString()}
                   </option>
                 ))}
               </select>
             </div>
           </div>
 
-          {/* Selected Doctor Summary Card */}
+          {/* Selected Doctor Summary Card with 3 Fee Tiers */}
           {selectedDoctor && (
-            <div className="bg-teal-50 border border-teal-200 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3 text-xs text-teal-900">
-              <div>
-                <p className="font-extrabold text-sm text-teal-950">
-                  Dr. {selectedDoctor.firstName} {selectedDoctor.lastName}
-                </p>
-                <p className="text-teal-800 font-medium">
-                  {selectedDoctor.specialization} {selectedDoctor.departmentName ? `• ${selectedDoctor.departmentName}` : ""}
-                </p>
-                {selectedDoctor.roomNumber ? (
-                  <p className="text-teal-700 mt-0.5 font-bold">📍 Room: {selectedDoctor.roomNumber}</p>
-                ) : (
-                  <p className="text-slate-400 mt-0.5 text-[11px]">No room assigned</p>
-                )}
+            <div className="bg-teal-50 border border-teal-200 rounded-xl p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-teal-900">
+                <div>
+                  <p className="font-extrabold text-sm text-teal-950">
+                    Dr. {selectedDoctor.firstName} {selectedDoctor.lastName}
+                  </p>
+                  <p className="text-teal-800 font-medium">
+                    {selectedDoctor.specialization} {selectedDoctor.departmentName ? `• ${selectedDoctor.departmentName}` : ""}
+                  </p>
+                  {selectedDoctor.roomNumber ? (
+                    <p className="text-teal-700 mt-0.5 font-bold">📍 Room: {selectedDoctor.roomNumber}</p>
+                  ) : (
+                    <p className="text-slate-400 mt-0.5 text-[11px]">No room assigned</p>
+                  )}
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] font-bold uppercase text-teal-700 block">Current Visit Fee</span>
+                  <span className="text-lg font-black text-emerald-800">
+                    PKR {Number(doctorFees.active).toLocaleString()}
+                  </span>
+                </div>
               </div>
-              <div className="text-right">
-                <span className="text-[10px] font-bold uppercase text-teal-700 block">Consultation Fee</span>
-                <span className="text-base font-extrabold text-teal-900">
-                  PKR {Number(selectedDoctor.consultationFee).toLocaleString()}
-                </span>
+
+              {/* 3 Fee Tiers breakdown */}
+              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-teal-200/60 text-center">
+                <div className={`p-2 rounded-lg border text-xs ${appointmentType === "REGULAR" ? "bg-white border-teal-600 shadow-xs ring-1 ring-teal-500" : "bg-teal-50/60 border-teal-200 text-teal-800"}`}>
+                  <span className="text-[10px] font-bold uppercase tracking-wider block text-slate-600">The Regular Fee</span>
+                  <span className="font-bold text-slate-900 text-xs">PKR {Number(doctorFees.regular).toLocaleString()}</span>
+                </div>
+                <div className={`p-2 rounded-lg border text-xs ${appointmentType === "FOLLOW_UP" ? "bg-white border-sky-600 shadow-xs ring-1 ring-sky-500" : "bg-teal-50/60 border-teal-200 text-teal-800"}`}>
+                  <span className="text-[10px] font-bold uppercase tracking-wider block text-slate-600">Follow UP Fee</span>
+                  <span className="font-bold text-slate-900 text-xs">PKR {Number(doctorFees.followUp).toLocaleString()}</span>
+                </div>
+                <div className={`p-2 rounded-lg border text-xs ${appointmentType === "EMERGENCY" ? "bg-white border-rose-600 shadow-xs ring-1 ring-rose-500" : "bg-teal-50/60 border-teal-200 text-rose-800"}`}>
+                  <span className="text-[10px] font-bold uppercase tracking-wider block text-rose-700">Emergency Fee</span>
+                  <span className="font-bold text-rose-900 text-xs">PKR {Number(doctorFees.emergency).toLocaleString()}</span>
+                </div>
               </div>
             </div>
           )}
@@ -643,7 +736,7 @@ export default function AppointmentBookingWizard() {
             </span>
           </div>
 
-          {/* Appointment Type Options: Regular, Follow-up, Emergency */}
+          {/* Appointment Type Options with dynamic fees */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1.5">
               Appointment Type <span className="text-rose-500">*</span>
@@ -659,8 +752,8 @@ export default function AppointmentBookingWizard() {
                 }`}
               >
                 <span>Regular</span>
-                <span className={`text-[10px] font-normal ${appointmentType === "REGULAR" ? "text-teal-100" : "text-slate-500"}`}>
-                  General OPD
+                <span className={`text-[10px] font-semibold ${appointmentType === "REGULAR" ? "text-teal-100" : "text-slate-500"}`}>
+                  PKR {Number(doctorFees.regular).toLocaleString()}
                 </span>
               </button>
 
@@ -674,8 +767,8 @@ export default function AppointmentBookingWizard() {
                 }`}
               >
                 <span>Follow-up</span>
-                <span className={`text-[10px] font-normal ${appointmentType === "FOLLOW_UP" ? "text-sky-100" : "text-slate-500"}`}>
-                  Review Visit
+                <span className={`text-[10px] font-semibold ${appointmentType === "FOLLOW_UP" ? "text-sky-100" : "text-slate-500"}`}>
+                  PKR {Number(doctorFees.followUp).toLocaleString()}
                 </span>
               </button>
 
@@ -689,8 +782,8 @@ export default function AppointmentBookingWizard() {
                 }`}
               >
                 <span>Emergency</span>
-                <span className={`text-[10px] font-normal ${appointmentType === "EMERGENCY" ? "text-rose-100" : "text-rose-500"}`}>
-                  Immediate Care
+                <span className={`text-[10px] font-semibold ${appointmentType === "EMERGENCY" ? "text-rose-100" : "text-rose-600"}`}>
+                  PKR {Number(doctorFees.emergency).toLocaleString()}
                 </span>
               </button>
             </div>

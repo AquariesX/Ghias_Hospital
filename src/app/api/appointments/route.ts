@@ -6,7 +6,7 @@ import {
   requireAppointmentManage,
 } from "@/lib/appointment-auth";
 import { generateNextAppointmentNumber } from "@/lib/appointment-number";
-import { generatePatientAndMRNumbers } from "@/lib/patient-number";
+import { generateNextPatientNumber, generateNextMRNumber } from "@/lib/patient-number";
 import { createAuditLog } from "@/lib/audit";
 import {
   AppointmentType,
@@ -15,6 +15,7 @@ import {
 } from "@prisma/client";
 
 const createAppointmentSchema = z.object({
+  mrNumber: z.string().max(100).optional().nullable(),
   patientId: z.string().uuid("Invalid patient identifier").optional().nullable(),
   patientName: z.string().min(1, "Patient name is required").optional().nullable(),
   patientPhone: z.string().min(3, "Phone number is required").optional().nullable(),
@@ -30,8 +31,8 @@ const createAppointmentSchema = z.object({
   emergencyReason: z.string().max(500).optional().nullable(),
   immediateAttentionRequired: z.boolean().optional().default(false),
   status: z.nativeEnum(AppointmentStatus).optional(),
-}).refine((data) => data.patientId || (data.patientName && data.patientPhone), {
-  message: "Either existing patient selection or Patient Name & Phone Number is required",
+}).refine((data) => data.mrNumber || data.patientId || (data.patientName && data.patientPhone), {
+  message: "Patient MR Number, existing patient selection, or Patient Name & Phone Number is required",
   path: ["patientName"],
 });
 
@@ -74,6 +75,7 @@ export async function GET(request: NextRequest) {
     if (search) {
       where.OR = [
         { appointmentNumber: { contains: search, mode: "insensitive" } },
+        { mrNumber: { contains: search, mode: "insensitive" } },
         {
           patient: {
             OR: [
@@ -183,7 +185,7 @@ export async function POST(request: NextRequest) {
 
     const data = parseResult.data;
 
-    // 1. Resolve Patient: use existing patientId, search by phone, or create new basic patient
+    // 1. Resolve Patient: prioritize MR number, existing patientId, or phone
     let patient: {
       id: string;
       firstName: string;
@@ -193,7 +195,50 @@ export async function POST(request: NextRequest) {
       status: string;
     } | null = null;
 
-    if (data.patientId) {
+    if (data.mrNumber?.trim()) {
+      const cleanMR = data.mrNumber.trim();
+      patient = await prisma.patient.findFirst({
+        where: {
+          OR: [
+            { mrNumber: cleanMR },
+            { patientNumber: cleanMR },
+          ],
+        },
+        select: { id: true, firstName: true, lastName: true, patientNumber: true, mrNumber: true, status: true },
+      });
+
+      if (!patient && data.patientName && data.patientPhone) {
+        // Register new patient with the entered MR Number
+        const cleanPhone = data.patientPhone.trim();
+        const patientNumber = await generateNextPatientNumber();
+        const trimmedName = data.patientName.trim();
+        const parts = trimmedName.split(/\s+/);
+        const firstName = parts[0] || "Patient";
+        const lastName = parts.slice(1).join(" ") || ".";
+
+        patient = await prisma.patient.create({
+          data: {
+            patientNumber,
+            mrNumber: cleanMR,
+            firstName,
+            lastName,
+            gender: "MALE",
+            dateOfBirth: new Date("1995-01-01"),
+            phone: cleanPhone,
+            bloodGroup: "B_POSITIVE",
+            emergencyContactName: trimmedName,
+            emergencyContactPhone: cleanPhone,
+            status: "ACTIVE",
+          },
+          select: { id: true, firstName: true, lastName: true, patientNumber: true, mrNumber: true, status: true },
+        });
+      } else if (!patient) {
+        return NextResponse.json(
+          { error: `Patient with MR Number "${cleanMR}" was not found. Please provide Patient Name & Contact Phone to register.` },
+          { status: 404 }
+        );
+      }
+    } else if (data.patientId) {
       patient = await prisma.patient.findUnique({
         where: { id: data.patientId },
         select: { id: true, firstName: true, lastName: true, patientNumber: true, mrNumber: true, status: true },
@@ -211,7 +256,8 @@ export async function POST(request: NextRequest) {
       if (existing) {
         patient = existing;
       } else {
-        const { patientNumber, mrNumber } = await generatePatientAndMRNumbers();
+        const patientNumber = await generateNextPatientNumber();
+        const mrNumber = await generateNextMRNumber();
         const trimmedName = (data.patientName || "Walk-in Patient").trim();
         const parts = trimmedName.split(/\s+/);
         const firstName = parts[0] || "Patient";
@@ -249,6 +295,9 @@ export async function POST(request: NextRequest) {
         lastName: true,
         departmentId: true,
         consultationFee: true,
+        regularFee: true,
+        followUpFee: true,
+        emergencyFee: true,
         status: true,
       },
     });
@@ -366,17 +415,27 @@ export async function POST(request: NextRequest) {
 
       const tokenNumber = Math.max((latestApt?.tokenNumber ?? 0) + 1, dayCount + 1);
 
+      // Determine fee based on doctor's 3 fee schedule (Regular, Follow-up, Emergency)
+      const regFee = doctor.regularFee ? Number(doctor.regularFee) : Number(doctor.consultationFee);
+      let calculatedFee = regFee;
+      if (data.appointmentType === AppointmentType.EMERGENCY) {
+        calculatedFee = doctor.emergencyFee ? Number(doctor.emergencyFee) : Math.round(regFee * 1.5);
+      } else if (data.appointmentType === AppointmentType.FOLLOW_UP) {
+        calculatedFee = doctor.followUpFee ? Number(doctor.followUpFee) : Math.round(regFee * 0.5);
+      }
+
       const created = await tx.appointment.create({
         data: {
           appointmentNumber,
           tokenNumber,
+          mrNumber: patient.mrNumber || null,
           patient: { connect: { id: patient.id } },
           doctor: { connect: { id: doctor.id } },
           department: { connect: { id: department.id } },
           appointmentType: data.appointmentType,
           appointmentDate,
           appointmentTime,
-          consultationFee: doctor.consultationFee,
+          consultationFee: calculatedFee,
           reason: appointmentReason,
           status: initialStatus,
           notes: data.notes,

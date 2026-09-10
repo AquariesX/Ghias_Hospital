@@ -6,6 +6,7 @@ import { createAuditLog } from "@/lib/audit";
 import { Gender, BloodGroup, PatientStatus } from "@prisma/client";
 
 const updatePatientSchema = z.object({
+  mrNumber: z.string().min(1, "MR Number is required").max(100).optional().nullable(),
   firstName: z.string().min(1, "First name is required").max(100),
   lastName: z.string().min(1, "Last name is required").max(100),
   gender: z.enum(["MALE", "FEMALE", "OTHER"], { message: "Select a valid gender" }),
@@ -140,11 +141,33 @@ export async function PUT(
       }
     }
 
+    // MR Number uniqueness check excluding current patient
+    const cleanMrNumber = val.mrNumber?.trim() || null;
+    if (cleanMrNumber && cleanMrNumber !== existing.mrNumber) {
+      const duplicateMr = await prisma.patient.findFirst({
+        where: {
+          mrNumber: cleanMrNumber,
+          id: { not: id },
+        },
+        select: { id: true, patientNumber: true, firstName: true, lastName: true },
+      });
+      if (duplicateMr) {
+        return NextResponse.json(
+          {
+            error: `Another patient with MR Number "${cleanMrNumber}" already exists (${duplicateMr.patientNumber}: ${duplicateMr.firstName} ${duplicateMr.lastName})`,
+            details: { mrNumber: ["This MR Number belongs to another registered patient"] },
+          },
+          { status: 409 }
+        );
+      }
+    }
+
     // Update patient and record timeline event
     const updated = await prisma.$transaction(async (tx) => {
       const patient = await tx.patient.update({
         where: { id },
         data: {
+          mrNumber: cleanMrNumber !== null ? cleanMrNumber : existing.mrNumber,
           firstName: val.firstName.trim(),
           lastName: val.lastName.trim(),
           gender: val.gender as Gender,

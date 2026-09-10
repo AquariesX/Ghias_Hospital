@@ -19,7 +19,20 @@ const createDoctorSchema = z.object({
   roomNumber: z.string().optional(),
   consultationFee: z
     .number({ message: "Fee must be a number" })
-    .min(0, "Fee must be non-negative"),
+    .min(0, "Fee must be non-negative")
+    .optional(),
+  regularFee: z
+    .number({ message: "Regular fee must be a number" })
+    .min(0, "Regular fee must be non-negative")
+    .optional(),
+  followUpFee: z
+    .number({ message: "Follow up fee must be a number" })
+    .min(0, "Follow up fee must be non-negative")
+    .optional(),
+  emergencyFee: z
+    .number({ message: "Emergency fee must be a number" })
+    .min(0, "Emergency fee must be non-negative")
+    .optional(),
   availability: z.enum(["AVAILABLE", "BUSY", "ON_LEAVE", "OFFLINE"]).default("AVAILABLE"),
   status: z.enum(["ACTIVE", "ON_LEAVE", "INACTIVE"]).default("ACTIVE"),
   departmentId: z.string().uuid("Invalid department").optional().nullable().or(z.literal("")),
@@ -152,6 +165,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const regularFee = data.regularFee ?? data.consultationFee ?? 1000;
+    const followUpFee = data.followUpFee ?? Math.round(regularFee * 0.5);
+    const emergencyFee = data.emergencyFee ?? Math.round(regularFee * 1.5);
+
     const doctor = await prisma.doctor.create({
       data: {
         doctorNumber,
@@ -163,7 +180,10 @@ export async function POST(request: NextRequest) {
         qualifications: data.qualifications || null,
         experience: data.experience || null,
         roomNumber: data.roomNumber || null,
-        consultationFee: data.consultationFee,
+        consultationFee: regularFee,
+        regularFee,
+        followUpFee,
+        emergencyFee,
         availability: data.availability as "AVAILABLE" | "BUSY" | "ON_LEAVE" | "OFFLINE",
         status: data.status as "ACTIVE" | "ON_LEAVE" | "INACTIVE",
         departmentId: data.departmentId || null,

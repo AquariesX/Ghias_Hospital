@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import prisma from "@/lib/prisma";
 import StatusBadge from "@/components/ui/StatusBadge";
+import SafeHtmlContent from "@/components/ui/SafeHtmlContent";
 import {
   Bed,
   ArrowLeft,
@@ -305,9 +306,20 @@ export default async function DoctorInpatientReviewPage({ params }: Props) {
                         })}
                       </span>
                     </div>
-                    <p className="text-slate-600">{note.observation}</p>
+                    <div className="text-slate-700 mt-0.5">
+                      <SafeHtmlContent content={note.observation} />
+                    </div>
                     {note.intervention && (
-                      <p className="text-slate-500 text-[11px]">Intervention: {note.intervention}</p>
+                      <div className="text-slate-600 text-[11px]">
+                        <span className="font-semibold">Intervention:</span>
+                        <SafeHtmlContent content={note.intervention} className="mt-0.5" />
+                      </div>
+                    )}
+                    {note.notes && (
+                      <div className="p-2 bg-amber-50/60 rounded text-[11px] text-amber-900 border border-amber-200/60">
+                        <span className="font-semibold">Nurse Handoff Notes:</span>
+                        <SafeHtmlContent content={note.notes} className="mt-0.5" />
+                      </div>
                     )}
                     <p className="text-[10px] text-slate-400">By Nurse: {note.recordedByName}</p>
                   </div>

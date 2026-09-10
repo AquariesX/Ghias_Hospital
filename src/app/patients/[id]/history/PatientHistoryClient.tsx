@@ -17,6 +17,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import StatusBadge from "@/components/ui/StatusBadge";
+import SafeHtmlContent from "@/components/ui/SafeHtmlContent";
 
 interface PatientHistoryClientProps {
   patient: {
@@ -437,7 +438,15 @@ export default function PatientHistoryClient({
                       })}
                     </span>
                   </div>
-                  <p className="text-slate-600">{n.observation}</p>
+                  <div className="text-slate-700 mt-0.5">
+                    <SafeHtmlContent content={n.observation} />
+                  </div>
+                  {n.notes && (
+                    <div className="p-2 bg-amber-50/60 rounded text-[11px] text-amber-900 border border-amber-200/60">
+                      <span className="font-semibold">Handoff Notes:</span>
+                      <SafeHtmlContent content={n.notes} className="mt-0.5" />
+                    </div>
+                  )}
                   <p className="text-[10px] text-slate-400">By Nurse: {n.recordedByName}</p>
                 </div>
               ))}

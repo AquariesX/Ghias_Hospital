@@ -2,18 +2,13 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   Search,
   UserPlus,
   Users,
   ExternalLink,
-  CheckCircle2,
-  AlertCircle,
   X,
-  Phone,
-  Calendar,
-  IdCard,
+  Sparkles,
 } from "lucide-react";
 
 interface PatientSearchResult {
@@ -41,8 +36,7 @@ interface Props {
   } | null;
 }
 
-export default function DoctorPatientsClient({ doctor }: Props) {
-  const router = useRouter();
+export default function DoctorPatientsClient({}: Props) {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [patients, setPatients] = useState<PatientSearchResult[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -53,6 +47,7 @@ export default function DoctorPatientsClient({ doctor }: Props) {
   const [regError, setRegError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
+    mrNumber: "",
     firstName: "",
     lastName: "",
     phone: "",
@@ -68,6 +63,24 @@ export default function DoctorPatientsClient({ doctor }: Props) {
     allergies: "",
     chronicConditions: "",
   });
+  const [suggestingMR, setSuggestingMR] = useState<boolean>(false);
+
+  const handleSuggestMR = async () => {
+    setSuggestingMR(true);
+    try {
+      const res = await fetch("/api/patients/next-number");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.mrNumber) {
+          setFormData((prev) => ({ ...prev, mrNumber: data.mrNumber }));
+        }
+      }
+    } catch (err) {
+      console.error("Failed to suggest MR number:", err);
+    } finally {
+      setSuggestingMR(false);
+    }
+  };
 
   const searchPatients = async (query: string) => {
     setLoading(true);
@@ -99,6 +112,7 @@ export default function DoctorPatientsClient({ doctor }: Props) {
 
     try {
       const payload = {
+        mrNumber: formData.mrNumber.trim(),
         firstName: formData.firstName,
         lastName: formData.lastName,
         phone: formData.phone,
@@ -130,12 +144,13 @@ export default function DoctorPatientsClient({ doctor }: Props) {
         searchPatients(formData.phone || formData.firstName);
         // Reset form
         setFormData({
+          mrNumber: "",
           firstName: "",
           lastName: "",
           phone: "",
           gender: "MALE",
           dateOfBirth: "",
-          bloodGroup: "UNKNOWN",
+          bloodGroup: "O_POSITIVE",
           cnic: "",
           address: "",
           city: "Lahore",
@@ -348,6 +363,35 @@ export default function DoctorPatientsClient({ doctor }: Props) {
               )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* MR Number (Manual) */}
+                <div className="sm:col-span-2 bg-teal-50/60 p-3 rounded-lg border border-teal-200/80">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-teal-950 font-bold uppercase text-[11px]">
+                      Medical Record (M.R.) Number *
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleSuggestMR}
+                      disabled={suggestingMR}
+                      className="inline-flex items-center gap-1 text-[10px] font-semibold text-teal-700 hover:text-teal-900 bg-white px-2 py-0.5 rounded border border-teal-300 shadow-2xs hover:bg-teal-50 disabled:opacity-50"
+                    >
+                      <Sparkles className="w-3 h-3 text-teal-600" />
+                      {suggestingMR ? "Fetching..." : "Suggest Next MR"}
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g., MR-000101 or physical folder ID"
+                    value={formData.mrNumber}
+                    onChange={(e) => setFormData({ ...formData, mrNumber: e.target.value })}
+                    className="w-full text-xs text-black font-mono font-bold bg-white border border-teal-300 rounded-lg p-2.5 focus:ring-1 focus:ring-teal-500 focus:outline-none"
+                  />
+                  <span className="text-[10px] text-teal-700 block mt-1">
+                    Enter the manual hospital file / chart number.
+                  </span>
+                </div>
+
                 {/* First Name */}
                 <div>
                   <label className="block text-slate-700 font-bold uppercase mb-1 text-[11px]">

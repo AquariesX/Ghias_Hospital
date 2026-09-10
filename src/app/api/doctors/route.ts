@@ -37,6 +37,9 @@ export async function GET(request: NextRequest) {
         specialization: true,
         roomNumber: true,
         consultationFee: true,
+        regularFee: true,
+        followUpFee: true,
+        emergencyFee: true,
         availability: true,
         status: true,
         department: {

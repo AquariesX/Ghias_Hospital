@@ -70,6 +70,7 @@ export default function PatientRegistrationForm() {
   const [conditionInput, setConditionInput] = useState("");
 
   const [form, setForm] = useState({
+    mrNumber: "",
     firstName: "",
     lastName: "",
     gender: "MALE",
@@ -157,6 +158,13 @@ export default function PatientRegistrationForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.mrNumber.trim()) {
+      setErrors((prev) => ({ ...prev, mrNumber: ["MR Number is required (manual entry)"] }));
+      setGlobalError("Please enter a valid MR Number for this patient.");
+      setIsSubmitting(false);
+      return;
+    }
+
     setIsSubmitting(true);
     setErrors({});
     setGlobalError("");
@@ -254,11 +262,11 @@ export default function PatientRegistrationForm() {
       <div className="bg-slate-900 text-white rounded-lg p-5 shadow-sm border border-slate-800 flex flex-wrap items-center justify-between gap-4">
         <div>
           <span className="text-[10px] uppercase font-bold tracking-wider text-teal-400 block mb-1">
-            Official Hospital Registration Numbers (Auto-Generated)
+            Official Hospital Registration Identifiers
           </span>
           <div className="flex items-center gap-6">
             <div>
-              <p className="text-xs text-slate-400">Patient Number</p>
+              <p className="text-xs text-slate-400">Patient Number (System Auto-ID)</p>
               <p className="font-mono text-xl font-bold text-teal-300">
                 {nextNumbers.patientNumber}
               </p>
@@ -266,7 +274,13 @@ export default function PatientRegistrationForm() {
             <div className="border-l border-slate-700 pl-6">
               <p className="text-xs text-slate-400">Medical Record (MR) Number</p>
               <p className="font-mono text-xl font-bold text-white">
-                {nextNumbers.mrNumber}
+                {form.mrNumber ? (
+                  form.mrNumber
+                ) : (
+                  <span className="text-slate-400 text-xs font-sans italic font-normal">
+                    (Manual Entry Required Below)
+                  </span>
+                )}
               </p>
             </div>
           </div>
@@ -284,6 +298,42 @@ export default function PatientRegistrationForm() {
             <span className="w-2 h-2 rounded-full bg-teal-600"></span>
             1. Personal Demographics
           </h2>
+
+          {/* Medical Record (MR) Number - MANUAL ENTRY BY USER */}
+          <div className="bg-teal-50/70 p-4 rounded-xl border border-teal-200">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+                Medical Record (MR) Number <span className="text-rose-500">*</span>
+                <span className="ml-2 text-[10px] font-semibold text-teal-800 bg-teal-100 px-2 py-0.5 rounded-full lowercase tracking-normal">
+                  manual entry by user
+                </span>
+              </label>
+              {nextNumbers.mrNumber && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForm((prev) => ({ ...prev, mrNumber: nextNumbers.mrNumber }));
+                    setErrors((prev) => ({ ...prev, mrNumber: [] }));
+                  }}
+                  className="text-[11px] font-bold text-teal-700 hover:text-teal-900 bg-white hover:bg-teal-50 border border-teal-300 px-2.5 py-1 rounded-md transition shadow-2xs self-start sm:self-auto"
+                >
+                  Suggest Next MR: {nextNumbers.mrNumber}
+                </button>
+              )}
+            </div>
+            <input
+              name="mrNumber"
+              value={form.mrNumber}
+              onChange={handleChange}
+              className="w-full text-sm font-mono font-bold text-slate-900 px-3.5 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white shadow-2xs"
+              placeholder="Enter manual MR Number (e.g. MR-000123, paper file number)..."
+              required
+            />
+            <div className="flex items-center justify-between text-[11px] text-slate-500 mt-1.5">
+              <span>Manually enter the hospital physical file or designated MR number for this patient.</span>
+              <FieldError name="mrNumber" errors={errors} />
+            </div>
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             <div>

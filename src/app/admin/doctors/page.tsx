@@ -193,8 +193,11 @@ export default async function DoctorsListPage({
                         <td className="px-4 py-3 text-slate-600 hidden lg:table-cell text-xs">
                           {doc.department?.name || <span className="text-slate-400 italic">None</span>}
                         </td>
-                        <td className="px-4 py-3 text-slate-600 hidden lg:table-cell">
-                          {Number(doc.consultationFee).toLocaleString()}
+                        <td className="px-4 py-3 text-slate-600 hidden lg:table-cell text-xs font-mono">
+                          <span className="font-bold text-slate-800">PKR {Number(doc.regularFee || doc.consultationFee).toLocaleString()}</span>
+                          <span className="block text-[10px] text-slate-500">
+                            F/U: {Number(doc.followUpFee || Math.round(Number(doc.consultationFee) * 0.5)).toLocaleString()} • Emg: {Number(doc.emergencyFee || Math.round(Number(doc.consultationFee) * 1.5)).toLocaleString()}
+                          </span>
                         </td>
                         <td className="px-4 py-3">
                           <StatusBadge status={doc.availability} />
