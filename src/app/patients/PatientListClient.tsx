@@ -568,7 +568,7 @@ export default function PatientListClient({ userRole }: { userRole: string }) {
                 className="text-xs text-black bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-hidden focus:ring-1 focus:ring-teal-500"
               >
                 <option value="">All Admission Sources</option>
-                <option value="OPD">OPD Consultation</option>
+                <option value="IPD">IPD Inpatient</option>
                 <option value="EMERGENCY">Emergency Triage</option>
               </select>
 

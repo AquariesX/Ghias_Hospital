@@ -143,7 +143,7 @@ export default async function StaffInpatientTreatmentPage({ params }: Props) {
     <DashboardLayout
       user={{
         ...user,
-        nurseDepartment: staff?.nurseDepartment || "OPD",
+        nurseDepartment: staff?.nurseDepartment || "IPD",
         staffRole: staff?.role || null,
       }}
     >

@@ -78,8 +78,9 @@ enum StaffRole {
 }
 
 enum NurseDepartment {
-  OPD
+  IPD
   EMERGENCY
+  OPD
 }
 
 enum StaffStatus {
@@ -118,8 +119,9 @@ enum EmergencyPriority {
 }
 
 enum AdmissionSource {
-  OPD
+  IPD
   EMERGENCY
+  OPD
 }
 
 enum AdmissionStatus {

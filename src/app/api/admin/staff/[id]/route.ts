@@ -18,7 +18,7 @@ const updateStaffSchema = z.object({
   qualification: z.string().optional().nullable(),
   shift: z.string().optional().nullable(),
   status: z.enum(["ACTIVE", "ON_LEAVE", "SHIFT_OFF", "INACTIVE"]).optional(),
-  nurseDepartment: z.enum(["OPD", "EMERGENCY"]).optional().nullable(),
+  nurseDepartment: z.enum(["IPD", "EMERGENCY", "OPD"]).optional().nullable(),
   departmentId: z.string().uuid().optional().nullable(),
   userId: z.string().uuid().optional().nullable(),
 

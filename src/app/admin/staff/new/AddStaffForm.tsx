@@ -240,11 +240,12 @@ export default function AddStaffForm() {
                   required={isNurse}
                   className={inputClass}
                 >
-                  <option value="OPD">OPD (Outpatient)</option>
+                  <option value="IPD">IPD (Inpatient Wards)</option>
                   <option value="EMERGENCY">Emergency</option>
+                  <option value="OPD">OPD (Outpatient Clinic)</option>
                 </select>
                 <p className="text-xs text-slate-400 mt-1">
-                  Controls department isolation. OPD nurses only access OPD admissions; Emergency nurses only access Emergency admissions.
+                  Controls department isolation. IPD nurses manage Inpatient admissions; Emergency nurses manage Emergency admissions.
                 </p>
                 <FieldError name="nurseDepartment" errors={errors} />
               </div>

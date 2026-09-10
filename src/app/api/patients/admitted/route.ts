@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
       if (staff?.nurseDepartment) {
         where.admissionSource = staff.nurseDepartment;
       }
-    } else if (source && (source === "OPD" || source === "EMERGENCY")) {
+    } else if (source && (source === "IPD" || source === "EMERGENCY" || source === "OPD")) {
       where.admissionSource = source as AdmissionSource;
     }
 

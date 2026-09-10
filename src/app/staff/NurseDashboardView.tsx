@@ -45,7 +45,7 @@ export interface AdmittedInpatientItem {
 
 interface NurseDashboardViewProps {
   nurseName: string;
-  department: "OPD" | "EMERGENCY" | null;
+  department: "OPD" | "EMERGENCY" | "IPD" | null;
   role: string;
   shift: string | null;
   admittedInpatients?: AdmittedInpatientItem[];
@@ -134,7 +134,7 @@ export default function NurseDashboardView({
                     : "bg-teal-50 text-teal-700 border border-teal-200"
                 }`}
               >
-                {isEmergency ? "Emergency Nursing Station" : "OPD Nursing Station"}
+                {isEmergency ? "Emergency Nursing Station" : department === "IPD" ? "IPD Inpatient Station" : "OPD Nursing Station"}
               </span>
               {shift && (
                 <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
@@ -148,7 +148,7 @@ export default function NurseDashboardView({
             <p className="text-sm text-slate-600 mt-1">
               Department:{" "}
               <span className="font-semibold text-slate-800">
-                {department ? (isEmergency ? "Emergency / Triage" : "Outpatient (OPD)") : "Clinical General"}
+                {department ? (isEmergency ? "Emergency / Triage" : department === "IPD" ? "Inpatient (IPD Wards)" : "Outpatient (OPD)") : "Clinical General"}
               </span>{" "}
               | Role: <span className="font-medium text-slate-700">{role.replace(/_/g, " ")}</span>
             </p>

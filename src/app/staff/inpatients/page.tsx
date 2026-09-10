@@ -96,7 +96,7 @@ export default async function StaffInpatientsPage() {
     <DashboardLayout
       user={{
         ...user,
-        nurseDepartment: staff?.nurseDepartment || "OPD",
+        nurseDepartment: staff?.nurseDepartment || "IPD",
         staffRole: staff?.role || null,
       }}
     >

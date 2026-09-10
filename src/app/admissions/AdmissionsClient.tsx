@@ -132,7 +132,7 @@ export default function AdmissionsClient() {
   const [isLoadingDoctors, setIsLoadingDoctors] = useState(true);
 
   // Admission & Bed Details
-  const [admissionSource, setAdmissionSource] = useState<"OPD" | "EMERGENCY">("OPD");
+  const [admissionSource, setAdmissionSource] = useState<"IPD" | "EMERGENCY">("IPD");
   const [availableRooms, setAvailableRooms] = useState<AvailableRoom[]>([]);
   const [isLoadingRooms, setIsLoadingRooms] = useState(true);
   const [selectedRoomId, setSelectedRoomId] = useState("");
@@ -427,7 +427,7 @@ export default function AdmissionsClient() {
     setProvisionalDiagnosis("");
     setFinalDiagnosis("");
     setOperation("");
-    setAdmissionSource("OPD");
+    setAdmissionSource("IPD");
     fetchAvailableRooms();
   };
 
@@ -804,24 +804,24 @@ export default function AdmissionsClient() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button
                     type="button"
-                    onClick={() => setAdmissionSource("OPD")}
+                    onClick={() => setAdmissionSource("IPD")}
                     className={`flex items-start gap-3 p-3.5 rounded-xl border text-left transition ${
-                      admissionSource === "OPD"
+                      admissionSource === "IPD"
                         ? "bg-teal-50/80 border-teal-600 ring-2 ring-teal-500/20"
                         : "bg-white border-slate-200 hover:bg-slate-50"
                     }`}
                   >
                     <div
                       className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                        admissionSource === "OPD" ? "bg-teal-700 text-white" : "bg-slate-100 text-slate-600"
+                        admissionSource === "IPD" ? "bg-teal-700 text-white" : "bg-slate-100 text-slate-600"
                       }`}
                     >
                       <Activity className="w-4 h-4" />
                     </div>
                     <div>
-                      <span className="text-xs font-bold text-slate-900 block">[ OPD ] Outpatient Admission</span>
+                      <span className="text-xs font-bold text-slate-900 block">[ IPD ] Inpatient Admission</span>
                       <span className="text-[11px] text-slate-500 mt-0.5 block">
-                        Visible to OPD Ward Nursing Staff & Routine Inpatient Care.
+                        Visible to IPD Ward Nursing Staff & Routine Inpatient Care.
                       </span>
                     </div>
                   </button>

@@ -256,8 +256,9 @@ export default function EditStaffClient() {
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Nurse Working Department</label>
                 <select name="nurseDepartment" value={form.nurseDepartment} onChange={handleChange} className={inputClass}>
                   <option value="">Not assigned</option>
-                  <option value="OPD">OPD</option>
+                  <option value="IPD">IPD (Inpatient Wards)</option>
                   <option value="EMERGENCY">Emergency</option>
+                  <option value="OPD">OPD (Outpatient Clinic)</option>
                 </select>
               </div>
             )}

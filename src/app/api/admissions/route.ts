@@ -22,7 +22,7 @@ const createAdmissionSchema = z.object({
   doctorId: z.string().optional().nullable(),
   admissionDate: z.string().optional().nullable(),
   admissionTime: z.string().optional().nullable(),
-  admissionSource: z.enum(["OPD", "EMERGENCY"]),
+  admissionSource: z.enum(["IPD", "EMERGENCY", "OPD"]).default("IPD"),
   referenceNumber: z.string().optional().nullable(),
   bedId: z.string().optional().nullable(),
   roomBedNo: z.string().min(1, "Room / Bed number is required"),
@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
       if (staff?.nurseDepartment) {
         where.admissionSource = staff.nurseDepartment;
       }
-    } else if (source && (source === "OPD" || source === "EMERGENCY")) {
+    } else if (source && (source === "IPD" || source === "EMERGENCY" || source === "OPD")) {
       where.admissionSource = source as AdmissionSource;
     }
 
