@@ -29,6 +29,12 @@ export async function GET(request: NextRequest) {
               emergencyFee: true,
               availability: true,
               status: true,
+              qualifications: true,
+              designationEnglish: true,
+              nameUrdu: true,
+              specializationUrdu: true,
+              qualificationsUrdu: true,
+              subSpecialtyUrdu: true,
             },
             orderBy: { firstName: "asc" },
           },
@@ -50,20 +56,43 @@ export async function GET(request: NextRequest) {
           emergencyFee: true,
           availability: true,
           status: true,
+          qualifications: true,
+          designationEnglish: true,
+          nameUrdu: true,
+          specializationUrdu: true,
+          qualificationsUrdu: true,
+          subSpecialtyUrdu: true,
         },
         orderBy: { firstName: "asc" },
       }),
     ]);
 
+    type DoctorItem = (typeof unassignedDoctors)[number];
+    type DepartmentItem = {
+      id: string;
+      code: string;
+      name: string;
+      description: string | null;
+      doctors: DoctorItem[];
+    };
+
+    const formattedDepartments: DepartmentItem[] = departments.map((d) => ({
+      id: d.id,
+      code: d.code,
+      name: d.name,
+      description: d.description,
+      doctors: [...d.doctors],
+    }));
+
     if (unassignedDoctors.length > 0) {
-      const existingOpd = departments.find(
+      const existingOpd = formattedDepartments.find(
         (d) => d.code === "OPD" || d.code === "GEN" || d.name.toLowerCase().includes("opd")
       );
       if (existingOpd) {
         // Merge unassigned doctors into existing OPD department without creating duplicate department
         existingOpd.doctors = [...existingOpd.doctors, ...unassignedDoctors];
       } else {
-        departments.push({
+        formattedDepartments.push({
           id: "general-opd-unassigned",
           code: "GEN",
           name: "General Consultation / OPD",
@@ -73,7 +102,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ departments });
+    return NextResponse.json({ departments: formattedDepartments });
   } catch (err: unknown) {
     if (err instanceof Response) return err;
     console.error("Error fetching appointment departments:", err);

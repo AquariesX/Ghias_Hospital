@@ -19,6 +19,11 @@ const createAppointmentSchema = z.object({
   patientId: z.string().uuid("Invalid patient identifier").optional().nullable(),
   patientName: z.string().min(1, "Patient name is required").optional().nullable(),
   patientPhone: z.string().min(3, "Phone number is required").optional().nullable(),
+  age: z.union([z.string(), z.number()]).optional().nullable(),
+  gender: z.enum(["MALE", "FEMALE", "OTHER"]).optional().nullable(),
+  address: z.string().max(255).optional().nullable(),
+  relationType: z.string().max(50).optional().nullable(),
+  relatedPersonName: z.string().max(100).optional().nullable(),
   doctorId: z.string().uuid("Invalid doctor identifier"),
   departmentId: z.string().uuid("Invalid department identifier").optional().nullable(),
   appointmentType: z.nativeEnum(AppointmentType).default(AppointmentType.REGULAR),
@@ -204,6 +209,23 @@ export async function POST(request: NextRequest) {
       status: string;
     } | null = null;
 
+    const parseAgeToDob = (ageVal?: string | number | null): Date => {
+      if (ageVal != null && ageVal !== "") {
+        const num = parseInt(String(ageVal).replace(/[^0-9]/g, ""), 10);
+        if (!isNaN(num) && num >= 0 && num <= 130) {
+          const currentYear = new Date().getFullYear();
+          return new Date(`${currentYear - num}-01-01`);
+        }
+      }
+      return new Date("1995-01-01");
+    };
+
+    const patientGender =
+      data.gender === "FEMALE" || data.gender === "OTHER" ? data.gender : "MALE";
+    const patientAddress = data.address?.trim() || null;
+    const patientRelationType = data.relationType?.trim() || null;
+    const patientRelatedPersonName = data.relatedPersonName?.trim() || null;
+
     if (data.mrNumber?.trim()) {
       const cleanMR = data.mrNumber.trim();
       patient = await prisma.patient.findFirst({
@@ -231,12 +253,16 @@ export async function POST(request: NextRequest) {
             mrNumber: cleanMR,
             firstName,
             lastName,
-            gender: "MALE",
-            dateOfBirth: new Date("1995-01-01"),
+            gender: patientGender,
+            dateOfBirth: parseAgeToDob(data.age),
             phone: cleanPhone,
+            address: patientAddress,
+            relationType: patientRelationType,
+            relatedPersonName: patientRelatedPersonName,
             bloodGroup: "B_POSITIVE",
-            emergencyContactName: trimmedName,
+            emergencyContactName: patientRelatedPersonName || trimmedName,
             emergencyContactPhone: cleanPhone,
+            emergencyContactRelation: patientRelationType,
             status: "ACTIVE",
           },
           select: { id: true, firstName: true, lastName: true, patientNumber: true, mrNumber: true, status: true },
@@ -278,12 +304,16 @@ export async function POST(request: NextRequest) {
             mrNumber,
             firstName,
             lastName,
-            gender: "MALE",
-            dateOfBirth: new Date("1995-01-01"),
+            gender: patientGender,
+            dateOfBirth: parseAgeToDob(data.age),
             phone: cleanPhone,
+            address: patientAddress,
+            relationType: patientRelationType,
+            relatedPersonName: patientRelatedPersonName,
             bloodGroup: "B_POSITIVE",
-            emergencyContactName: trimmedName,
+            emergencyContactName: patientRelatedPersonName || trimmedName,
             emergencyContactPhone: cleanPhone,
+            emergencyContactRelation: patientRelationType,
             status: "ACTIVE",
           },
           select: { id: true, firstName: true, lastName: true, patientNumber: true, mrNumber: true, status: true },
@@ -293,6 +323,21 @@ export async function POST(request: NextRequest) {
 
     if (!patient) {
       return NextResponse.json({ error: "Could not identify or register patient" }, { status: 400 });
+    }
+
+    // Update patient record if additional demographics provided during booking
+    if (patientAddress || patientRelationType || patientRelatedPersonName || data.gender || (data.age != null && data.age !== "")) {
+      const updateData: Record<string, any> = {};
+      if (patientAddress) updateData.address = patientAddress;
+      if (patientRelationType) updateData.relationType = patientRelationType;
+      if (patientRelatedPersonName) updateData.relatedPersonName = patientRelatedPersonName;
+      if (data.gender) updateData.gender = data.gender;
+      if (data.age != null && data.age !== "") updateData.dateOfBirth = parseAgeToDob(data.age);
+
+      await prisma.patient.update({
+        where: { id: patient.id },
+        data: updateData,
+      }).catch((err) => console.error("Failed to update patient demographics during appointment:", err));
     }
 
     // 2. Verify Doctor exists and is active

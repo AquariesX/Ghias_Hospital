@@ -100,6 +100,11 @@ export default async function DoctorDetailPage({
             {infoRow("Department", doctor.department?.name || "None / General OPD")}
             {infoRow("Qualifications", doctor.qualifications)}
             {infoRow("Experience", doctor.experience)}
+            {(doctor as any).designationEnglish && infoRow("Designation (English)", (doctor as any).designationEnglish)}
+            {(doctor as any).nameUrdu && infoRow("Name (Urdu)", (doctor as any).nameUrdu)}
+            {(doctor as any).specializationUrdu && infoRow("Specialization (Urdu)", (doctor as any).specializationUrdu)}
+            {(doctor as any).qualificationsUrdu && infoRow("Qualifications (Urdu)", (doctor as any).qualificationsUrdu)}
+            {(doctor as any).subSpecialtyUrdu && infoRow("Sub-Specialty / Hospital (Urdu)", (doctor as any).subSpecialtyUrdu)}
             {infoRow(
               "The Regular Fee",
               `PKR ${Number(doctor.regularFee || doctor.consultationFee).toLocaleString()}`

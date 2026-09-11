@@ -79,25 +79,54 @@ export default function AppointmentA4PrescriptionSlip({
     window.print();
   };
 
-  // Fallback defaults for doctor if not set in DB
+  // Dynamic doctor credentials - strictly reflecting the selected doctor
   const doctorNameEn =
-    data.doctor.doctorNameEnglish?.trim() || "Dr. Ali Ghias Tarar";
+    data.doctor.doctorNameEnglish?.trim() || "Attending Doctor";
   const qualEn =
-    data.doctor.qualificationsEnglish?.trim() || "M.B.B.S  F.C.P.S (Medicine)";
+    data.doctor.qualificationsEnglish?.trim() || "";
   const desigEn =
-    data.doctor.designationEnglish?.trim() ||
-    "Consultant Physician DHQ Hospital M.B.Din";
+    data.doctor.designationEnglish?.trim() || "";
 
-  const doctorNameUr =
-    data.doctor.doctorNameUrdu?.trim() || "ڈاکٹر علی غیاث تارڑ";
-  const specUr =
-    data.doctor.specializationUrdu?.trim() || "ماہر امراض دل، شوگر، معدہ، جگر";
-  const qualUr =
-    data.doctor.qualificationsUrdu?.trim() ||
-    "ایم بی بی ایس، ایف سی پی ایس (میڈیسن)";
-  const subSpecUr =
-    data.doctor.subSpecialtyUrdu?.trim() ||
-    "سابق کنسلٹنٹ فزیشن، جنرل ہسپتال لاہور۔ میڈیکل اسپیشلسٹ";
+  const doctorNameUr = (() => {
+    if (data.doctor.doctorNameUrdu?.trim()) {
+      return data.doctor.doctorNameUrdu.trim();
+    }
+    if (doctorNameEn.toLowerCase().includes("ali ghias")) {
+      return "ڈاکٹر علی غیاث تارڑ";
+    }
+    const cleanName = doctorNameEn.replace(/^Dr\.?\s*/i, "");
+    return `ڈاکٹر ${cleanName}`;
+  })();
+
+  const specUr = (() => {
+    if (data.doctor.specializationUrdu?.trim()) {
+      return data.doctor.specializationUrdu.trim();
+    }
+    if (doctorNameEn.toLowerCase().includes("ali ghias")) {
+      return "ماہر امراض دل، شوگر، معدہ، جگر";
+    }
+    return "";
+  })();
+
+  const qualUr = (() => {
+    if (data.doctor.qualificationsUrdu?.trim()) {
+      return data.doctor.qualificationsUrdu.trim();
+    }
+    if (doctorNameEn.toLowerCase().includes("ali ghias")) {
+      return "ایم بی بی ایس، ایف سی پی ایس (میڈیسن)";
+    }
+    return data.doctor.qualificationsEnglish?.trim() || "";
+  })();
+
+  const subSpecUr = (() => {
+    if (data.doctor.subSpecialtyUrdu?.trim()) {
+      return data.doctor.subSpecialtyUrdu.trim();
+    }
+    if (doctorNameEn.toLowerCase().includes("ali ghias")) {
+      return "سابق کنسلٹنٹ فزیشن، جنرل ہسپتال لاہور۔ میڈیکل اسپیشلسٹ";
+    }
+    return data.doctor.designationEnglish?.trim() || "";
+  })();
 
   // Patient relation label
   const relationLabel = (() => {
@@ -281,7 +310,11 @@ export default function AppointmentA4PrescriptionSlip({
             <div className="flex items-center gap-1.5">
               <span className="font-bold text-slate-950">Age :</span>
               <span>
-                {data.patient.age ? `${data.patient.age} Yrs` : "—"}
+                {data.patient.age
+                  ? /yrs|years/i.test(String(data.patient.age))
+                    ? String(data.patient.age)
+                    : `${data.patient.age} Yrs`
+                  : "—"}
               </span>
             </div>
 

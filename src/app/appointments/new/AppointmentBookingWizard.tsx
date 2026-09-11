@@ -57,6 +57,11 @@ interface PatientSearchMatch {
   firstName: string;
   lastName: string;
   phone: string;
+  gender?: string | null;
+  dateOfBirth?: string | null;
+  address?: string | null;
+  relationType?: string | null;
+  relatedPersonName?: string | null;
 }
 
 interface SuccessData extends AppointmentSlipData {
@@ -72,6 +77,11 @@ export default function AppointmentBookingWizard() {
   const [patientMR, setPatientMR] = useState("");
   const [patientName, setPatientName] = useState("");
   const [patientPhone, setPatientPhone] = useState("");
+  const [patientAge, setPatientAge] = useState("");
+  const [patientGender, setPatientGender] = useState<"MALE" | "FEMALE" | "OTHER">("MALE");
+  const [patientRelationType, setPatientRelationType] = useState("S/O");
+  const [patientGuardianName, setPatientGuardianName] = useState("");
+  const [patientAddress, setPatientAddress] = useState("");
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const [selectedPatientMR, setSelectedPatientMR] = useState<string | null>(null);
   const [isLookingUpMR, setIsLookingUpMR] = useState(false);
@@ -134,6 +144,15 @@ export default function AppointmentBookingWizard() {
             const mr = data.patient.mrNumber || data.patient.patientNumber;
             setSelectedPatientMR(mr);
             setPatientMR(mr);
+            if (data.patient.dateOfBirth) {
+              const diffMs = Date.now() - new Date(data.patient.dateOfBirth).getTime();
+              const a = Math.floor(diffMs / (1000 * 60 * 60 * 24 * 365.25));
+              if (!isNaN(a) && a >= 0) setPatientAge(String(a));
+            }
+            if (data.patient.gender) setPatientGender(data.patient.gender);
+            if (data.patient.address) setPatientAddress(data.patient.address);
+            if (data.patient.relationType) setPatientRelationType(data.patient.relationType);
+            if (data.patient.relatedPersonName) setPatientGuardianName(data.patient.relatedPersonName);
             setMrLookupStatus({ found: true, message: `Verified Registered Patient: ${data.patient.firstName} ${data.patient.lastName}` });
           }
         }
@@ -211,6 +230,18 @@ export default function AppointmentBookingWizard() {
     const mr = p.mrNumber || p.patientNumber;
     setSelectedPatientMR(mr);
     setPatientMR(mr);
+    if (p.dateOfBirth) {
+      const diffMs = Date.now() - new Date(p.dateOfBirth).getTime();
+      const a = Math.floor(diffMs / (1000 * 60 * 60 * 24 * 365.25));
+      if (!isNaN(a) && a >= 0) setPatientAge(String(a));
+    }
+    if (p.gender && (p.gender === "MALE" || p.gender === "FEMALE" || p.gender === "OTHER")) {
+      setPatientGender(p.gender as any);
+    }
+    if (p.address) setPatientAddress(p.address);
+    if (p.relationType) setPatientRelationType(p.relationType);
+    if (p.relatedPersonName) setPatientGuardianName(p.relatedPersonName);
+
     setMrLookupStatus({ found: true, message: `Registered patient verified: ${p.firstName} ${p.lastName}` });
     setShowPatientDropdown(false);
   };
@@ -221,6 +252,11 @@ export default function AppointmentBookingWizard() {
     setPatientMR("");
     setPatientName("");
     setPatientPhone("");
+    setPatientAge("");
+    setPatientGender("MALE");
+    setPatientAddress("");
+    setPatientRelationType("S/O");
+    setPatientGuardianName("");
     setMrLookupStatus(null);
   };
 
@@ -249,6 +285,17 @@ export default function AppointmentBookingWizard() {
           const cleanMR = match.mrNumber || match.patientNumber;
           setSelectedPatientMR(cleanMR);
           setPatientMR(cleanMR);
+          if (match.dateOfBirth) {
+            const diffMs = Date.now() - new Date(match.dateOfBirth).getTime();
+            const a = Math.floor(diffMs / (1000 * 60 * 60 * 24 * 365.25));
+            if (!isNaN(a) && a >= 0) setPatientAge(String(a));
+          }
+          if (match.gender && (match.gender === "MALE" || match.gender === "FEMALE" || match.gender === "OTHER")) {
+            setPatientGender(match.gender as any);
+          }
+          if (match.address) setPatientAddress(match.address);
+          if (match.relationType) setPatientRelationType(match.relationType);
+          if (match.relatedPersonName) setPatientGuardianName(match.relatedPersonName);
           setMrLookupStatus({
             found: true,
             message: `Found registered patient: ${match.firstName} ${match.lastName} (${match.phone || "No phone"})`,
@@ -260,7 +307,7 @@ export default function AppointmentBookingWizard() {
       setSelectedPatientMR(null);
       setMrLookupStatus({
         found: false,
-        message: `MR #${val} is unregistered. Enter Name and Phone below to book & register walk-in patient.`,
+        message: `MR #${val} is unregistered. Enter demographics below to book & register walk-in patient.`,
       });
     } catch (err) {
       console.error("Failed to lookup MR number:", err);
@@ -322,6 +369,11 @@ export default function AppointmentBookingWizard() {
         patientId: selectedPatientId || undefined,
         patientName: patientName.trim(),
         patientPhone: patientPhone.trim(),
+        age: patientAge.trim() || undefined,
+        gender: patientGender,
+        address: patientAddress.trim() || undefined,
+        relationType: patientRelationType.trim() || undefined,
+        relatedPersonName: patientGuardianName.trim() || undefined,
         doctorId: selectedDoctorId,
         departmentId: selectedDoctor?.departmentId,
         appointmentDate,
@@ -350,21 +402,27 @@ export default function AppointmentBookingWizard() {
         tokenNumber: data.appointment.tokenNumber ?? data.queuePosition ?? 1,
         patientName: patientName.trim(),
         patientPhone: patientPhone.trim(),
+        patientAge: patientAge.trim() || (data.appointment.patient?.dateOfBirth ? (() => {
+          const diffMs = Date.now() - new Date(data.appointment.patient.dateOfBirth).getTime();
+          const a = Math.floor(diffMs / (1000 * 60 * 60 * 24 * 365.25));
+          return !isNaN(a) && a >= 0 ? a : null;
+        })() : null),
+        patientGender: patientGender || data.appointment.patient?.gender || "MALE",
         patientNumber: data.appointment.patient?.patientNumber || "PAT-NEW",
         mrNumber: data.appointment.patient?.mrNumber || patientMR.trim() || null,
-        guardianName: data.appointment.patient?.relatedPersonName || data.appointment.patient?.emergencyContactName,
-        relationType: data.appointment.patient?.relationType || data.appointment.patient?.emergencyContactRelation,
-        address: data.appointment.patient?.address,
-        doctorName: selectedDoctor ? `Dr. ${selectedDoctor.firstName} ${selectedDoctor.lastName}` : "Attending Doctor",
+        guardianName: patientGuardianName.trim() || data.appointment.patient?.relatedPersonName || data.appointment.patient?.emergencyContactName || null,
+        relationType: patientRelationType.trim() || data.appointment.patient?.relationType || data.appointment.patient?.emergencyContactRelation || "S/O",
+        address: patientAddress.trim() || data.appointment.patient?.address || null,
+        doctorName: selectedDoctor ? (selectedDoctor.firstName.startsWith("Dr") ? `${selectedDoctor.firstName} ${selectedDoctor.lastName}` : `Dr. ${selectedDoctor.firstName} ${selectedDoctor.lastName}`) : "Attending Doctor",
         specialization: selectedDoctor?.specialization,
         departmentName: selectedDoctor?.departmentName || "General OPD",
         roomNumber: selectedDoctor?.roomNumber || null,
         qualificationsEnglish: selectedDoctor?.qualifications,
         designationEnglish: selectedDoctor?.designationEnglish,
-        doctorNameUrdu: selectedDoctor?.nameUrdu,
-        specializationUrdu: selectedDoctor?.specializationUrdu,
-        qualificationsUrdu: selectedDoctor?.qualificationsUrdu,
-        subSpecialtyUrdu: selectedDoctor?.subSpecialtyUrdu,
+        doctorNameUrdu: selectedDoctor?.nameUrdu || data.appointment.doctor?.nameUrdu,
+        specializationUrdu: selectedDoctor?.specializationUrdu || data.appointment.doctor?.specializationUrdu,
+        qualificationsUrdu: selectedDoctor?.qualificationsUrdu || data.appointment.doctor?.qualificationsUrdu,
+        subSpecialtyUrdu: selectedDoctor?.subSpecialtyUrdu || data.appointment.doctor?.subSpecialtyUrdu,
         appointmentDate,
         appointmentTime: data.appointment.appointmentTime || new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }),
         appointmentType,
@@ -383,6 +441,11 @@ export default function AppointmentBookingWizard() {
     setPatientMR("");
     setPatientName("");
     setPatientPhone("");
+    setPatientAge("");
+    setPatientGender("MALE");
+    setPatientAddress("");
+    setPatientRelationType("S/O");
+    setPatientGuardianName("");
     setSelectedPatientId(null);
     setSelectedPatientMR(null);
     setMrLookupStatus(null);
@@ -393,6 +456,16 @@ export default function AppointmentBookingWizard() {
     setSubmitError(null);
   };
 
+  // Handle print with auto-return back to appointment booking form
+  const handlePrintAndReturn = () => {
+    const onAfterPrint = () => {
+      window.removeEventListener("afterprint", onAfterPrint);
+      resetForm();
+    };
+    window.addEventListener("afterprint", onAfterPrint);
+    window.print();
+  };
+
   // --------------------------------------------------------------------------
   // SUCCESS / TOKEN SLIP VIEW
   // --------------------------------------------------------------------------
@@ -400,19 +473,29 @@ export default function AppointmentBookingWizard() {
     return (
       <div className="max-w-4xl mx-auto space-y-4">
         {/* Navigation Actions (Hidden during print) */}
-        <div className="flex items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-xs print:hidden">
-          <button
-            type="button"
-            onClick={resetForm}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-50 border border-teal-200 hover:bg-teal-100 text-teal-800 font-bold text-xs transition cursor-pointer"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>Book Another Appointment</span>
-          </button>
+        <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-xs print:hidden">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handlePrintAndReturn}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs transition shadow-sm cursor-pointer"
+            >
+              <Printer className="w-4 h-4" />
+              <span>Print Slip (Auto-Return to Booking)</span>
+            </button>
+            <button
+              type="button"
+              onClick={resetForm}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Book Another</span>
+            </button>
+          </div>
 
           <Link
             href="/appointments"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition"
           >
             <span>All Appointments List →</span>
           </Link>
@@ -654,6 +737,87 @@ export default function AppointmentBookingWizard() {
                   className="w-full text-sm font-medium pl-9 pr-3 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
                 />
               </div>
+            </div>
+          </div>
+
+          {/* Patient Demographics: Age & Gender */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Age */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Patient Age
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="e.g. 25"
+                  value={patientAge}
+                  onChange={(e) => setPatientAge(e.target.value)}
+                  className="w-full text-sm font-medium px-3 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white pr-14"
+                />
+                <span className="absolute right-3 top-2.5 text-xs text-slate-400 font-medium pointer-events-none">
+                  Years
+                </span>
+              </div>
+            </div>
+
+            {/* Gender */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Gender
+              </label>
+              <select
+                value={patientGender}
+                onChange={(e) => setPatientGender(e.target.value as "MALE" | "FEMALE" | "OTHER")}
+                className="w-full text-sm font-medium px-3 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
+              >
+                <option value="MALE">Male</option>
+                <option value="FEMALE">Female</option>
+                <option value="OTHER">Other</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Patient Demographics: S/o D/o W/o (Guardian) & Address */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* S/o D/o W/o Guardian Name */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                S/o D/o W/o (Relation & Relative Name)
+              </label>
+              <div className="flex gap-2">
+                <select
+                  value={patientRelationType}
+                  onChange={(e) => setPatientRelationType(e.target.value)}
+                  className="w-24 text-sm font-medium px-2 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white shrink-0"
+                >
+                  <option value="S/O">S/o</option>
+                  <option value="D/O">D/o</option>
+                  <option value="W/O">W/o</option>
+                  <option value="Guardian">Guardian</option>
+                </select>
+                <input
+                  type="text"
+                  placeholder="Father / Husband / Guardian Name"
+                  value={patientGuardianName}
+                  onChange={(e) => setPatientGuardianName(e.target.value)}
+                  className="flex-1 text-sm font-medium px-3 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
+                />
+              </div>
+            </div>
+
+            {/* Address */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Patient Address
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Makhna Wali, Phalia, Gujrat"
+                value={patientAddress}
+                onChange={(e) => setPatientAddress(e.target.value)}
+                className="w-full text-sm font-medium px-3 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
+              />
             </div>
           </div>
         </div>

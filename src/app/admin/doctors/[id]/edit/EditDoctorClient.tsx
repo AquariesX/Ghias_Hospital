@@ -113,7 +113,9 @@ export default function EditDoctorClient() {
     return () => { cancelled = true; };
   }, [id]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+  ) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
     setErrors((prev) => ({ ...prev, [e.target.name]: [] }));
     setGlobalError("");
@@ -412,9 +414,22 @@ export default function EditDoctorClient() {
               <label className="block text-xs font-semibold text-slate-700 mb-1">Qualifications</label>
               <input name="qualifications" value={form.qualifications} onChange={handleChange} className={inputClass} />
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Experience</label>
-              <input name="experience" value={form.experience} onChange={handleChange} className={inputClass} />
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Doctor Experience &amp; Professional Background
+              </label>
+              <textarea
+                name="experience"
+                rows={3}
+                value={form.experience}
+                onChange={handleChange}
+                className={`${inputClass} resize-y`}
+                placeholder="e.g. 15 Years Clinical Experience. Consultant Physician DHQ Hospital M.B.Din. Ex-Registrar General Hospital Lahore."
+              />
+              <p className="text-[11px] text-slate-500 mt-1">
+                Enter the physician's full clinical experience text, past hospital appointments, and years in practice.
+              </p>
+              <FieldError name="experience" errors={errors} />
             </div>
           </div>
         </div>
