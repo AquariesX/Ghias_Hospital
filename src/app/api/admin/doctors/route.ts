@@ -17,6 +17,11 @@ const createDoctorSchema = z.object({
   qualifications: z.string().optional(),
   experience: z.string().optional(),
   roomNumber: z.string().optional(),
+  nameUrdu: z.string().optional().nullable(),
+  specializationUrdu: z.string().optional().nullable(),
+  qualificationsUrdu: z.string().optional().nullable(),
+  subSpecialtyUrdu: z.string().optional().nullable(),
+  designationEnglish: z.string().optional().nullable(),
   consultationFee: z
     .number({ message: "Fee must be a number" })
     .min(0, "Fee must be non-negative")
@@ -180,6 +185,11 @@ export async function POST(request: NextRequest) {
         qualifications: data.qualifications || null,
         experience: data.experience || null,
         roomNumber: data.roomNumber || null,
+        nameUrdu: data.nameUrdu || null,
+        specializationUrdu: data.specializationUrdu || null,
+        qualificationsUrdu: data.qualificationsUrdu || null,
+        subSpecialtyUrdu: data.subSpecialtyUrdu || null,
+        designationEnglish: data.designationEnglish || null,
         consultationFee: regularFee,
         regularFee,
         followUpFee,

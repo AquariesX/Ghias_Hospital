@@ -216,6 +216,13 @@ model Doctor {
   experience     String?
   roomNumber     String?
 
+  // Doctor Print Template / Slip Configuration (Urdu & English)
+  nameUrdu           String?
+  specializationUrdu String?
+  qualificationsUrdu String?
+  subSpecialtyUrdu   String?
+  designationEnglish String?
+
   /// Current consultation fee in PKR (e.g. 2000.00).
   /// Note: When appointments are booked, this fee is snapshotted into the Appointment record.
   consultationFee Decimal            @db.Decimal(10, 2)

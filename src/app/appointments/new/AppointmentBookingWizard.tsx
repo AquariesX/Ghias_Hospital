@@ -33,6 +33,12 @@ interface Doctor {
   regularFee?: number | string | null;
   followUpFee?: number | string | null;
   emergencyFee?: number | string | null;
+  qualifications?: string | null;
+  nameUrdu?: string | null;
+  specializationUrdu?: string | null;
+  qualificationsUrdu?: string | null;
+  subSpecialtyUrdu?: string | null;
+  designationEnglish?: string | null;
   availability: string;
   status: string;
 }
@@ -346,10 +352,19 @@ export default function AppointmentBookingWizard() {
         patientPhone: patientPhone.trim(),
         patientNumber: data.appointment.patient?.patientNumber || "PAT-NEW",
         mrNumber: data.appointment.patient?.mrNumber || patientMR.trim() || null,
+        guardianName: data.appointment.patient?.relatedPersonName || data.appointment.patient?.emergencyContactName,
+        relationType: data.appointment.patient?.relationType || data.appointment.patient?.emergencyContactRelation,
+        address: data.appointment.patient?.address,
         doctorName: selectedDoctor ? `Dr. ${selectedDoctor.firstName} ${selectedDoctor.lastName}` : "Attending Doctor",
         specialization: selectedDoctor?.specialization,
         departmentName: selectedDoctor?.departmentName || "General OPD",
         roomNumber: selectedDoctor?.roomNumber || null,
+        qualificationsEnglish: selectedDoctor?.qualifications,
+        designationEnglish: selectedDoctor?.designationEnglish,
+        doctorNameUrdu: selectedDoctor?.nameUrdu,
+        specializationUrdu: selectedDoctor?.specializationUrdu,
+        qualificationsUrdu: selectedDoctor?.qualificationsUrdu,
+        subSpecialtyUrdu: selectedDoctor?.subSpecialtyUrdu,
         appointmentDate,
         appointmentTime: data.appointment.appointmentTime || new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }),
         appointmentType,
@@ -383,7 +398,7 @@ export default function AppointmentBookingWizard() {
   // --------------------------------------------------------------------------
   if (successData) {
     return (
-      <div className="max-w-xl mx-auto space-y-4">
+      <div className="max-w-4xl mx-auto space-y-4">
         {/* Navigation Actions (Hidden during print) */}
         <div className="flex items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-xs print:hidden">
           <button

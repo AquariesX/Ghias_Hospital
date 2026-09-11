@@ -1,8 +1,10 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 :root {
   --background: #f8fafc;
   --foreground: #000000;
+  --font-nastaliq: 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', 'Urdu Typesetting', 'Alvi Nastaleeq', serif;
 }
 
 @theme inline {
@@ -11,6 +13,7 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-inter: var(--font-inter);
+  --font-nastaliq: var(--font-nastaliq);
 }
 
 body {
@@ -41,4 +44,25 @@ select option {
 /* Admin module uses Inter font */
 .font-inter {
   font-family: var(--font-inter), 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* Urdu Nastaliq Typography */
+.font-nastaliq {
+  font-family: 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', 'Urdu Typesetting', 'Alvi Nastaleeq', serif;
+  line-height: 1.8;
+  direction: rtl;
+}
+
+/* Print Rules for A4 Hospital Slips */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm 10mm;
+  }
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
 }

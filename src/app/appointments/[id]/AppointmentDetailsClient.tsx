@@ -46,8 +46,11 @@ interface AppointmentData {
     dateOfBirth: string;
     bloodGroup: string;
     address?: string | null;
+    relationType?: string | null;
+    relatedPersonName?: string | null;
     emergencyContactName?: string | null;
     emergencyContactPhone?: string | null;
+    emergencyContactRelation?: string | null;
   };
   doctor: {
     id: string;
@@ -55,6 +58,13 @@ interface AppointmentData {
     firstName: string;
     lastName: string;
     specialization: string;
+    qualifications?: string | null;
+    experience?: string | null;
+    nameUrdu?: string | null;
+    specializationUrdu?: string | null;
+    qualificationsUrdu?: string | null;
+    subSpecialtyUrdu?: string | null;
+    designationEnglish?: string | null;
     roomNumber: string | null;
     phone: string;
     email: string;
@@ -95,6 +105,18 @@ export default function AppointmentDetailsClient({
   const [cancelReason, setCancelReason] = useState<string>("");
   const [showPrintSlip, setShowPrintSlip] = useState<boolean>(false);
 
+  const patientAge = (() => {
+    try {
+      const b = new Date(appointment.patient.dateOfBirth);
+      if (!isNaN(b.getTime())) {
+        return Math.floor((Date.now() - b.getTime()) / (1000 * 60 * 60 * 24 * 365.25));
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  })();
+
   const slipData: AppointmentSlipData = {
     appointmentNumber: appointment.appointmentNumber,
     tokenNumber: appointment.tokenNumber || 1,
@@ -103,10 +125,20 @@ export default function AppointmentDetailsClient({
     patientName: `${appointment.patient.firstName} ${appointment.patient.lastName}`,
     patientPhone: appointment.patient.phone,
     patientGender: appointment.patient.gender,
+    patientAge,
+    guardianName: appointment.patient.relatedPersonName || appointment.patient.emergencyContactName,
+    relationType: appointment.patient.relationType || appointment.patient.emergencyContactRelation,
+    address: appointment.patient.address,
     doctorName: `Dr. ${appointment.doctor.firstName} ${appointment.doctor.lastName}`,
     specialization: appointment.doctor.specialization,
     departmentName: appointment.department.name,
     roomNumber: appointment.doctor.roomNumber,
+    qualificationsEnglish: appointment.doctor.qualifications,
+    designationEnglish: appointment.doctor.designationEnglish,
+    doctorNameUrdu: appointment.doctor.nameUrdu,
+    specializationUrdu: appointment.doctor.specializationUrdu,
+    qualificationsUrdu: appointment.doctor.qualificationsUrdu,
+    subSpecialtyUrdu: appointment.doctor.subSpecialtyUrdu,
     appointmentDate: appointment.appointmentDate,
     appointmentTime: appointment.appointmentTime,
     appointmentType: appointment.appointmentType,

@@ -35,6 +35,10 @@ interface AppointmentItem {
     cnic: string | null;
     phone: string;
     gender: string;
+    dateOfBirth?: string | null;
+    relationType?: string | null;
+    relatedPersonName?: string | null;
+    address?: string | null;
   };
   doctor: {
     id: string;
@@ -43,6 +47,12 @@ interface AppointmentItem {
     lastName: string;
     specialization: string;
     roomNumber: string | null;
+    qualifications?: string | null;
+    designationEnglish?: string | null;
+    nameUrdu?: string | null;
+    specializationUrdu?: string | null;
+    qualificationsUrdu?: string | null;
+    subSpecialtyUrdu?: string | null;
   };
   department: {
     id: string;
@@ -683,6 +693,7 @@ export default function AppointmentsListClient() {
       {/* Printable Slip Modal */}
       {printSlipApt && (
         <AppointmentPrintSlip
+          defaultLayout="A4"
           data={{
             appointmentNumber: printSlipApt.appointmentNumber,
             tokenNumber: printSlipApt.tokenNumber || 1,
@@ -691,8 +702,30 @@ export default function AppointmentsListClient() {
             patientName: `${printSlipApt.patient.firstName} ${printSlipApt.patient.lastName}`,
             patientPhone: printSlipApt.patient.phone,
             patientGender: printSlipApt.patient.gender,
+            patientAge: (() => {
+              try {
+                if (printSlipApt.patient.dateOfBirth) {
+                  const b = new Date(printSlipApt.patient.dateOfBirth);
+                  if (!isNaN(b.getTime())) {
+                    return Math.floor((Date.now() - b.getTime()) / (1000 * 60 * 60 * 24 * 365.25));
+                  }
+                }
+                return null;
+              } catch {
+                return null;
+              }
+            })(),
+            guardianName: printSlipApt.patient.relatedPersonName,
+            relationType: printSlipApt.patient.relationType,
+            address: printSlipApt.patient.address,
             doctorName: `Dr. ${printSlipApt.doctor.firstName} ${printSlipApt.doctor.lastName}`,
             specialization: printSlipApt.doctor.specialization,
+            qualificationsEnglish: printSlipApt.doctor.qualifications,
+            designationEnglish: printSlipApt.doctor.designationEnglish,
+            doctorNameUrdu: printSlipApt.doctor.nameUrdu,
+            specializationUrdu: printSlipApt.doctor.specializationUrdu,
+            qualificationsUrdu: printSlipApt.doctor.qualificationsUrdu,
+            subSpecialtyUrdu: printSlipApt.doctor.subSpecialtyUrdu,
             departmentName: printSlipApt.department.name,
             roomNumber: printSlipApt.doctor.roomNumber,
             appointmentDate: printSlipApt.appointmentDate,

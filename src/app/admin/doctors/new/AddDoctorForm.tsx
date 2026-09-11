@@ -29,6 +29,11 @@ export default function AddDoctorForm() {
     qualifications: "",
     experience: "",
     roomNumber: "",
+    nameUrdu: "",
+    specializationUrdu: "",
+    qualificationsUrdu: "",
+    subSpecialtyUrdu: "",
+    designationEnglish: "",
     regularFee: "",
     followUpFee: "",
     emergencyFee: "",
@@ -331,6 +336,94 @@ export default function AddDoctorForm() {
               <label className="block text-xs font-semibold text-slate-700 mb-1">Experience</label>
               <input name="experience" value={form.experience} onChange={handleChange}
                 className={inputClass} placeholder="10 Years" />
+            </div>
+          </div>
+        </div>
+
+        {/* Prescription Slip Print Template (English & Urdu Nastaliq) */}
+        <div className="bg-white border border-slate-200 rounded-lg p-5 space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+            <div>
+              <h2 className="text-sm font-bold text-slate-900">
+                Prescription Slip Print Template (A4 Header)
+              </h2>
+              <p className="text-xs text-slate-500">
+                Customise how this doctor's credentials appear on the printed A4 slip (English on left, Urdu on right).
+              </p>
+            </div>
+            <span className="text-[11px] text-teal-800 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded font-semibold">
+              Urdu Nastaliq
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                English Designation &amp; Hospital Line (Left Side)
+              </label>
+              <input
+                name="designationEnglish"
+                value={form.designationEnglish}
+                onChange={handleChange}
+                className={inputClass}
+                placeholder="e.g. Consultant Physician DHQ Hospital M.B.Din"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Doctor Name in Urdu (Right Side)
+              </label>
+              <input
+                name="nameUrdu"
+                value={form.nameUrdu}
+                onChange={handleChange}
+                className={`${inputClass} font-nastaliq text-base`}
+                dir="rtl"
+                placeholder="مثلاً: ڈاکٹر علی غیاث تارڑ"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Specialization in Urdu (Right Side)
+              </label>
+              <input
+                name="specializationUrdu"
+                value={form.specializationUrdu}
+                onChange={handleChange}
+                className={`${inputClass} font-nastaliq text-base`}
+                dir="rtl"
+                placeholder="مثلاً: ماہر امراض دل، شوگر، معدہ، جگر"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Qualifications in Urdu (Right Side)
+              </label>
+              <input
+                name="qualificationsUrdu"
+                value={form.qualificationsUrdu}
+                onChange={handleChange}
+                className={`${inputClass} font-nastaliq text-base`}
+                dir="rtl"
+                placeholder="مثلاً: ایم بی بی ایس، ایف سی پی ایس (میڈیسن)"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Experience / Sub-specialty Line in Urdu (Right Side)
+              </label>
+              <input
+                name="subSpecialtyUrdu"
+                value={form.subSpecialtyUrdu}
+                onChange={handleChange}
+                className={`${inputClass} font-nastaliq text-base`}
+                dir="rtl"
+                placeholder="مثلاً: سابق کنسلٹنٹ فزیشن، جنرل ہسپتال لاہور"
+              />
             </div>
           </div>
         </div>

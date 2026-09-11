@@ -20,7 +20,9 @@ import {
   ExternalLink,
   ShieldCheck,
   Lock,
+  Printer,
 } from "lucide-react";
+import AppointmentPrintSlip, { AppointmentSlipData } from "@/components/appointments/AppointmentPrintSlip";
 
 interface VitalSignItem {
   id: string;
@@ -99,14 +101,21 @@ interface PatientData {
   vitalSigns: VitalSignItem[];
   consultations: PastConsultationItem[];
   prescriptions: PastPrescriptionItem[];
+  relationType?: string | null;
+  relatedPersonName?: string | null;
+  emergencyContactName?: string | null;
+  emergencyContactRelation?: string | null;
+  address?: string | null;
 }
 
 interface AppointmentData {
   id: string;
   appointmentNumber: string;
+  tokenNumber?: number | null;
   appointmentDate: string;
   appointmentTime: string;
   appointmentType: string;
+  consultationFee?: number | string;
   reason: string;
   status: string;
   isEmergency: boolean;
@@ -125,7 +134,9 @@ interface ConsultationData {
   finalDiagnosis: string | null;
   investigations: string | null;
   treatmentPlan: string | null;
-  prescriptions?: Array<{
+  recommendAdmission: boolean;
+  admissionReason: string | null;
+  prescriptions: Array<{
     id: string;
     prescriptionNumber: string;
     items: PrescriptionItemRow[];
@@ -140,6 +151,13 @@ interface Props {
     firstName: string;
     lastName: string;
     specialization: string;
+    qualifications?: string | null;
+    experience?: string | null;
+    nameUrdu?: string | null;
+    specializationUrdu?: string | null;
+    qualificationsUrdu?: string | null;
+    subSpecialtyUrdu?: string | null;
+    designationEnglish?: string | null;
   };
 }
 
@@ -164,6 +182,10 @@ export default function ClinicalWorkspaceClient({ appointmentId, doctor }: Props
 
   // Confirmation Modal
   const [showCompleteConfirm, setShowCompleteConfirm] = useState<boolean>(false);
+
+  // Print Slip Modal & Post-Completion State
+  const [showPrintSlipModal, setShowPrintSlipModal] = useState<boolean>(false);
+  const [consultationCompletedModal, setConsultationCompletedModal] = useState<boolean>(false);
 
   // Assessment form state
   const [presentingComplaints, setPresentingComplaints] = useState<string>("");
@@ -422,7 +444,15 @@ export default function ClinicalWorkspaceClient({ appointmentId, doctor }: Props
         alert(data.error || "Failed to complete consultation");
         setCompleting(false);
       } else {
-        router.push("/doctor/queue?status=completed");
+        setShowCompleteConfirm(false);
+        setCompleting(false);
+        if (consultation) {
+          setConsultation({ ...consultation, status: "COMPLETED" });
+        }
+        if (appointment) {
+          setAppointment({ ...appointment, status: "COMPLETED" });
+        }
+        setConsultationCompletedModal(true);
       }
     } catch {
       alert("Network error completing consultation");
@@ -479,6 +509,16 @@ export default function ClinicalWorkspaceClient({ appointmentId, doctor }: Props
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowPrintSlipModal(true)}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 font-bold text-xs shadow-xs transition"
+            title="Print A4 Prescription Slip"
+          >
+            <Printer className="w-3.5 h-3.5 text-teal-700" />
+            <span>Print Slip</span>
+          </button>
+
           {isCompleted ? (
             <div className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-100 text-emerald-800 font-bold text-xs border border-emerald-200">
               <Lock className="w-3.5 h-3.5" />
@@ -1545,6 +1585,155 @@ export default function ClinicalWorkspaceClient({ appointmentId, doctor }: Props
             </div>
           </div>
         </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* POST-COMPLETION MODAL: CELEBRATION & DIRECT PRINT PROMPT                   */}
+      {/* ========================================================================= */}
+      {consultationCompletedModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4">
+          <div className="max-w-md w-full bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 space-y-4 text-center">
+            <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-xs">
+              <CheckCircle2 className="w-8 h-8" />
+            </div>
+
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">
+                Consultation Completed!
+              </h3>
+              <p className="text-xs text-slate-600 mt-1">
+                Clinical encounter for <strong>{patient.firstName} {patient.lastName}</strong> has been saved and locked in the EMR.
+              </p>
+            </div>
+
+            <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 text-xs text-left space-y-1">
+              <div className="flex justify-between">
+                <span className="text-slate-500">MR Number:</span>
+                <span className="font-mono font-bold text-slate-900">
+                  {patient.mrNumber || patient.patientNumber}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Appointment Ref:</span>
+                <span className="font-mono text-slate-800">
+                  {appointment.appointmentNumber}
+                </span>
+              </div>
+              {appointment.tokenNumber && (
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Token Number:</span>
+                  <span className="font-mono font-black text-teal-800">
+                    #{appointment.tokenNumber}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPrintSlipModal(true);
+                }}
+                className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm shadow-sm transition"
+              >
+                <Printer className="w-4 h-4" />
+                <span>Print A4 Prescription Slip</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setConsultationCompletedModal(false);
+                  router.push("/doctor/queue?status=completed");
+                }}
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-xs transition"
+              >
+                <span>Return to Patient Queue</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* PRINT SLIP MODAL (A4 Hospital Slip)                                        */}
+      {/* ========================================================================= */}
+      {showPrintSlipModal && patient && appointment && (
+        <AppointmentPrintSlip
+          isModal={true}
+          defaultLayout="A4"
+          onClose={() => {
+            setShowPrintSlipModal(false);
+            if (consultationCompletedModal) {
+              setConsultationCompletedModal(false);
+              router.push("/doctor/queue?status=completed");
+            }
+          }}
+          data={{
+            appointmentNumber: appointment.appointmentNumber,
+            tokenNumber: appointment.tokenNumber || 1,
+            mrNumber: patient.mrNumber,
+            patientNumber: patient.patientNumber,
+            patientName: `${patient.firstName} ${patient.lastName}`.trim(),
+            patientPhone: patient.phone,
+            patientGender: patient.gender,
+            patientAge: (() => {
+              try {
+                const b = new Date(patient.dateOfBirth);
+                if (!isNaN(b.getTime())) {
+                  return Math.floor(
+                    (Date.now() - b.getTime()) / (1000 * 60 * 60 * 24 * 365.25)
+                  );
+                }
+                return "—";
+              } catch {
+                return "—";
+              }
+            })(),
+            guardianName:
+              patient.relatedPersonName || patient.emergencyContactName,
+            relationType:
+              patient.relationType || patient.emergencyContactRelation,
+            address: patient.address,
+            doctorName: `${doctor.firstName} ${doctor.lastName}`.trim(),
+            specialization: doctor.specialization,
+            qualificationsEnglish: doctor.qualifications,
+            designationEnglish: doctor.designationEnglish,
+            doctorNameUrdu: doctor.nameUrdu,
+            specializationUrdu: doctor.specializationUrdu,
+            qualificationsUrdu: doctor.qualificationsUrdu,
+            subSpecialtyUrdu: doctor.subSpecialtyUrdu,
+            appointmentDate: appointment.appointmentDate,
+            appointmentTime: appointment.appointmentTime,
+            appointmentType: appointment.appointmentType,
+            consultationFee: appointment.consultationFee || 2000,
+            bloodPressure:
+              newVitals.systolicBP && newVitals.diastolicBP
+                ? `${newVitals.systolicBP}/${newVitals.diastolicBP}`
+                : patient.vitalSigns?.[0]
+                ? `${patient.vitalSigns[0].systolicBP || "—"}/${patient.vitalSigns[0].diastolicBP || "—"}`
+                : null,
+            pulse: newVitals.pulse || patient.vitalSigns?.[0]?.pulse,
+            temperature:
+              newVitals.temperature || patient.vitalSigns?.[0]?.temperature,
+            weight: newVitals.weight || patient.vitalSigns?.[0]?.weight,
+            testsAdvised: investigations,
+            clinicalNotes: provisionalDiagnosis,
+            advice: treatmentPlan,
+            medicines: prescriptionItems
+              .filter((i) => i.medicineName.trim().length > 0)
+              .map((i, idx) => ({
+                id: String(idx),
+                medicineName: i.medicineName,
+                dosage: i.dosage,
+                frequency: i.frequency,
+                route: i.route,
+                duration: i.duration,
+                instructions: i.instructions,
+              })),
+          }}
+        />
       )}
     </div>
   );
