@@ -189,6 +189,13 @@ export default function AdmissionsClient() {
     }
   };
 
+  // Pre-load next sequential MR number for fresh walk-in / new patient
+  useEffect(() => {
+    if (!queryPatientId) {
+      fetchNextMRNumber();
+    }
+  }, [queryPatientId]);
+
   // Load active doctors from PostgreSQL
   useEffect(() => {
     let isMounted = true;
@@ -325,7 +332,6 @@ export default function AdmissionsClient() {
     setIsExistingPatient(false);
     setPatientSearch("");
     setSearchResults([]);
-    setMrNumber(autoMrNumber);
     setPatientName("");
     setFatherHusbandName("");
     setRelationType("Father");
@@ -334,6 +340,7 @@ export default function AdmissionsClient() {
     setAddress("");
     setPhone("");
     setCnic("");
+    fetchNextMRNumber();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -669,10 +676,13 @@ export default function AdmissionsClient() {
                 <input
                   type="text"
                   required
+                  readOnly={isExistingPatient}
                   placeholder="e.g. Muhammad Ali Khan"
                   value={patientName}
                   onChange={(e) => setPatientName(e.target.value)}
-                  className="w-full text-xs text-black border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white"
+                  className={`w-full text-xs border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 ${
+                    isExistingPatient ? "bg-slate-100 text-slate-700 cursor-not-allowed" : "bg-white text-black"
+                  }`}
                 />
               </div>
 
@@ -684,12 +694,15 @@ export default function AdmissionsClient() {
                 <input
                   type="number"
                   required
+                  readOnly={isExistingPatient}
                   min="0"
                   max="130"
                   placeholder="e.g. 35"
                   value={age}
                   onChange={(e) => setAge(e.target.value === "" ? "" : parseInt(e.target.value, 10))}
-                  className="w-full text-xs text-black border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white"
+                  className={`w-full text-xs border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 ${
+                    isExistingPatient ? "bg-slate-100 text-slate-700 cursor-not-allowed" : "bg-white text-black"
+                  }`}
                 />
               </div>
 
@@ -700,9 +713,12 @@ export default function AdmissionsClient() {
                 </label>
                 <div className="flex gap-2">
                   <select
+                    disabled={isExistingPatient}
                     value={relationType}
                     onChange={(e) => setRelationType(e.target.value)}
-                    className="w-32 shrink-0 text-xs text-black border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white"
+                    className={`w-32 shrink-0 text-xs border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 ${
+                      isExistingPatient ? "bg-slate-100 text-slate-700 cursor-not-allowed" : "bg-white text-black"
+                    }`}
                   >
                     <option value="Father">S/O (Father)</option>
                     <option value="Husband">W/O (Husband)</option>
@@ -711,10 +727,13 @@ export default function AdmissionsClient() {
                   </select>
                   <input
                     type="text"
+                    readOnly={isExistingPatient}
                     placeholder="e.g. Tariq Mehmood"
                     value={fatherHusbandName}
                     onChange={(e) => setFatherHusbandName(e.target.value)}
-                    className="w-full text-xs text-black border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white"
+                    className={`w-full text-xs border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 ${
+                      isExistingPatient ? "bg-slate-100 text-slate-700 cursor-not-allowed" : "bg-white text-black"
+                    }`}
                   />
                 </div>
               </div>
@@ -726,9 +745,12 @@ export default function AdmissionsClient() {
                 </label>
                 <select
                   required
+                  disabled={isExistingPatient}
                   value={gender}
                   onChange={(e) => setGender(e.target.value as "MALE" | "FEMALE" | "OTHER")}
-                  className="w-full text-xs text-black border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white"
+                  className={`w-full text-xs border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 ${
+                    isExistingPatient ? "bg-slate-100 text-slate-700 cursor-not-allowed" : "bg-white text-black"
+                  }`}
                 >
                   <option value="MALE">Male</option>
                   <option value="FEMALE">Female</option>
@@ -744,10 +766,13 @@ export default function AdmissionsClient() {
                 </label>
                 <input
                   type="tel"
+                  readOnly={isExistingPatient}
                   placeholder="e.g. 0300-1234567"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className="w-full text-xs text-black border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white"
+                  className={`w-full text-xs border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 ${
+                    isExistingPatient ? "bg-slate-100 text-slate-700 cursor-not-allowed" : "bg-white text-black"
+                  }`}
                 />
               </div>
 
@@ -759,10 +784,13 @@ export default function AdmissionsClient() {
                 </label>
                 <input
                   type="text"
+                  readOnly={isExistingPatient}
                   placeholder="e.g. 37405-1234567-1"
                   value={cnic}
                   onChange={(e) => setCnic(e.target.value)}
-                  className="w-full text-xs text-black border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white font-mono"
+                  className={`w-full text-xs border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 font-mono ${
+                    isExistingPatient ? "bg-slate-100 text-slate-700 cursor-not-allowed" : "bg-white text-black"
+                  }`}
                 />
               </div>
 
@@ -774,10 +802,13 @@ export default function AdmissionsClient() {
                 </label>
                 <input
                   type="text"
+                  readOnly={isExistingPatient}
                   placeholder="Residential address, city, area"
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  className="w-full text-xs text-black border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white"
+                  className={`w-full text-xs border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 ${
+                    isExistingPatient ? "bg-slate-100 text-slate-700 cursor-not-allowed" : "bg-white text-black"
+                  }`}
                 />
               </div>
             </div>

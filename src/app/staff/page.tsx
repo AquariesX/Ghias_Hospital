@@ -205,31 +205,49 @@ export default async function StaffDashboardPage() {
         </DashboardLayout>
       );
     } else {
-      // OPD Nursing Dashboard
+      // IPD Nursing Dashboard
       const [
-        totalOpdPatients,
-        waitingCount,
-        inConsultationCount,
-        completedCount,
-        opdQueue,
-        opdAdmissions,
+        totalIpdAdmissions,
+        admittedTodayCount,
+        underTreatmentCount,
+        dischargePendingCount,
+        availableBedsCount,
+        ipdAdmissions,
       ] = await Promise.all([
-        prisma.appointment.count({
-          where: { appointmentDate: { gte: todayStart, lte: todayEnd }, isEmergency: false },
+        prisma.admission.count({
+          where: {
+            admissionSource: "IPD",
+            status: { in: ["ADMITTED", "UNDER_TREATMENT", "DISCHARGE_PENDING"] },
+          },
         }),
-        prisma.appointment.count({
-          where: { appointmentDate: { gte: todayStart, lte: todayEnd }, status: "WAITING", isEmergency: false },
+        prisma.admission.count({
+          where: {
+            admissionSource: "IPD",
+            admissionDate: { gte: todayStart, lte: todayEnd },
+          },
         }),
-        prisma.appointment.count({
-          where: { appointmentDate: { gte: todayStart, lte: todayEnd }, status: "IN_CONSULTATION", isEmergency: false },
+        prisma.admission.count({
+          where: {
+            admissionSource: "IPD",
+            status: "UNDER_TREATMENT",
+          },
         }),
-        prisma.appointment.count({
-          where: { appointmentDate: { gte: todayStart, lte: todayEnd }, status: "COMPLETED", isEmergency: false },
+        prisma.admission.count({
+          where: {
+            admissionSource: "IPD",
+            status: "DISCHARGE_PENDING",
+          },
         }),
-        prisma.appointment.findMany({
-          where: { appointmentDate: { gte: todayStart, lte: todayEnd }, isEmergency: false },
-          orderBy: [{ appointmentTime: "asc" }, { createdAt: "asc" }],
-          take: 8,
+        prisma.bed.count({
+          where: { status: "FREE", isActive: true },
+        }),
+        prisma.admission.findMany({
+          where: {
+            admissionSource: "IPD",
+            status: { in: ["ADMITTED", "UNDER_TREATMENT", "DISCHARGE_PENDING"] },
+          },
+          orderBy: { admissionDate: "desc" },
+          take: 15,
           include: {
             patient: {
               select: {
@@ -255,44 +273,6 @@ export default async function StaffDashboardPage() {
                 roomNumber: true,
               },
             },
-            department: {
-              select: {
-                name: true,
-              },
-            },
-          },
-        }),
-        prisma.admission.findMany({
-          where: {
-            admissionSource: "OPD",
-            status: { in: ["ADMITTED", "UNDER_TREATMENT", "DISCHARGE_PENDING"] },
-          },
-          orderBy: { admissionDate: "desc" },
-          take: 10,
-          include: {
-            patient: {
-              select: {
-                id: true,
-                patientNumber: true,
-                mrNumber: true,
-                firstName: true,
-                lastName: true,
-                gender: true,
-                dateOfBirth: true,
-                phone: true,
-                bloodGroup: true,
-                allergies: true,
-                vitalSigns: { orderBy: { recordedAt: "desc" }, take: 1 },
-              },
-            },
-            doctor: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                specialization: true,
-              },
-            },
           },
         }),
       ]);
@@ -301,52 +281,43 @@ export default async function StaffDashboardPage() {
         <DashboardLayout
           user={{
             ...user,
-            nurseDepartment: staff?.nurseDepartment || "OPD",
+            nurseDepartment: staff?.nurseDepartment || "IPD",
             staffRole: staff?.role || null,
           }}
         >
           <div className="max-w-6xl mx-auto">
             <NurseDashboardView
               nurseName={`${user.firstName} ${user.lastName}`}
-              department="OPD"
+              department="IPD"
               role={staff?.role || "STAFF_NURSE"}
               shift={staff?.shift || null}
-              admittedInpatients={opdAdmissions}
-              opdMetrics={{
-                totalPatients: totalOpdPatients + opdAdmissions.length,
-                waiting: waitingCount + opdAdmissions.filter((a) => a.status === "ADMITTED").length,
-                inConsultation: inConsultationCount + opdAdmissions.filter((a) => a.status === "UNDER_TREATMENT").length,
-                completed: completedCount,
+              admittedInpatients={ipdAdmissions}
+              ipdMetrics={{
+                totalInpatients: totalIpdAdmissions,
+                admittedToday: admittedTodayCount,
+                underTreatment: underTreatmentCount,
+                dischargePending: dischargePendingCount,
+                availableBeds: availableBedsCount,
               }}
-              queue={[
-                ...opdAdmissions.map((adm) => ({
-                  id: adm.id,
-                  isAdmission: true,
-                  patient: adm.patient,
-                  doctor: adm.doctor ? {
-                    firstName: adm.doctor.firstName,
-                    lastName: adm.doctor.lastName,
-                    specialization: adm.doctor.specialization,
-                    roomNumber: adm.roomBedNo,
-                  } : null,
-                  department: {
-                    name: adm.roomBedNo || "OPD Inpatient Ward",
-                  },
-                  appointmentTime: adm.admissionTime || "Inpatient Ward",
-                  status: adm.status,
-                  roomBedNo: adm.roomBedNo,
-                })),
-                ...opdQueue.map((item) => ({
-                  id: item.id,
-                  isAdmission: false,
-                  patient: item.patient,
-                  doctor: item.doctor,
-                  department: item.department,
-                  appointmentTime: item.appointmentTime,
-                  status: item.status,
-                  roomBedNo: null,
-                })),
-              ]}
+              queue={ipdAdmissions.map((adm) => ({
+                id: adm.id,
+                admissionId: adm.id,
+                isAdmission: true,
+                patient: adm.patient,
+                doctor: adm.doctor ? {
+                  firstName: adm.doctor.firstName,
+                  lastName: adm.doctor.lastName,
+                  specialization: adm.doctor.specialization,
+                  roomNumber: adm.doctor.roomNumber || adm.roomBedNo,
+                } : null,
+                department: {
+                  name: adm.roomBedNo || "IPD Inpatient Ward",
+                },
+                appointmentTime: adm.admissionTime || "Inpatient Ward",
+                status: adm.status,
+                roomBedNo: adm.roomBedNo,
+                chiefComplaint: adm.provisionalDiagnosis || "Inpatient Care",
+              }))}
             />
           </div>
         </DashboardLayout>

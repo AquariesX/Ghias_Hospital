@@ -144,6 +144,24 @@ function EmergencyIcon() {
   );
 }
 
+function BillingIcon() {
+  return (
+    <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+        d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+}
+
+function ExpenseIcon() {
+  return (
+    <svg className="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+        d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
+    </svg>
+  );
+}
+
 const navGroups: NavGroup[] = [
   {
     label: "Overview",
@@ -175,10 +193,24 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
+    label: "Financial & Accounts",
+    items: [
+      { label: "Billing & Revenue", href: "/admin/billing", icon: <BillingIcon /> },
+      { label: "Hospital Expenses", href: "/admin/billing/expenses", icon: <ExpenseIcon /> },
+    ],
+  },
+  {
+    label: "Reports & Intelligence",
+    items: [
+      { label: "Day End Report", href: "/admin/reports/day-end", icon: <ReportIcon /> },
+      { label: "Patient Report", href: "/admin/reports/patient-report", icon: <ReportIcon /> },
+      { label: "Analytics Overview", href: "/admin/reports", icon: <ReportIcon /> },
+    ],
+  },
+  {
     label: "System Management",
     items: [
       { label: "Users", href: "/admin/users", icon: <UsersIcon /> },
-      { label: "Reports & Analytics", href: "/admin/reports", icon: <ReportIcon /> },
       { label: "Audit Logs", href: "/admin/audit-logs", icon: <AuditIcon /> },
     ],
   },

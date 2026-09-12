@@ -175,6 +175,7 @@ model User {
   createdAdmissions   Admission[]        @relation("AdmissionCreator")
   createdReferrals    PatientReferral[]  @relation("ReferralCreator")
   createdDeathCerts   DeathCertificate[] @relation("DeathCertificateCreator")
+  createdExpenses     Expense[]          @relation("ExpenseCreator")
   auditLogs           AuditLog[]
 
   createdAt DateTime @default(now())
@@ -637,6 +638,7 @@ model Admission {
   admissionSource       AdmissionSource
   referenceNumber       String?         // OPD MR number or ER reference
   roomBedNo             String?         // e.g. "Room 204 - Bed 1", "Ward 3 Bed 5", "ICU-02"
+  admissionFee          Decimal?        @db.Decimal(10, 2)
 
   bedId                 String?
   bed                   Bed?            @relation(fields: [bedId], references: [id], onDelete: SetNull)
@@ -906,3 +908,24 @@ model DeathCertificate {
   @@index([admissionId])
   @@index([dateOfDeath])
 }
+
+/// Hospital operational, administrative and utility expenses
+model Expense {
+  id          String   @id @default(uuid())
+  title       String   // e.g. "Generator Diesel Fuel", "Medical Gloves & Syringes"
+  description String?  @db.Text
+  amount      Decimal  @db.Decimal(12, 2)
+  date        DateTime @db.Date
+  category    String   // e.g. "SUPPLIES", "UTILITIES", "SALARIES", "MAINTENANCE", "PHARMACY", "EQUIPMENT", "OTHER"
+
+  addedById   String?
+  addedBy     User?    @relation("ExpenseCreator", fields: [addedById], references: [id], onDelete: SetNull)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([date])
+  @@index([category])
+  @@index([addedById])
+}
+

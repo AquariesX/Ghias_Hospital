@@ -97,48 +97,49 @@ export async function GET(request: NextRequest) {
         queue: recentEmergencyQueue,
       });
     } else {
-      // OPD Dashboard Metrics (Default for OPD Nurse or general)
+      // IPD Dashboard Metrics (Default for IPD Nurse or Inpatient Ward Staff)
       const [
-        totalOpdPatients,
-        waitingCount,
-        inConsultationCount,
-        completedCount,
-        recentQueue,
+        totalIpdAdmissions,
+        admittedTodayCount,
+        underTreatmentCount,
+        dischargePendingCount,
+        availableBedsCount,
+        activeIpdQueue,
       ] = await Promise.all([
-        prisma.appointment.count({
+        prisma.admission.count({
           where: {
-            appointmentDate: { gte: todayStart, lte: todayEnd },
-            isEmergency: false,
+            admissionSource: "IPD",
+            status: { in: ["ADMITTED", "UNDER_TREATMENT", "DISCHARGE_PENDING"] },
           },
         }),
-        prisma.appointment.count({
+        prisma.admission.count({
           where: {
-            appointmentDate: { gte: todayStart, lte: todayEnd },
-            status: "WAITING",
-            isEmergency: false,
+            admissionSource: "IPD",
+            admissionDate: { gte: todayStart, lte: todayEnd },
           },
         }),
-        prisma.appointment.count({
+        prisma.admission.count({
           where: {
-            appointmentDate: { gte: todayStart, lte: todayEnd },
-            status: "IN_CONSULTATION",
-            isEmergency: false,
+            admissionSource: "IPD",
+            status: "UNDER_TREATMENT",
           },
         }),
-        prisma.appointment.count({
+        prisma.admission.count({
           where: {
-            appointmentDate: { gte: todayStart, lte: todayEnd },
-            status: "COMPLETED",
-            isEmergency: false,
+            admissionSource: "IPD",
+            status: "DISCHARGE_PENDING",
           },
         }),
-        prisma.appointment.findMany({
+        prisma.bed.count({
+          where: { status: "FREE", isActive: true },
+        }),
+        prisma.admission.findMany({
           where: {
-            appointmentDate: { gte: todayStart, lte: todayEnd },
-            isEmergency: false,
+            admissionSource: "IPD",
+            status: { in: ["ADMITTED", "UNDER_TREATMENT", "DISCHARGE_PENDING"] },
           },
-          orderBy: [{ appointmentTime: "asc" }, { createdAt: "asc" }],
-          take: 8,
+          orderBy: { admissionDate: "desc" },
+          take: 12,
           include: {
             patient: {
               select: {
@@ -167,27 +168,32 @@ export async function GET(request: NextRequest) {
                 roomNumber: true,
               },
             },
-            department: {
-              select: {
-                id: true,
-                name: true,
-                code: true,
-              },
-            },
           },
         }),
       ]);
 
       return NextResponse.json({
         success: true,
-        department: "OPD",
+        department: "IPD",
         metrics: {
-          totalPatients: totalOpdPatients,
-          waiting: waitingCount,
-          inConsultation: inConsultationCount,
-          completed: completedCount,
+          totalInpatients: totalIpdAdmissions,
+          admittedToday: admittedTodayCount,
+          underTreatment: underTreatmentCount,
+          dischargePending: dischargePendingCount,
+          availableBeds: availableBedsCount,
         },
-        queue: recentQueue,
+        queue: activeIpdQueue.map((adm) => ({
+          id: adm.id,
+          admissionId: adm.id,
+          isAdmission: true,
+          roomBedNo: adm.roomBedNo,
+          patient: adm.patient,
+          doctor: adm.doctor,
+          chiefComplaint: adm.provisionalDiagnosis,
+          status: adm.status,
+          admissionDate: adm.admissionDate,
+          admissionTime: adm.admissionTime,
+        })),
       });
     }
   } catch (error) {

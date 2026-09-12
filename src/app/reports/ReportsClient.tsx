@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import {
   BarChart3,
   Users,
@@ -13,6 +14,8 @@ import {
   RefreshCw,
   Clock,
   Filter,
+  Receipt,
+  FileText,
 } from "lucide-react";
 
 type ReportType =
@@ -71,7 +74,21 @@ export default function ReportsClient() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/admin/reports/day-end"
+            className="px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold text-xs rounded-lg transition inline-flex items-center gap-1.5 shadow-xs"
+          >
+            <Receipt className="w-3.5 h-3.5" />
+            <span>Day End Report</span>
+          </Link>
+          <Link
+            href="/admin/reports/patient-report"
+            className="px-3 py-2 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 font-semibold text-xs rounded-lg transition inline-flex items-center gap-1.5 shadow-xs"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>Patient Report</span>
+          </Link>
           <button
             type="button"
             onClick={fetchReport}
@@ -84,10 +101,10 @@ export default function ReportsClient() {
           <button
             type="button"
             onClick={() => window.print()}
-            className="px-3.5 py-2 bg-teal-700 hover:bg-teal-800 text-white font-semibold text-xs rounded-lg transition inline-flex items-center gap-2 shadow-xs"
+            className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-lg transition inline-flex items-center gap-2 shadow-xs"
           >
             <Printer className="w-4 h-4" />
-            <span>Print Report</span>
+            <span>Print Overview</span>
           </button>
         </div>
       </div>

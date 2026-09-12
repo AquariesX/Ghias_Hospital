@@ -257,8 +257,7 @@ export default function EditStaffClient() {
                 <select name="nurseDepartment" value={form.nurseDepartment} onChange={handleChange} className={inputClass}>
                   <option value="">Not assigned</option>
                   <option value="IPD">IPD (Inpatient Wards)</option>
-                  <option value="EMERGENCY">Emergency</option>
-                  <option value="OPD">OPD (Outpatient Clinic)</option>
+                  <option value="EMERGENCY">Emergency (ER / Triage)</option>
                 </select>
               </div>
             )}

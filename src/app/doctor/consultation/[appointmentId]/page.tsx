@@ -42,8 +42,18 @@ export default async function ConsultationWorkspacePage({ params }: Props) {
     where: {
       OR: [{ userId: user.id }, { email: user.email }],
     },
-    include: {
-      department: true,
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      specialization: true,
+      qualifications: true,
+      experience: true,
+      nameUrdu: true,
+      specializationUrdu: true,
+      qualificationsUrdu: true,
+      subSpecialtyUrdu: true,
+      designationEnglish: true,
     },
   });
 

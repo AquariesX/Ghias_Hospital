@@ -24,8 +24,11 @@ export default async function DoctorPatientsPage() {
     where: {
       OR: [{ userId: user.id }, { email: user.email }],
     },
-    include: {
-      department: true,
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      specialization: true,
     },
   });
 

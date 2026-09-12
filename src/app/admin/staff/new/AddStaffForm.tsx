@@ -52,7 +52,7 @@ export default function AddStaffForm() {
     shift: "Morning (08:00 - 16:00)",
     status: "ACTIVE",
     departmentId: "",
-    nurseDepartment: "OPD",
+    nurseDepartment: "IPD",
   });
 
   useEffect(() => {
@@ -67,12 +67,16 @@ export default function AddStaffForm() {
       .catch(() => {});
   }, []);
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
-  ) => {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-    setErrors((prev) => ({ ...prev, [e.target.name]: [] }));
-    setGlobalError("");
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+    if (errors[name]) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      });
+    }
   };
 
   const handleGeneratePassword = () => {
@@ -95,10 +99,10 @@ export default function AddStaffForm() {
     setGlobalError("");
 
     // Nurse department validation
-    if (isNurse && (!form.nurseDepartment || !["OPD", "EMERGENCY"].includes(form.nurseDepartment))) {
+    if (isNurse && (!form.nurseDepartment || !["IPD", "EMERGENCY"].includes(form.nurseDepartment))) {
       setErrors((prev) => ({
         ...prev,
-        nurseDepartment: ["Nurse working department (OPD or EMERGENCY) is required for nursing staff"],
+        nurseDepartment: ["Nurse working department (IPD or EMERGENCY) is required for nursing staff"],
       }));
       return;
     }
@@ -241,11 +245,10 @@ export default function AddStaffForm() {
                   className={inputClass}
                 >
                   <option value="IPD">IPD (Inpatient Wards)</option>
-                  <option value="EMERGENCY">Emergency</option>
-                  <option value="OPD">OPD (Outpatient Clinic)</option>
+                  <option value="EMERGENCY">Emergency (ER / Triage)</option>
                 </select>
                 <p className="text-xs text-slate-400 mt-1">
-                  Controls department isolation. IPD nurses manage Inpatient admissions; Emergency nurses manage Emergency admissions.
+                  Controls department isolation. IPD nurses manage Inpatient wards &amp; admitted patients; Emergency nurses manage Emergency admissions &amp; triage.
                 </p>
                 <FieldError name="nurseDepartment" errors={errors} />
               </div>

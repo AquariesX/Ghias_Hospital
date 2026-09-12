@@ -217,17 +217,11 @@ export async function POST(request: NextRequest) {
       patient = await prisma.patient.findUnique({
         where: { id: val.patientId },
       });
-    }
-
-    if (!patient && (val.cnic?.trim() || val.phone?.trim())) {
-      const conditions: Prisma.PatientWhereInput[] = [];
-      if (val.cnic?.trim()) conditions.push({ cnic: val.cnic.trim() });
-      if (val.phone?.trim()) conditions.push({ phone: val.phone.trim() });
-
-      if (conditions.length > 0) {
-        patient = await prisma.patient.findFirst({
-          where: { OR: conditions },
-        });
+      if (!patient) {
+        return NextResponse.json(
+          { error: "Selected patient was not found." },
+          { status: 404 }
+        );
       }
     }
 
@@ -249,9 +243,26 @@ export async function POST(request: NextRequest) {
       });
       if (existingWithMr) {
         return NextResponse.json(
-          { error: `MR Number "${finalMrNumber}" is already registered to another patient (${existingWithMr.firstName} ${existingWithMr.lastName}).` },
+          { error: `MR Number "${finalMrNumber}" is already registered to another patient (${existingWithMr.firstName} ${existingWithMr.lastName}). If this is an existing patient, please search and select them to admit.` },
           { status: 409 }
         );
+      }
+
+      // If CNIC is provided, ensure it does not conflict with another existing patient
+      if (val.cnic?.trim()) {
+        const cleanCnic = val.cnic.trim();
+        const existingWithCnic = await prisma.patient.findFirst({
+          where: { cnic: cleanCnic },
+          select: { id: true, firstName: true, lastName: true, mrNumber: true, patientNumber: true },
+        });
+        if (existingWithCnic) {
+          return NextResponse.json(
+            {
+              error: `A patient with CNIC "${cleanCnic}" is already registered (${existingWithCnic.firstName} ${existingWithCnic.lastName}, MR# ${existingWithCnic.mrNumber || existingWithCnic.patientNumber}). Please search and select the patient if admitting them, or verify the CNIC.`,
+            },
+            { status: 409 }
+          );
+        }
       }
 
       const patientNumber = await generateNextPatientNumber();
