@@ -20,11 +20,14 @@ import {
   Plus,
   Minus,
   Palette,
+  AlertOctagon,
 } from "lucide-react";
 import StatusBadge from "@/components/ui/StatusBadge";
 import MedicationSheet, { MedicationAdminItem, PrescriptionGroup } from "@/components/inpatient/MedicationSheet";
 import SafeHtmlContent from "@/components/ui/SafeHtmlContent";
 import RichNoteEditor from "@/components/ui/RichNoteEditor";
+import DoctorOrdersSection from "@/components/inpatient/DoctorOrdersSection";
+import VerbalOrdersPolicyView from "@/components/inpatient/VerbalOrdersPolicyView";
 
 interface InpatientTreatmentProps {
   admission: {
@@ -100,18 +103,22 @@ interface InpatientTreatmentProps {
       recordedAt: string;
     }>;
     medicationAdministrations: MedicationAdminItem[];
-    prescriptions: PrescriptionGroup[];
+    prescriptions: any[];
   };
   currentUserRole: string;
+  currentUserName?: string;
+  availableDoctors?: any[];
 }
 
 export default function InpatientTreatmentClient({
   admission,
   currentUserRole,
+  currentUserName = "",
+  availableDoctors = [],
 }: InpatientTreatmentProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<
-    "procedure" | "medications" | "overview" | "vitals" | "notes" | "prescriptions"
+    "procedure" | "medications" | "overview" | "vitals" | "notes" | "prescriptions" | "verbalPolicy"
   >("procedure");
 
   // Ward Nursing Notes State
@@ -389,7 +396,8 @@ export default function InpatientTreatmentClient({
           { key: "overview", label: "Overview & Summary", icon: FileText },
           { key: "vitals", label: `Vitals History (${admission.vitalSigns.length})`, icon: Activity },
           { key: "notes", label: `Nursing Notes (${nursingNotes.length})`, icon: ClipboardList },
-          { key: "prescriptions", label: `Doctor Orders (${admission.prescriptions.length})`, icon: Calendar },
+          { key: "prescriptions", label: `Doctor Orders (${admission.prescriptions.length})`, icon: Stethoscope },
+          { key: "verbalPolicy", label: "Verbal Orders Policy (سرخ / زبانی احکامات)", icon: AlertOctagon },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.key;
@@ -1339,59 +1347,24 @@ export default function InpatientTreatmentClient({
         </div>
       )}
 
-      {/* TAB CONTENT: Prescriptions */}
+      {/* TAB CONTENT: Doctor Orders & Directives */}
       {activeTab === "prescriptions" && (
-        <div className="space-y-4">
-          {admission.prescriptions.length === 0 ? (
-            <div className="bg-white border border-slate-200 rounded-xl p-12 text-center text-slate-500">
-              <Stethoscope className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-              <p className="text-sm font-semibold text-slate-700">No doctor prescriptions issued yet.</p>
-              <p className="text-xs text-slate-400 mt-1">Prescriptions issued by attending doctors will appear here.</p>
-            </div>
-          ) : (
-            admission.prescriptions.map((rx) => (
-              <div key={rx.id} className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs text-xs space-y-3">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                  <div>
-                    <span className="font-mono font-bold text-teal-700 text-sm">{rx.prescriptionNumber}</span>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      Doctor: {rx.doctor ? `Dr. ${rx.doctor.firstName} ${rx.doctor.lastName} (${rx.doctor.specialization})` : "Attending Clinician"}
-                    </p>
-                  </div>
-                  <span className="font-mono text-slate-400 text-[11px]">
-                    {new Date(rx.createdAt).toLocaleDateString("en-GB")}
-                  </span>
-                </div>
+        <DoctorOrdersSection
+          admissionId={admission.id}
+          patientId={admission.patient.id}
+          patientName={`${admission.patient.firstName} ${admission.patient.lastName}`}
+          currentUserRole={currentUserRole}
+          currentUserName={currentUserName}
+          attendingDoctor={admission.doctor}
+          availableDoctors={availableDoctors}
+          initialOrders={admission.prescriptions as any}
+        />
+      )}
 
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs text-left">
-                    <thead>
-                      <tr className="bg-slate-50 text-[10px] uppercase font-bold text-slate-600">
-                        <th className="px-3 py-2">Medicine</th>
-                        <th className="px-3 py-2">Dosage</th>
-                        <th className="px-3 py-2">Route</th>
-                        <th className="px-3 py-2">Frequency</th>
-                        <th className="px-3 py-2">Duration</th>
-                        <th className="px-3 py-2">Instructions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {rx.items.map((it) => (
-                        <tr key={it.id}>
-                          <td className="px-3 py-2 font-bold text-slate-900">{it.medicineName}</td>
-                          <td className="px-3 py-2 font-semibold text-slate-700">{it.dosage}</td>
-                          <td className="px-3 py-2 text-slate-600">{it.route}</td>
-                          <td className="px-3 py-2 text-slate-600">{it.frequency}</td>
-                          <td className="px-3 py-2 text-slate-600">{it.duration}</td>
-                          <td className="px-3 py-2 text-slate-500">{it.instructions || "—"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ))
-          )}
+      {/* TAB CONTENT: Official Verbal Orders Policy Poster / SOP Form */}
+      {activeTab === "verbalPolicy" && (
+        <div className="py-4">
+          <VerbalOrdersPolicyView />
         </div>
       )}
     </div>

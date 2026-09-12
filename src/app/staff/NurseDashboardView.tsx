@@ -16,12 +16,34 @@ import {
   Flame,
   BedDouble,
   ClipboardList,
-  X,
-  RefreshCw,
-  AlertCircle,
   Sparkles,
   Plus,
+  AlertOctagon,
+  ChevronDown,
+  ChevronUp,
+  Pill,
+  FileText,
+  AlertCircle,
+  RefreshCw,
+  X,
 } from "lucide-react";
+import VerbalOrdersPolicyView from "@/components/inpatient/VerbalOrdersPolicyView";
+import { parseDoctorOrderNotes } from "@/components/inpatient/DoctorOrdersSection";
+
+function formatTimeAMPM(isoDate: string | Date | undefined | null): string {
+  if (!isoDate) return "";
+  try {
+    const d = new Date(isoDate);
+    let hours = d.getHours();
+    const minutes = d.getMinutes().toString().padStart(2, "0");
+    const ampm = hours >= 12 ? "PM" : "AM";
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    return `${hours.toString().padStart(2, "0")}:${minutes} ${ampm}`;
+  } catch {
+    return "";
+  }
+}
 
 export interface AdmittedInpatientItem {
   id: string;
@@ -52,12 +74,48 @@ export interface AdmittedInpatientItem {
   };
 }
 
+export interface VerbalOrderItem {
+  id: string;
+  prescriptionNumber: string;
+  createdAt: string;
+  notes?: string | null;
+  patient: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    mrNumber: string | null;
+    patientNumber: string;
+    gender?: string;
+    phone?: string;
+  };
+  doctor?: {
+    id?: string;
+    firstName: string;
+    lastName: string;
+    specialization: string;
+  } | null;
+  admission?: {
+    id: string;
+    admissionNumber: string;
+    roomBedNo: string | null;
+    status: string;
+  } | null;
+  items?: Array<{
+    id: string;
+    medicineName: string;
+    dosage: string;
+    frequency: string;
+    route: string;
+  }>;
+}
+
 interface NurseDashboardViewProps {
   nurseName: string;
   department: "OPD" | "EMERGENCY" | "IPD" | null;
   role: string;
   shift: string | null;
   admittedInpatients?: AdmittedInpatientItem[];
+  verbalOrders?: VerbalOrderItem[];
   ipdMetrics?: {
     totalInpatients: number;
     admittedToday: number;
@@ -129,6 +187,7 @@ export default function NurseDashboardView({
   role,
   shift,
   admittedInpatients,
+  verbalOrders = [],
   ipdMetrics,
   opdMetrics,
   erMetrics,
@@ -136,6 +195,8 @@ export default function NurseDashboardView({
 }: NurseDashboardViewProps) {
   const router = useRouter();
   const [localQueue, setLocalQueue] = useState(queue);
+  const [isPolicyModalOpen, setIsPolicyModalOpen] = useState(false);
+  const [isVerbalOrdersExpanded, setIsVerbalOrdersExpanded] = useState(true);
   const [dischargeModalOpen, setDischargeModalOpen] = useState(false);
   const [itemToDischarge, setItemToDischarge] = useState<any | null>(null);
   const [dischargeDateTime, setDischargeDateTime] = useState("");
@@ -283,6 +344,15 @@ export default function NurseDashboardView({
               <Users className="w-4 h-4 text-slate-500" />
               Patient Directory
             </Link>
+            <button
+              type="button"
+              onClick={() => setIsPolicyModalOpen(true)}
+              className="inline-flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300 font-bold px-3 py-2 rounded-lg text-sm transition-colors shadow-2xs"
+              title="View SOPs on Verbal Orders (زبانی احکامات پر پالیسی)"
+            >
+              <AlertOctagon className="w-4 h-4 text-rose-600 shrink-0" />
+              <span>Verbal Orders SOP</span>
+            </button>
           </div>
         </div>
       </div>
@@ -427,6 +497,194 @@ export default function NurseDashboardView({
           </div>
         </div>
       ) : null}
+
+      {/* Verbal Doctor Orders Section */}
+      {(() => {
+        const verbalOrdersList = (verbalOrders || []).filter((ord) => {
+          const meta = parseDoctorOrderNotes(ord.notes);
+          return meta.isVerbalOrder || (ord.notes && (ord.notes.includes("[GIAS_DOCTOR_ORDER]") || ord.notes.includes("verbal") || ord.notes.includes("زبانی")));
+        });
+
+        const pendingCountersignCount = verbalOrdersList.filter((ord) => {
+          const meta = parseDoctorOrderNotes(ord.notes);
+          return !meta.isCountersigned;
+        }).length;
+
+        return (
+          <div className="bg-linear-to-r from-rose-50/50 via-white to-rose-50/30 rounded-2xl border border-rose-200 shadow-xs overflow-hidden">
+            <div className="p-4 sm:p-5 border-b border-rose-100 flex flex-wrap items-center justify-between gap-3 bg-white/70">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-rose-100 text-rose-700 rounded-xl border border-rose-200 shadow-2xs">
+                  <AlertOctagon className="w-5 h-5 text-rose-700" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-base font-bold text-slate-900">
+                      Verbal Doctor Orders (زبانی احکامات)
+                    </h2>
+                    <span className="text-[11px] font-black uppercase px-2.5 py-0.5 rounded-full bg-rose-600 text-white shadow-2xs">
+                      {verbalOrdersList.length} {verbalOrdersList.length === 1 ? "Active" : "Active"}
+                    </span>
+                    {pendingCountersignCount > 0 && (
+                      <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
+                        {pendingCountersignCount} Pending Countersign
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Orders received with physician verbal authorization • Red ink mandate (سرخ سیاہی) &amp; 24h countersign window
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsPolicyModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300 rounded-lg text-xs font-bold transition shadow-2xs"
+                >
+                  <AlertOctagon className="w-3.5 h-3.5 text-rose-700" />
+                  <span>SOP Guidelines (پالیسی)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsVerbalOrdersExpanded(!isVerbalOrdersExpanded)}
+                  className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-800 transition"
+                  title={isVerbalOrdersExpanded ? "Collapse section" : "Expand section"}
+                >
+                  {isVerbalOrdersExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            {isVerbalOrdersExpanded && (
+              <div className="p-4 sm:p-5">
+                {verbalOrdersList.length === 0 ? (
+                  <div className="bg-white/80 border border-dashed border-rose-200 rounded-xl p-5 text-center text-xs">
+                    <div className="flex items-center justify-center gap-2 text-slate-700 font-semibold mb-1">
+                      <CheckCircle className="w-4 h-4 text-emerald-600" />
+                      <span>No active verbal orders requiring attention</span>
+                    </div>
+                    <p className="text-slate-400 max-w-md mx-auto">
+                      All inpatient treatment orders are documented and validated. Verbal orders are restricted to extraordinary circumstances per hospital SOP.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {verbalOrdersList.map((ord) => {
+                      const meta = parseDoctorOrderNotes(ord.notes);
+                      const isCountersigned = meta.isCountersigned;
+
+                      return (
+                        <div
+                          key={ord.id}
+                          className="bg-white border border-rose-200 hover:border-rose-300 rounded-xl p-4 shadow-2xs hover:shadow-xs transition-all space-y-3 relative overflow-hidden flex flex-col justify-between"
+                        >
+                          {/* Top Red Strip */}
+                          <div className="h-1 bg-rose-600 absolute top-0 left-0 right-0" />
+
+                          <div className="space-y-2">
+                            {/* Patient & Bed */}
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <Link
+                                  href={`/staff/inpatients/${ord.admission?.id || ord.id}`}
+                                  className="font-bold text-slate-900 hover:text-rose-700 text-xs transition flex items-center gap-1"
+                                >
+                                  <span>{ord.patient.firstName} {ord.patient.lastName}</span>
+                                  <ChevronRight className="w-3 h-3 text-slate-400" />
+                                </Link>
+                                <span className="font-mono text-[10px] text-slate-500 block">
+                                  MR: {ord.patient.mrNumber || ord.patient.patientNumber}
+                                </span>
+                              </div>
+
+                              <div className="text-right">
+                                {ord.admission?.roomBedNo ? (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-teal-800 bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
+                                    <BedDouble className="w-3 h-3 text-teal-700" />
+                                    {ord.admission.roomBedNo}
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] text-slate-400">Ward Inpatient</span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Order Text in RED INK styling per SOP Rule 4 */}
+                            <div className="bg-rose-50/80 p-2.5 rounded-lg border border-rose-200">
+                              <span className="text-[10px] font-extrabold uppercase tracking-wider text-rose-800 block mb-0.5">
+                                Verbal Directive (سرخ سیاہی):
+                              </span>
+                              <p className="text-xs font-semibold text-rose-950 leading-relaxed line-clamp-3">
+                                {meta.orderText || meta.rawText}
+                              </p>
+                            </div>
+
+                            {/* Prescription items if any */}
+                            {ord.items && ord.items.length > 0 && (
+                              <div className="flex flex-wrap gap-1">
+                                {ord.items.map((it) => (
+                                  <span
+                                    key={it.id}
+                                    className="inline-flex items-center gap-1 text-[10px] font-bold bg-slate-100 text-slate-800 px-2 py-0.5 rounded"
+                                  >
+                                    <Pill className="w-2.5 h-2.5 text-teal-600" />
+                                    {it.medicineName} ({it.dosage})
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Audit Trail & Quick Links */}
+                          <div className="pt-2 border-t border-slate-100 text-[10px] space-y-1.5 text-slate-500">
+                            <div className="flex items-center justify-between">
+                              <span>
+                                Doctor: <strong className="text-slate-800">{ord.doctor ? `Dr. ${ord.doctor.firstName} ${ord.doctor.lastName}` : "Attending Physician"}</strong>
+                              </span>
+                              <span suppressHydrationWarning className="font-mono text-slate-400">
+                                {formatTimeAMPM(ord.createdAt)}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center justify-between text-slate-500">
+                              <span>Taken by: <strong>{meta.receivingNurseName || "Nurse"}</strong></span>
+                              <span>Witness: <strong>{meta.secondNurseName || "Verified"}</strong></span>
+                            </div>
+
+                            <div className="flex items-center justify-between pt-1">
+                              {isCountersigned ? (
+                                <span className="inline-flex items-center gap-1 text-emerald-700 font-bold">
+                                  <CheckCircle className="w-3 h-3 text-emerald-600" />
+                                  Countersigned
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-rose-700 font-bold">
+                                  <Clock className="w-3 h-3 text-rose-600 animate-pulse" />
+                                  Pending Countersign (24h)
+                                </span>
+                              )}
+
+                              <Link
+                                href={`/staff/inpatients/${ord.admission?.id || ord.id}`}
+                                className="font-bold text-teal-700 hover:text-teal-800 flex items-center gap-0.5"
+                              >
+                                <span>Chart &amp; Meds</span>
+                                <ChevronRight className="w-3 h-3" />
+                              </Link>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Patient Queue Preview Table */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
@@ -752,9 +1010,9 @@ export default function NurseDashboardView({
                         : adm.doctorName || "Assigned Physician"}
                     </td>
                     <td className="py-3 px-4 text-xs text-slate-500">
-                      <div>
+                      <div suppressHydrationWarning>
                         {adm.admissionDate instanceof Date
-                          ? adm.admissionDate.toLocaleDateString()
+                          ? adm.admissionDate.toISOString().split("T")[0]
                           : typeof adm.admissionDate === "string"
                           ? adm.admissionDate.split("T")[0]
                           : "Today"}
@@ -931,6 +1189,13 @@ export default function NurseDashboardView({
             </form>
           </div>
         </div>
+      )}
+      {/* Modal: Official SOPs on Verbal Orders */}
+      {isPolicyModalOpen && (
+        <VerbalOrdersPolicyView
+          isModal={true}
+          onClose={() => setIsPolicyModalOpen(false)}
+        />
       )}
     </div>
   );

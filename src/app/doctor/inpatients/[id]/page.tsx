@@ -19,6 +19,7 @@ import {
   Clock,
   AlertCircle,
 } from "lucide-react";
+import DoctorOrdersSection from "@/components/inpatient/DoctorOrdersSection";
 
 export const dynamic = "force-dynamic";
 
@@ -74,6 +75,20 @@ export default async function DoctorInpatientReviewPage({ params }: Props) {
   if (!admission) {
     notFound();
   }
+
+  const availableDoctors = await prisma.doctor.findMany({
+    where: { status: "ACTIVE" },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      specialization: true,
+      roomNumber: true,
+    },
+  });
+
+  const serializedAdmission = JSON.parse(JSON.stringify(admission));
+  const serializedDoctors = JSON.parse(JSON.stringify(availableDoctors));
 
   const isDischarged = admission.status === "DISCHARGED";
   const admDate = new Date(admission.admissionDate);
@@ -220,6 +235,20 @@ export default async function DoctorInpatientReviewPage({ params }: Props) {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Doctor Orders & Directives Section */}
+        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
+          <DoctorOrdersSection
+            admissionId={admission.id}
+            patientId={admission.patientId}
+            patientName={`${admission.patient.firstName} ${admission.patient.lastName}`}
+            currentUserRole={user.role}
+            currentUserName={`${user.firstName} ${user.lastName}`.trim()}
+            attendingDoctor={serializedAdmission.doctor}
+            availableDoctors={serializedDoctors}
+            initialOrders={serializedAdmission.prescriptions as any}
+          />
         </div>
 
         {/* Longitudinal History Sections */}

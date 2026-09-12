@@ -58,9 +58,10 @@ interface PatientRecord {
 
 interface PatientReportData {
   summary: {
-    totalFilteredPatients: number;
-    activePatients: number;
-    admittedPatients: number;
+    totalFilteredPatients?: number;
+    totalPatients?: number;
+    activePatients?: number;
+    admittedPatients?: number;
   };
   patients: PatientRecord[];
   pagination: {
@@ -411,7 +412,7 @@ export default function PatientReportClient() {
           <div>
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Filtered Patients</p>
             <h3 className="text-2xl font-bold text-slate-900 mt-0.5">
-              {data ? data.summary.totalFilteredPatients.toLocaleString() : "—"}
+              {data ? (data.summary.totalFilteredPatients ?? data.summary.totalPatients ?? 0).toLocaleString() : "—"}
             </h3>
             <p className="text-xs text-slate-400 mt-0.5">Matching current criteria</p>
           </div>
@@ -424,7 +425,7 @@ export default function PatientReportClient() {
           <div>
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Active Status</p>
             <h3 className="text-2xl font-bold text-slate-900 mt-0.5">
-              {data ? data.summary.activePatients.toLocaleString() : "—"}
+              {data ? (data.summary.activePatients ?? 0).toLocaleString() : "—"}
             </h3>
             <p className="text-xs text-slate-400 mt-0.5">Currently registered active</p>
           </div>
@@ -437,7 +438,7 @@ export default function PatientReportClient() {
           <div>
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Currently Inpatients</p>
             <h3 className="text-2xl font-bold text-slate-900 mt-0.5">
-              {data ? data.summary.admittedPatients.toLocaleString() : "—"}
+              {data ? (data.summary.admittedPatients ?? 0).toLocaleString() : "—"}
             </h3>
             <p className="text-xs text-slate-400 mt-0.5">Admitted in ward / rooms</p>
           </div>
@@ -466,7 +467,7 @@ export default function PatientReportClient() {
             </div>
           </div>
 
-          <div className="w-20 text-right text-[10px] text-slate-500 space-y-1">
+          <div className="w-20 text-right text-[10px] text-slate-500 space-y-1" suppressHydrationWarning>
             <p><strong>Generated:</strong> {new Date().toLocaleDateString()}</p>
             <p><strong>Time:</strong> {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</p>
             <p><strong>Page:</strong> 1 of 1</p>
@@ -475,7 +476,7 @@ export default function PatientReportClient() {
 
         {/* Filter Summary on Print */}
         <div className="mt-3 pt-2 border-t border-slate-200 flex flex-wrap gap-x-6 gap-y-1 text-[11px] text-slate-600">
-          <span><strong>Total Records:</strong> {data?.summary.totalFilteredPatients || 0}</span>
+          <span><strong>Total Records:</strong> {data?.summary?.totalFilteredPatients ?? data?.summary?.totalPatients ?? data?.pagination?.totalRecords ?? 0}</span>
           {dateFrom && <span><strong>From:</strong> {dateFrom}</span>}
           {dateTo && <span><strong>To:</strong> {dateTo}</span>}
           {gender && <span><strong>Gender:</strong> {gender}</span>}

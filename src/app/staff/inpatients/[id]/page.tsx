@@ -89,55 +89,20 @@ export default async function StaffInpatientTreatmentPage({ params }: Props) {
     notFound();
   }
 
-  // Serialize Decimal and Date fields for client component
-  const serializedAdmission = {
-    ...admission,
-    admissionDate: admission.admissionDate.toISOString(),
-    dischargeDate: admission.dischargeDate?.toISOString() || null,
-    createdAt: admission.createdAt.toISOString(),
-    updatedAt: admission.updatedAt.toISOString(),
-    temperature: admission.temperature ? Number(admission.temperature) : null,
-    weight: admission.weight ? Number(admission.weight) : null,
-    height: admission.height ? Number(admission.height) : null,
-    bmi: admission.bmi ? Number(admission.bmi) : null,
-    patient: {
-      ...admission.patient,
-      dateOfBirth: admission.patient.dateOfBirth.toISOString(),
-      createdAt: admission.patient.createdAt.toISOString(),
-      updatedAt: admission.patient.updatedAt.toISOString(),
+  const doctors = await prisma.doctor.findMany({
+    where: { status: "ACTIVE" },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      specialization: true,
+      roomNumber: true,
     },
-    vitalSigns: admission.vitalSigns.map((v) => ({
-      ...v,
-      temperature: v.temperature ? Number(v.temperature) : null,
-      weight: v.weight ? Number(v.weight) : null,
-      height: v.height ? Number(v.height) : null,
-      bmi: v.bmi ? Number(v.bmi) : null,
-      recordedAt: v.recordedAt.toISOString(),
-    })),
-    nursingNotes: admission.nursingNotes.map((n) => ({
-      ...n,
-      recordedAt: n.recordedAt.toISOString(),
-    })),
-    medicationAdministrations: admission.medicationAdministrations.map((m) => ({
-      ...m,
-      administeredAt: m.administeredAt.toISOString(),
-      createdAt: m.createdAt.toISOString(),
-    })),
-    prescriptions: admission.prescriptions.map((p) => ({
-      ...p,
-      createdAt: p.createdAt.toISOString(),
-      updatedAt: p.updatedAt.toISOString(),
-      items: p.items.map((it) => ({
-        ...it,
-        createdAt: it.createdAt.toISOString(),
-        updatedAt: it.updatedAt.toISOString(),
-        administrations: it.administrations.map((ad) => ({
-          ...ad,
-          administeredAt: ad.administeredAt.toISOString(),
-        })),
-      })),
-    })),
-  };
+  });
+
+  // Serialize Decimal and Date fields safely for client component
+  const serializedAdmission = JSON.parse(JSON.stringify(admission));
+  const serializedDoctors = JSON.parse(JSON.stringify(doctors));
 
   return (
     <DashboardLayout
@@ -151,6 +116,8 @@ export default async function StaffInpatientTreatmentPage({ params }: Props) {
         <InpatientTreatmentClient
           admission={serializedAdmission as any}
           currentUserRole={user.role}
+          currentUserName={`${user.firstName} ${user.lastName}`.trim()}
+          availableDoctors={serializedDoctors}
         />
       </div>
     </DashboardLayout>

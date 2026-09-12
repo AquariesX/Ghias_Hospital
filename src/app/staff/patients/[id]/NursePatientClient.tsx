@@ -21,9 +21,11 @@ import {
   AlertCircle,
   FileSpreadsheet,
   Lock,
+  AlertOctagon,
 } from "lucide-react";
 import RichNoteEditor from "@/components/ui/RichNoteEditor";
 import SafeHtmlContent from "@/components/ui/SafeHtmlContent";
+import VerbalOrdersPolicyView from "@/components/inpatient/VerbalOrdersPolicyView";
 
 interface VitalSign {
   id: string;
@@ -217,6 +219,7 @@ export default function NursePatientClient({
   const [observations, setObservations] = useState("");
 
   // Auto-calculated BMI display
+  const [isPolicyModalOpen, setIsPolicyModalOpen] = useState(false);
   const weightNum = parseFloat(weight);
   const heightNum = parseFloat(height);
   let liveBmi: string | null = null;
@@ -636,6 +639,15 @@ export default function NursePatientClient({
                   {patient.status || "ACTIVE"}
                 </span>
               )}
+              <button
+                type="button"
+                onClick={() => setIsPolicyModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300 rounded-full text-[11px] font-bold transition shadow-2xs"
+                title="View SOPs on Verbal Orders (زبانی احکامات پر پالیسی)"
+              >
+                <AlertOctagon className="w-3 h-3 text-rose-700" />
+                <span>Verbal Orders Policy</span>
+              </button>
             </div>
             <h1 className="text-2xl font-bold text-slate-900">
               {patient.firstName} {patient.lastName}
@@ -2200,6 +2212,12 @@ export default function NursePatientClient({
             )}
           </div>
         </div>
+      )}
+      {isPolicyModalOpen && (
+        <VerbalOrdersPolicyView
+          isModal={true}
+          onClose={() => setIsPolicyModalOpen(false)}
+        />
       )}
     </div>
   );

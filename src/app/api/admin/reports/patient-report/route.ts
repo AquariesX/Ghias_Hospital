@@ -182,6 +182,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       summary: {
         totalPatients,
+        totalFilteredPatients: totalPatients,
         activePatients,
         admittedPatients: admittedPatientsCount,
       },

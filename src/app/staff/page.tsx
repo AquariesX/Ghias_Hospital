@@ -53,6 +53,55 @@ export default async function StaffDashboardPage() {
   if (isNurse) {
     const isEmergency = staff?.nurseDepartment === "EMERGENCY";
 
+    // Query active verbal doctor orders for admitted inpatients
+    const verbalOrdersRaw = await prisma.prescription.findMany({
+      where: {
+        admission: {
+          status: { in: ["ADMITTED", "UNDER_TREATMENT", "DISCHARGE_PENDING"] },
+        },
+        OR: [
+          { notes: { contains: `"isVerbalOrder":true` } },
+          { notes: { contains: `[GIAS_DOCTOR_ORDER]` } },
+          { notes: { contains: `verbal` } },
+          { notes: { contains: `زبانی` } },
+        ],
+      },
+      orderBy: { createdAt: "desc" },
+      take: 6,
+      include: {
+        patient: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            mrNumber: true,
+            patientNumber: true,
+            gender: true,
+            phone: true,
+          },
+        },
+        doctor: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            specialization: true,
+          },
+        },
+        admission: {
+          select: {
+            id: true,
+            admissionNumber: true,
+            roomBedNo: true,
+            status: true,
+          },
+        },
+        items: true,
+      },
+    });
+
+    const serializedVerbalOrders = JSON.parse(JSON.stringify(verbalOrdersRaw));
+
     if (isEmergency) {
       const [
         totalEmergencyAppointments,
@@ -150,6 +199,9 @@ export default async function StaffDashboardPage() {
         }),
       ]);
 
+      const serializedErAdmissions = JSON.parse(JSON.stringify(erAdmissions));
+      const serializedErQueue = JSON.parse(JSON.stringify(erQueue));
+
       return (
         <DashboardLayout
           user={{
@@ -164,16 +216,17 @@ export default async function StaffDashboardPage() {
               department="EMERGENCY"
               role={staff?.role || "STAFF_NURSE"}
               shift={staff?.shift || null}
-              admittedInpatients={erAdmissions}
+              admittedInpatients={serializedErAdmissions}
+              verbalOrders={serializedVerbalOrders}
               erMetrics={{
-                totalCases: Math.max(totalEmergencyAppointments, totalTriageToday) + erAdmissions.length,
-                critical: criticalCount + erAdmissions.filter((a) => a.status === "ADMITTED").length,
+                totalCases: Math.max(totalEmergencyAppointments, totalTriageToday) + serializedErAdmissions.length,
+                critical: criticalCount + serializedErAdmissions.filter((a: any) => a.status === "ADMITTED").length,
                 high: highCount,
                 urgent: urgentCount,
                 normal: normalCount,
               }}
               queue={[
-                ...erAdmissions.map((adm) => ({
+                ...serializedErAdmissions.map((adm: any) => ({
                   id: adm.id,
                   triageId: null,
                   admissionId: adm.id,
@@ -186,11 +239,11 @@ export default async function StaffDashboardPage() {
                   triagedAt: new Date(adm.admissionDate),
                   roomBedNo: adm.roomBedNo,
                 })),
-                ...erQueue.map((item) => ({
+                ...serializedErQueue.map((item: any) => ({
                   id: item.id,
                   triageId: item.id,
                   admissionId: item.admission?.id || null,
-                  dischargeDateTime: item.dischargeDateTime ? item.dischargeDateTime.toISOString() : null,
+                  dischargeDateTime: item.dischargeDateTime ? (typeof item.dischargeDateTime === "string" ? item.dischargeDateTime : new Date(item.dischargeDateTime).toISOString()) : null,
                   triageLevel: item.triageLevel || "EMERGENCY",
                   isAdmission: false,
                   patient: item.patient,
@@ -277,6 +330,8 @@ export default async function StaffDashboardPage() {
         }),
       ]);
 
+      const serializedIpdAdmissions = JSON.parse(JSON.stringify(ipdAdmissions));
+
       return (
         <DashboardLayout
           user={{
@@ -291,7 +346,8 @@ export default async function StaffDashboardPage() {
               department="IPD"
               role={staff?.role || "STAFF_NURSE"}
               shift={staff?.shift || null}
-              admittedInpatients={ipdAdmissions}
+              admittedInpatients={serializedIpdAdmissions}
+              verbalOrders={serializedVerbalOrders}
               ipdMetrics={{
                 totalInpatients: totalIpdAdmissions,
                 admittedToday: admittedTodayCount,
@@ -299,7 +355,7 @@ export default async function StaffDashboardPage() {
                 dischargePending: dischargePendingCount,
                 availableBeds: availableBedsCount,
               }}
-              queue={ipdAdmissions.map((adm) => ({
+              queue={serializedIpdAdmissions.map((adm: any) => ({
                 id: adm.id,
                 admissionId: adm.id,
                 isAdmission: true,
