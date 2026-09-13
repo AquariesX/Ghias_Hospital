@@ -410,7 +410,21 @@ export default function ReportsClient() {
                             <td className="px-4 py-3 font-mono font-bold text-teal-700">{row.appointmentNumber}</td>
                             <td className="px-4 py-3 font-semibold text-slate-900">{row.patient?.firstName} {row.patient?.lastName}</td>
                             <td className="px-4 py-3 text-slate-600">Dr. {row.doctor?.firstName} {row.doctor?.lastName} ({row.department?.name})</td>
-                            <td className="px-4 py-3 text-slate-600">{row.appointmentType}</td>
+                            <td className="px-4 py-3">
+                              {(() => {
+                                const r = (row.reason || "").toLowerCase();
+                                if (r.startsWith("ultrasound:") || r.includes("ultrasound")) {
+                                  return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800">Ultrasound</span>;
+                                }
+                                if (r.startsWith("x-ray:") || r.startsWith("xray:") || r.includes("x-ray") || r.includes("xray")) {
+                                  return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">X-Ray</span>;
+                                }
+                                if (r.startsWith("lab test:") || r.startsWith("lab:") || r.includes("lab test")) {
+                                  return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">Lab Test</span>;
+                                }
+                                return <span className="text-slate-600">{row.appointmentType}</span>;
+                              })()}
+                            </td>
                             <td className="px-4 py-3"><span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-800">{row.status}</span></td>
                             <td className="px-4 py-3 text-slate-400 font-mono text-[11px]">{new Date(row.appointmentDate).toLocaleDateString()} {row.appointmentTime}</td>
                           </>

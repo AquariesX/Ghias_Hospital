@@ -140,6 +140,36 @@ export async function GET(request: NextRequest) {
     admissions.forEach((a) => uniquePatientIds.add(a.patientId));
     discharges.forEach((d) => uniquePatientIds.add(d.patientId));
 
+    // Service category breakdown helper
+    const detectServiceCategory = (reason: string | null | undefined, deptName?: string): { category: "OPD" | "ULTRASOUND" | "XRAY" | "LAB_TEST"; label: string } => {
+      const r = (reason || "").toLowerCase();
+      const d = (deptName || "").toLowerCase();
+      if (r.startsWith("ultrasound:") || r.includes("ultrasound") || d.includes("ultrasound") || d.includes("radiology")) {
+        return { category: "ULTRASOUND", label: "Ultrasound" };
+      }
+      if (r.startsWith("x-ray:") || r.startsWith("xray:") || r.includes("x-ray") || r.includes("xray") || d.includes("x-ray") || d.includes("xray")) {
+        return { category: "XRAY", label: "X-Ray" };
+      }
+      if (r.startsWith("lab test:") || r.startsWith("lab:") || r.includes("lab test") || d.includes("lab") || d.includes("pathology")) {
+        return { category: "LAB_TEST", label: "Lab Test" };
+      }
+      return { category: "OPD", label: "OPD" };
+    };
+
+    let opdFees = 0;
+    let ultrasoundFees = 0;
+    let xrayFees = 0;
+    let labFees = 0;
+
+    for (const a of appointments) {
+      const { category } = detectServiceCategory(a.reason, a.department?.name);
+      const fee = Number(a.consultationFee || 0);
+      if (category === "ULTRASOUND") ultrasoundFees += fee;
+      else if (category === "XRAY") xrayFees += fee;
+      else if (category === "LAB_TEST") labFees += fee;
+      else opdFees += fee;
+    }
+
     const totalRevenue = Number(aptRevenueAgg._sum.consultationFee || 0) + Number(admRevenueAgg._sum.admissionFee || 0);
     const totalExpenses = Number(expenseAgg._sum.amount || 0);
     const netTotal = totalRevenue - totalExpenses;
@@ -246,36 +276,81 @@ export async function GET(request: NextRequest) {
         admissionFees: Number(admRevenueAgg._sum.admissionFee || 0),
         totalExpenses,
         netTotal,
+        serviceBreakdown: {
+          opdFees,
+          ultrasoundFees,
+          xrayFees,
+          labFees,
+          admissionFees: Number(admRevenueAgg._sum.admissionFee || 0),
+        },
       },
       doctorBreakdown,
       departmentBreakdown,
       expenseCategoryBreakdown,
       itemizedLedger: {
-        appointments: appointments.map((a) => ({
-          id: a.id,
-          tokenNumber: a.tokenNumber,
-          appointmentNumber: a.appointmentNumber,
-          time: a.appointmentTime,
-          patientName: `${a.patient.firstName} ${a.patient.lastName}`,
-          mrNumber: a.mrNumber || a.patient.mrNumber || a.patient.patientNumber,
-          doctorName: `Dr. ${a.doctor.firstName} ${a.doctor.lastName}`,
-          departmentName: a.department.name,
-          type: a.appointmentType,
-          status: a.status,
-          fee: Number(a.consultationFee),
-        })),
-        admissions: admissions.map((adm) => ({
-          id: adm.id,
-          admissionNumber: adm.admissionNumber,
-          time: adm.admissionTime,
-          patientName: `${adm.patient.firstName} ${adm.patient.lastName}`,
-          mrNumber: adm.referenceNumber || adm.patient.mrNumber || adm.patient.patientNumber,
-          doctorName: adm.doctor ? `Dr. ${adm.doctor.firstName} ${adm.doctor.lastName}` : (adm.doctorName || "—"),
-          roomBed: adm.bed ? `${adm.bed.room.roomNumber} - ${adm.bed.bedNumber}` : (adm.roomBedNo || "—"),
-          source: adm.admissionSource,
-          status: adm.status,
-          fee: Number(adm.admissionFee || 0),
-        })),
+        appointments: appointments.map((a) => {
+          const service = detectServiceCategory(a.reason, a.department.name);
+          const created = new Date(a.createdAt);
+          const pad = (n: number) => n.toString().padStart(2, "0");
+          const formattedDateTime = `${created.getFullYear()}-${pad(created.getMonth() + 1)}-${pad(created.getDate())} ${pad(created.getHours())}:${pad(created.getMinutes())}:${pad(created.getSeconds())}`;
+
+          let displayType: string = a.appointmentType || "OPD";
+          if (service.category === "ULTRASOUND") {
+            const rawTest = a.reason ? a.reason.replace(/^ultrasound:\s*/i, "").trim() : "";
+            displayType = rawTest ? `USG(${rawTest})` : "USG";
+          } else if (service.category === "XRAY") {
+            const rawTest = a.reason ? a.reason.replace(/^x-?ray:\s*/i, "").trim() : "";
+            displayType = rawTest ? `X.Ray(${rawTest})` : "X.Ray";
+          } else if (service.category === "LAB_TEST") {
+            const rawTest = a.reason ? a.reason.replace(/^lab(\s+test)?:\s*/i, "").trim() : "";
+            displayType = rawTest ? `Lab(${rawTest})` : "Lab Test";
+          } else if (a.reason) {
+            displayType = a.reason;
+          }
+
+          return {
+            id: a.id,
+            tokenNumber: a.tokenNumber,
+            appointmentNumber: a.appointmentNumber,
+            dateTime: formattedDateTime,
+            time: a.appointmentTime,
+            patientName: `${a.patient.firstName} ${a.patient.lastName}`.trim(),
+            contactNo: a.patient.phone || "0",
+            mrNumber: a.mrNumber || a.patient.mrNumber || a.patient.patientNumber || "—",
+            doctorName: `Dr. ${a.doctor.firstName} ${a.doctor.lastName}`.trim(),
+            departmentName: a.department.name,
+            serviceCategory: service.category,
+            serviceLabel: service.label,
+            reason: a.reason,
+            appointmentType: displayType,
+            type: displayType,
+            status: a.status,
+            fee: Number(a.consultationFee || 0),
+          };
+        }),
+        admissions: admissions.map((adm) => {
+          const created = new Date(adm.createdAt);
+          const pad = (n: number) => n.toString().padStart(2, "0");
+          const formattedDateTime = `${created.getFullYear()}-${pad(created.getMonth() + 1)}-${pad(created.getDate())} ${pad(created.getHours())}:${pad(created.getMinutes())}:${pad(created.getSeconds())}`;
+
+          return {
+            id: adm.id,
+            admissionNumber: adm.admissionNumber,
+            dateTime: formattedDateTime,
+            time: adm.admissionTime,
+            patientName: `${adm.patient.firstName} ${adm.patient.lastName}`.trim(),
+            contactNo: adm.patient.phone || "0",
+            mrNumber: adm.referenceNumber || adm.patient.mrNumber || adm.patient.patientNumber || "—",
+            doctorName: adm.doctor ? `Dr. ${adm.doctor.firstName} ${adm.doctor.lastName}`.trim() : (adm.doctorName || "—"),
+            departmentName: adm.bed ? `${adm.bed.room.roomNumber} - ${adm.bed.bedNumber}` : (adm.roomBedNo || "Inpatient"),
+            serviceCategory: "ADMISSION",
+            serviceLabel: "Admission",
+            appointmentType: `Admission${adm.roomBedNo ? ` (${adm.roomBedNo})` : ""}`,
+            type: `Admission${adm.roomBedNo ? ` (${adm.roomBedNo})` : ""}`,
+            status: adm.status,
+            fee: Number(adm.admissionFee || 0),
+          };
+        }),
         discharges: discharges.map((d) => ({
           id: d.id,
           admissionNumber: d.admissionNumber,

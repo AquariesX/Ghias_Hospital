@@ -6,6 +6,7 @@ import AppointmentA4PrescriptionSlip, {
   A4PrescriptionSlipData,
   PrescriptionMedicineItem,
 } from "./AppointmentA4PrescriptionSlip";
+import GhiasThermalTokenSlip from "../common/GhiasThermalTokenSlip";
 
 export interface AppointmentSlipData {
   appointmentNumber: string;
@@ -37,7 +38,9 @@ export interface AppointmentSlipData {
   appointmentDate: string;
   appointmentTime: string;
   appointmentType: "REGULAR" | "FOLLOW_UP" | "EMERGENCY" | string;
+  serviceType?: string | null;
   consultationFee: number | string;
+  amount?: number | string;
   reason?: string | null;
   createdByName?: string | null;
   createdAt?: string | null;
@@ -138,130 +141,32 @@ export default function AppointmentPrintSlip({
   };
 
   // Render 80mm thermal view
+  // Render 80mm thermal view matching official Ghias Hospital POS template
   const thermalSlipContent = (
-    <div
+    <GhiasThermalTokenSlip
       id="appointment-print-slip"
-      className="bg-white text-slate-900 w-full max-w-[380px] mx-auto p-4 border-2 border-dashed border-slate-300 rounded-xl shadow-sm print:border-none print:shadow-none print:p-2 print:m-0 font-sans text-xs"
-    >
-      <style jsx global>{`
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          #appointment-print-slip,
-          #appointment-print-slip * {
-            visibility: visible;
-          }
-          #appointment-print-slip {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            max-width: 80mm;
-            margin: 0;
-            padding: 6px;
-            border: none;
-            box-shadow: none;
-          }
-          .no-print {
-            display: none !important;
-          }
-        }
-      `}</style>
-
-      {/* Hospital Header */}
-      <div className="text-center pb-2 border-b-2 border-slate-800">
-        <h2 className="text-lg font-black uppercase tracking-tight text-slate-900 leading-none">
-          GHIAS HOSPITAL
-        </h2>
-        <p className="text-[10px] font-semibold text-slate-600 tracking-wider uppercase mt-1">
-          Medical Center &amp; Clinical Care
-        </p>
-        <p className="text-[9px] text-slate-500 mt-0.5">
-          Main Hospital Road • Phalia • 0546-566567
-        </p>
-        <div className="mt-1.5 inline-block px-2 py-0.5 rounded bg-slate-900 text-white text-[9px] font-black uppercase tracking-wider">
-          OPD Token Slip
-        </div>
-      </div>
-
-      {/* Token & Ref */}
-      <div className="flex items-center justify-between py-2 border-b border-dashed border-slate-300">
-        <div>
-          <span className="text-[9px] font-bold uppercase text-slate-500 block">
-            Token Number
-          </span>
-          <span className="font-mono font-black text-3xl text-teal-800 leading-none block mt-0.5">
-            #{data.tokenNumber}
-          </span>
-        </div>
-        <div className="text-right">
-          <span className="text-[9px] font-bold uppercase text-slate-500 block">
-            Appointment Ref
-          </span>
-          <span className="font-mono font-bold text-xs text-slate-900 block mt-0.5">
-            {data.appointmentNumber}
-          </span>
-        </div>
-      </div>
-
-      {/* Patient info */}
-      <div className="py-2 border-b border-slate-200 space-y-1">
-        <div className="flex justify-between">
-          <span className="text-slate-500">MR #:</span>
-          <span className="font-bold font-mono">
-            {data.mrNumber || data.patientNumber || "—"}
-          </span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-slate-500">Patient:</span>
-          <span className="font-bold">{data.patientName}</span>
-        </div>
-        {data.guardianName && (
-          <div className="flex justify-between">
-            <span className="text-slate-500">S/O, D/O:</span>
-            <span>{data.guardianName}</span>
-          </div>
-        )}
-        <div className="flex justify-between">
-          <span className="text-slate-500">Phone:</span>
-          <span className="font-mono">{data.patientPhone || "—"}</span>
-        </div>
-        <div className="flex justify-between text-[11px] text-slate-600">
-          <span>
-            {data.patientGender || "—"} • {data.patientAge ? `${data.patientAge} yrs` : ""}
-          </span>
-          <span>{formattedTimestamp}</span>
-        </div>
-      </div>
-
-      {/* Doctor info */}
-      <div className="py-2 border-b border-slate-200">
-        <span className="text-[10px] text-slate-500 block">Physician:</span>
-        <span className="font-bold text-slate-900 block text-xs">
-          {data.doctorName.startsWith("Dr") ? data.doctorName : `Dr. ${data.doctorName}`}
-        </span>
-        {data.specialization && (
-          <span className="text-[11px] text-teal-800 block">
-            {data.specialization}
-          </span>
-        )}
-      </div>
-
-      {/* Fee */}
-      <div className="py-2 border-b-2 border-slate-800 flex items-center justify-between">
-        <span className="font-bold uppercase text-[10px] text-slate-500">
-          Consultation Fee
-        </span>
-        <span className="font-mono font-black text-sm text-emerald-800">
-          PKR {Number(data.consultationFee).toLocaleString()}
-        </span>
-      </div>
-
-      <div className="pt-2 text-center text-[9px] text-slate-500">
-        Please wait in the OPD lounge until Token #{data.tokenNumber} is called.
-      </div>
-    </div>
+      data={{
+        tokenNumber: data.tokenNumber,
+        slipNumber: data.appointmentNumber || data.tokenNumber,
+        mrNumber: data.mrNumber || data.patientNumber || "---",
+        dateTime: data.createdAt || (data.appointmentDate ? `${data.appointmentDate} ${data.appointmentTime || ""}` : new Date()),
+        doctorName: data.doctorName,
+        patientName: data.patientName,
+        gender: data.patientGender || "Male",
+        address: data.address || "---",
+        contactNo: data.patientPhone || "000",
+        type:
+          data.serviceType ||
+          data.reason ||
+          data.departmentName ||
+          (data.appointmentType === "FOLLOW_UP"
+            ? "Follow-up"
+            : data.appointmentType === "EMERGENCY"
+            ? "Emergency"
+            : "OPD Consultation"),
+        amount: data.amount != null ? data.amount : data.consultationFee,
+      }}
+    />
   );
 
   if (isModal) {

@@ -31,6 +31,13 @@ interface FinancialSummary {
   totalAppointmentsCount: number;
   totalAdmissionsCount: number;
   totalExpensesCount: number;
+  serviceBreakdown?: {
+    opdRevenue: number;
+    ultrasoundRevenue: number;
+    xrayRevenue: number;
+    labRevenue: number;
+    admissionRevenue: number;
+  };
 }
 
 interface BillingRecord {
@@ -38,6 +45,7 @@ interface BillingRecord {
   referenceId: string;
   recordNumber: string;
   type: "APPOINTMENT" | "ADMISSION";
+  serviceCategory?: string;
   typeLabel: string;
   date: string;
   time?: string | null;
@@ -88,7 +96,7 @@ export default function BillingClient() {
   const [search, setSearch] = useState("");
   const [doctorId, setDoctorId] = useState("");
   const [departmentId, setDepartmentId] = useState("");
-  const [feeType, setFeeType] = useState<"ALL" | "APPOINTMENT" | "ADMISSION">("ALL");
+  const [feeType, setFeeType] = useState<string>("ALL");
 
   // Metadata dropdowns
   const [doctorsList, setDoctorsList] = useState<Array<{ id: string; name: string }>>([]);
@@ -349,6 +357,48 @@ export default function BillingClient() {
         </div>
       </div>
 
+      {/* 5-Category Revenue Breakdown Bar */}
+      {summary.serviceBreakdown && (
+        <div className="no-print bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+          <div className="flex items-center justify-between text-xs font-bold text-slate-800 border-b border-slate-100 pb-2">
+            <span>Revenue Breakdown by Service Category</span>
+            <span className="font-mono text-emerald-700">Total: PKR {summary.totalRevenue.toLocaleString()}</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-1">
+            <div className="p-2.5 rounded-xl bg-teal-50/70 border border-teal-200">
+              <span className="text-[10px] font-bold text-teal-800 uppercase block">OPD Consultations</span>
+              <span className="text-base font-black text-teal-950 font-mono">
+                PKR {summary.serviceBreakdown.opdRevenue.toLocaleString()}
+              </span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-purple-50/70 border border-purple-200">
+              <span className="text-[10px] font-bold text-purple-800 uppercase block">Ultrasound (USG)</span>
+              <span className="text-base font-black text-purple-950 font-mono">
+                PKR {summary.serviceBreakdown.ultrasoundRevenue.toLocaleString()}
+              </span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-blue-50/70 border border-blue-200">
+              <span className="text-[10px] font-bold text-blue-800 uppercase block">X-Ray Radiology</span>
+              <span className="text-base font-black text-blue-950 font-mono">
+                PKR {summary.serviceBreakdown.xrayRevenue.toLocaleString()}
+              </span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200">
+              <span className="text-[10px] font-bold text-amber-800 uppercase block">Laboratory Tests</span>
+              <span className="text-base font-black text-amber-950 font-mono">
+                PKR {summary.serviceBreakdown.labRevenue.toLocaleString()}
+              </span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-indigo-50/70 border border-indigo-200">
+              <span className="text-[10px] font-bold text-indigo-800 uppercase block">Inpatient Admissions</span>
+              <span className="text-base font-black text-indigo-950 font-mono">
+                PKR {summary.serviceBreakdown.admissionRevenue.toLocaleString()}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Filter Toolbar */}
       <form
         onSubmit={handleApplyFilters}
@@ -443,11 +493,14 @@ export default function BillingClient() {
             <label className="block text-[11px] font-bold text-slate-600 mb-1">Fee Type</label>
             <select
               value={feeType}
-              onChange={(e) => setFeeType(e.target.value as any)}
+              onChange={(e) => setFeeType(e.target.value)}
               className="w-full px-2.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 bg-white"
             >
               <option value="ALL">All Transactions</option>
-              <option value="APPOINTMENT">OPD Appointments</option>
+              <option value="OPD">OPD Consultations</option>
+              <option value="ULTRASOUND">Ultrasound (USG)</option>
+              <option value="XRAY">X-Ray (Radiology)</option>
+              <option value="LAB_TEST">Lab Tests (Pathology)</option>
               <option value="ADMISSION">Inpatient Admissions</option>
             </select>
           </div>
@@ -533,13 +586,27 @@ export default function BillingClient() {
                     </td>
 
                     <td className="py-3.5 px-4">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10.5px] font-bold ${
-                        rec.type === "APPOINTMENT"
-                          ? "bg-teal-50 text-teal-800 border border-teal-200"
-                          : "bg-indigo-50 text-indigo-800 border border-indigo-200"
-                      }`}>
-                        {rec.typeLabel}
-                      </span>
+                      {rec.type === "ADMISSION" ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10.5px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-200">
+                          {rec.typeLabel}
+                        </span>
+                      ) : rec.serviceCategory === "ULTRASOUND" || rec.typeLabel.toLowerCase().startsWith("ultrasound") ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10.5px] font-bold bg-purple-50 text-purple-800 border border-purple-200">
+                          {rec.typeLabel}
+                        </span>
+                      ) : rec.serviceCategory === "XRAY" || rec.typeLabel.toLowerCase().startsWith("x-ray") ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10.5px] font-bold bg-blue-50 text-blue-800 border border-blue-200">
+                          {rec.typeLabel}
+                        </span>
+                      ) : rec.serviceCategory === "LAB_TEST" || rec.typeLabel.toLowerCase().startsWith("lab test") ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10.5px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                          {rec.typeLabel}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10.5px] font-bold bg-teal-50 text-teal-800 border border-teal-200">
+                          {rec.typeLabel}
+                        </span>
+                      )}
                       <div className="text-[10px] font-mono text-slate-400 mt-0.5">
                         {rec.recordNumber}
                       </div>

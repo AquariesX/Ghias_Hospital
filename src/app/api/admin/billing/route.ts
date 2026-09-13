@@ -36,6 +36,20 @@ export async function GET(request: NextRequest) {
       status: { not: AppointmentStatus.CANCELLED },
     };
 
+    if (feeType === "OPD") {
+      appointmentWhere.NOT = [
+        { reason: { startsWith: "Ultrasound", mode: "insensitive" } },
+        { reason: { startsWith: "X-Ray", mode: "insensitive" } },
+        { reason: { startsWith: "Lab Test", mode: "insensitive" } },
+      ];
+    } else if (feeType === "ULTRASOUND") {
+      appointmentWhere.reason = { startsWith: "Ultrasound", mode: "insensitive" };
+    } else if (feeType === "XRAY") {
+      appointmentWhere.reason = { startsWith: "X-Ray", mode: "insensitive" };
+    } else if (feeType === "LAB_TEST") {
+      appointmentWhere.reason = { startsWith: "Lab Test", mode: "insensitive" };
+    }
+
     if (startDate || endDate) {
       appointmentWhere.appointmentDate = {
         ...(startDate ? { gte: startDate } : {}),
@@ -144,8 +158,41 @@ export async function GET(request: NextRequest) {
     const totalAptRevenue = Number(appointmentRevAgg._sum.consultationFee || 0);
     const totalAdmRevenue = Number(admissionRevAgg._sum.admissionFee || 0);
 
+    // Service-level revenue aggregations
+    const allFilteredApts = await prisma.appointment.findMany({
+      where: {
+        status: { not: AppointmentStatus.CANCELLED },
+        ...(startDate || endDate ? { appointmentDate: { ...(startDate ? { gte: startDate } : {}), ...(endDate ? { lte: endDate } : {}) } } : {}),
+        ...(doctorId ? { doctorId } : {}),
+        ...(departmentId ? { departmentId } : {}),
+      },
+      select: { consultationFee: true, reason: true },
+    });
+
+    let opdRevenue = 0;
+    let ultrasoundRevenue = 0;
+    let xrayRevenue = 0;
+    let labRevenue = 0;
+
+    for (const a of allFilteredApts) {
+      const fee = Number(a.consultationFee || 0);
+      const r = (a.reason || "").toLowerCase();
+      if (r.startsWith("ultrasound")) ultrasoundRevenue += fee;
+      else if (r.startsWith("x-ray")) xrayRevenue += fee;
+      else if (r.startsWith("lab test")) labRevenue += fee;
+      else opdRevenue += fee;
+    }
+
     let totalRevenue = 0;
-    if (feeType === "APPOINTMENT") {
+    if (feeType === "OPD") {
+      totalRevenue = opdRevenue;
+    } else if (feeType === "ULTRASOUND") {
+      totalRevenue = ultrasoundRevenue;
+    } else if (feeType === "XRAY") {
+      totalRevenue = xrayRevenue;
+    } else if (feeType === "LAB_TEST") {
+      totalRevenue = labRevenue;
+    } else if (feeType === "APPOINTMENT") {
       totalRevenue = totalAptRevenue;
     } else if (feeType === "ADMISSION") {
       totalRevenue = totalAdmRevenue;
@@ -168,6 +215,7 @@ export async function GET(request: NextRequest) {
       referenceId: string;
       recordNumber: string;
       type: "APPOINTMENT" | "ADMISSION";
+      serviceCategory?: string;
       typeLabel: string;
       date: string;
       time?: string | null;
@@ -186,7 +234,15 @@ export async function GET(request: NextRequest) {
     const records: BillingRecordItem[] = [];
 
     // Fetch Appointments if requested
-    if (feeType === "ALL" || feeType === "APPOINTMENT") {
+    const shouldFetchAppointments =
+      feeType === "ALL" ||
+      feeType === "APPOINTMENT" ||
+      feeType === "OPD" ||
+      feeType === "ULTRASOUND" ||
+      feeType === "XRAY" ||
+      feeType === "LAB_TEST";
+
+    if (shouldFetchAppointments) {
       const appointments = await prisma.appointment.findMany({
         where: appointmentWhere,
         orderBy: [{ appointmentDate: "desc" }, { createdAt: "desc" }],
@@ -205,12 +261,30 @@ export async function GET(request: NextRequest) {
       });
 
       for (const apt of appointments) {
+        const r = (apt.reason || "").toLowerCase();
+        let serviceCat = "OPD";
+        let typeLabel = `OPD Token #${apt.tokenNumber || "—"} (${apt.appointmentType})`;
+        if (r.startsWith("ultrasound")) {
+          serviceCat = "ULTRASOUND";
+          const sub = apt.reason.replace(/^ultrasound[:\s-]*/i, "").trim();
+          typeLabel = `Ultrasound #${apt.tokenNumber || "—"} — ${sub || "Sonography"}`;
+        } else if (r.startsWith("x-ray")) {
+          serviceCat = "XRAY";
+          const sub = apt.reason.replace(/^x-ray[:\s-]*/i, "").trim();
+          typeLabel = `X-Ray #${apt.tokenNumber || "—"} — ${sub || "Radiology"}`;
+        } else if (r.startsWith("lab test")) {
+          serviceCat = "LAB_TEST";
+          const sub = apt.reason.replace(/^lab test[:\s-]*/i, "").trim();
+          typeLabel = `Lab Test #${apt.tokenNumber || "—"} — ${sub || "Pathology"}`;
+        }
+
         records.push({
           id: `apt-${apt.id}`,
           referenceId: apt.id,
           recordNumber: apt.appointmentNumber,
           type: "APPOINTMENT",
-          typeLabel: `OPD Token #${apt.tokenNumber || "—"} (${apt.appointmentType})`,
+          serviceCategory: serviceCat,
+          typeLabel,
           date: apt.appointmentDate.toISOString().split("T")[0],
           time: apt.appointmentTime,
           patientId: apt.patient.id,
@@ -219,7 +293,7 @@ export async function GET(request: NextRequest) {
           mrNumber: apt.mrNumber || apt.patient.mrNumber || apt.patient.patientNumber,
           doctorId: apt.doctor.id,
           doctorName: `Dr. ${apt.doctor.firstName} ${apt.doctor.lastName}`,
-          departmentName: apt.department.name,
+          departmentName: serviceCat === "OPD" ? apt.department.name : (serviceCat === "LAB_TEST" ? "Pathology / Lab" : "Radiology & Imaging"),
           amount: Number(apt.consultationFee || 0),
           status: apt.status,
           paymentMethod: "Cash / Frontdesk",
@@ -298,6 +372,13 @@ export async function GET(request: NextRequest) {
         totalAppointmentsCount: appointmentRevAgg._count.id,
         totalAdmissionsCount: admissionRevAgg._count.id,
         totalExpensesCount: expenseAgg._count.id,
+        serviceBreakdown: {
+          opdRevenue,
+          ultrasoundRevenue,
+          xrayRevenue,
+          labRevenue,
+          admissionRevenue: totalAdmRevenue,
+        },
       },
       records: paginatedRecords,
       pagination: {

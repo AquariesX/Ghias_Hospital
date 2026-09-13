@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Printer,
+  Receipt,
 } from "lucide-react";
 import AppointmentPrintSlip, { AppointmentSlipData } from "@/components/appointments/AppointmentPrintSlip";
 
@@ -257,7 +258,7 @@ export default function AppointmentsListClient() {
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-semibold text-sm shadow-sm transition"
           >
             <Plus className="w-4 h-4 stroke-[3]" />
-            <span>Book Appointment</span>
+            <span>Book Token / Appointment</span>
           </Link>
         </div>
       </div>
@@ -504,13 +505,32 @@ export default function AppointmentsListClient() {
                     </td>
 
                     <td className="py-3.5 px-4 whitespace-nowrap">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-700">
-                        {apt.appointmentType}
-                      </span>
+                      {apt.reason?.toLowerCase().startsWith("ultrasound") ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-purple-50 text-purple-800 border border-purple-200">
+                          Ultrasound
+                        </span>
+                      ) : apt.reason?.toLowerCase().startsWith("x-ray") ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-blue-50 text-blue-800 border border-blue-200">
+                          X-Ray
+                        </span>
+                      ) : apt.reason?.toLowerCase().startsWith("lab test") ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                          Lab Test
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-700">
+                          {apt.appointmentType}
+                        </span>
+                      )}
                       {apt.isEmergency && (
                         <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800">
                           Emergency
                         </span>
+                      )}
+                      {apt.reason && (
+                        <div className="text-[11px] text-slate-500 font-medium truncate max-w-[170px]" title={apt.reason}>
+                          {apt.reason}
+                        </div>
                       )}
                     </td>
 
@@ -693,7 +713,13 @@ export default function AppointmentsListClient() {
       {/* Printable Slip Modal */}
       {printSlipApt && (
         <AppointmentPrintSlip
-          defaultLayout="A4"
+          defaultLayout={
+            printSlipApt.reason?.toLowerCase().includes("ultrasound") ||
+            printSlipApt.reason?.toLowerCase().includes("x-ray") ||
+            printSlipApt.reason?.toLowerCase().includes("lab test")
+              ? "THERMAL"
+              : "A4"
+          }
           data={{
             appointmentNumber: printSlipApt.appointmentNumber,
             tokenNumber: printSlipApt.tokenNumber || 1,
@@ -731,7 +757,9 @@ export default function AppointmentsListClient() {
             appointmentDate: printSlipApt.appointmentDate,
             appointmentTime: printSlipApt.appointmentTime,
             appointmentType: printSlipApt.appointmentType,
+            serviceType: printSlipApt.reason || printSlipApt.department.name,
             consultationFee: printSlipApt.consultationFee,
+            amount: printSlipApt.consultationFee,
             reason: printSlipApt.reason,
             createdByName: printSlipApt.createdBy ? `${printSlipApt.createdBy.firstName} ${printSlipApt.createdBy.lastName}` : null,
           }}

@@ -30,6 +30,10 @@ const createAppointmentSchema = z.object({
   appointmentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)").optional(),
   appointmentTime: z.string().optional(),
   reason: z.string().max(500).optional().nullable(),
+  fee: z.union([z.string(), z.number()]).optional().nullable(),
+  customFee: z.union([z.string(), z.number()]).optional().nullable(),
+  serviceCategory: z.string().optional().nullable(),
+  testName: z.string().max(255).optional().nullable(),
   notes: z.string().max(1000).optional().nullable(),
   isEmergency: z.boolean().optional().default(false),
   emergencyPriority: z.nativeEnum(EmergencyPriority).optional().nullable(),
@@ -402,7 +406,23 @@ export async function POST(request: NextRequest) {
       hour12: true,
     });
     const appointmentTime = automaticTime;
-    const appointmentReason = data.reason?.trim() || "Doctor Consultation";
+
+    // Determine service category & reason
+    const catUpper = (data.serviceCategory || "").toUpperCase();
+    let serviceLabel = "OPD";
+    if (catUpper === "ULTRASOUND" || catUpper === "ULTRA SOUND") serviceLabel = "Ultrasound";
+    else if (catUpper === "XRAY" || catUpper === "X-RAY") serviceLabel = "X-Ray";
+    else if (catUpper === "LAB_TEST" || catUpper === "LAB" || catUpper === "LABS") serviceLabel = "Lab Test";
+    else if (catUpper === "PHYSIO") serviceLabel = "Physio";
+
+    let appointmentReason = data.reason?.trim() || (serviceLabel !== "OPD" ? serviceLabel : "Doctor Consultation");
+    if (serviceLabel !== "OPD") {
+      if (data.testName?.trim()) {
+        appointmentReason = `${serviceLabel}: ${data.testName.trim()}`;
+      } else if (!appointmentReason.toLowerCase().startsWith(serviceLabel.toLowerCase())) {
+        appointmentReason = `${serviceLabel}: ${appointmentReason}`;
+      }
+    }
 
     // 5. Determine Emergency fields
     const isEmergency = data.appointmentType === AppointmentType.EMERGENCY || data.isEmergency;
@@ -418,31 +438,33 @@ export async function POST(request: NextRequest) {
     const isToday = dateStr === todayStr;
     const initialStatus = data.status || (isToday ? AppointmentStatus.WAITING : AppointmentStatus.SCHEDULED);
 
-    // Prevent accidental duplicate appointments for the same patient, doctor, and date
-    const existingDuplicateAppointment = await prisma.appointment.findFirst({
-      where: {
-        patientId: patient.id,
-        doctorId: doctor.id,
-        appointmentDate,
-        status: {
-          in: [
-            AppointmentStatus.SCHEDULED,
-            AppointmentStatus.CONFIRMED,
-            AppointmentStatus.WAITING,
-            AppointmentStatus.IN_CONSULTATION,
-          ],
+    // Prevent accidental duplicate appointments for the same patient, doctor, and date (OPD visits only)
+    if (serviceLabel === "OPD") {
+      const existingDuplicateAppointment = await prisma.appointment.findFirst({
+        where: {
+          patientId: patient.id,
+          doctorId: doctor.id,
+          appointmentDate,
+          status: {
+            in: [
+              AppointmentStatus.SCHEDULED,
+              AppointmentStatus.CONFIRMED,
+              AppointmentStatus.WAITING,
+              AppointmentStatus.IN_CONSULTATION,
+            ],
+          },
         },
-      },
-      select: { appointmentNumber: true, tokenNumber: true, status: true },
-    });
+        select: { appointmentNumber: true, tokenNumber: true, status: true },
+      });
 
-    if (existingDuplicateAppointment) {
-      return NextResponse.json(
-        {
-          error: `Patient already has an active appointment with Dr. ${doctor.firstName} ${doctor.lastName} on this date (${existingDuplicateAppointment.appointmentNumber}, Token #${existingDuplicateAppointment.tokenNumber}, Status: ${existingDuplicateAppointment.status}).`,
-        },
-        { status: 409 }
-      );
+      if (existingDuplicateAppointment) {
+        return NextResponse.json(
+          {
+            error: `Patient already has an active appointment with Dr. ${doctor.firstName} ${doctor.lastName} on this date (${existingDuplicateAppointment.appointmentNumber}, Token #${existingDuplicateAppointment.tokenNumber}, Status: ${existingDuplicateAppointment.status}).`,
+          },
+          { status: 409 }
+        );
+      }
     }
 
     // 6. Generate sequential Appointment Number
@@ -469,13 +491,20 @@ export async function POST(request: NextRequest) {
 
       const tokenNumber = Math.max((latestApt?.tokenNumber ?? 0) + 1, dayCount + 1);
 
-      // Determine fee based on doctor's 3 fee schedule (Regular, Follow-up, Emergency)
-      const regFee = doctor.regularFee ? Number(doctor.regularFee) : Number(doctor.consultationFee);
-      let calculatedFee = regFee;
-      if (data.appointmentType === AppointmentType.EMERGENCY) {
-        calculatedFee = doctor.emergencyFee ? Number(doctor.emergencyFee) : Math.round(regFee * 1.5);
-      } else if (data.appointmentType === AppointmentType.FOLLOW_UP) {
-        calculatedFee = doctor.followUpFee ? Number(doctor.followUpFee) : Math.round(regFee * 0.5);
+      // Determine fee: If explicit fee or customFee provided (for diagnostics or custom test rate), use it!
+      const explicitFee = data.fee != null && data.fee !== "" ? Number(data.fee) : (data.customFee != null && data.customFee !== "" ? Number(data.customFee) : null);
+      let calculatedFee = 0;
+
+      if (explicitFee !== null && !isNaN(explicitFee) && explicitFee >= 0) {
+        calculatedFee = explicitFee;
+      } else {
+        const regFee = doctor.regularFee ? Number(doctor.regularFee) : Number(doctor.consultationFee);
+        calculatedFee = regFee;
+        if (data.appointmentType === AppointmentType.EMERGENCY) {
+          calculatedFee = doctor.emergencyFee ? Number(doctor.emergencyFee) : Math.round(regFee * 1.5);
+        } else if (data.appointmentType === AppointmentType.FOLLOW_UP) {
+          calculatedFee = doctor.followUpFee ? Number(doctor.followUpFee) : Math.round(regFee * 0.5);
+        }
       }
 
       const created = await tx.appointment.create({
@@ -510,12 +539,16 @@ export async function POST(request: NextRequest) {
       });
 
       // Record patient longitudinal timeline event
+      const eventTitle = serviceLabel !== "OPD"
+        ? `${serviceLabel} Token #${tokenNumber} Issued`
+        : `OPD Token #${tokenNumber} Issued (${created.appointmentType})`;
+
       await tx.timelineEvent.create({
         data: {
           patientId: patient.id,
           eventType: "APPOINTMENT_SCHEDULED",
-          title: `Token #${tokenNumber} Issued (${created.appointmentType})`,
-          description: `Token #${tokenNumber} (${created.appointmentNumber}) booked for Dr. ${doctor.firstName} ${doctor.lastName} (${department.name}) on ${dateStr} at ${appointmentTime}. Fee: PKR ${doctor.consultationFee}. Reason: ${appointmentReason}`,
+          title: eventTitle,
+          description: `Token #${tokenNumber} (${created.appointmentNumber}) booked for Dr. ${doctor.firstName} ${doctor.lastName} (${department.name}) on ${dateStr} at ${appointmentTime}. Fee: PKR ${created.consultationFee}. Service/Reason: ${appointmentReason}`,
           entityId: created.id,
           performerName: `${user.firstName} ${user.lastName}`,
           performerRole: user.role,

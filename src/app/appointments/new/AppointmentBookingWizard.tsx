@@ -19,8 +19,50 @@ import {
   Sparkles,
   BedDouble,
   Hash,
+  Activity,
+  Layers,
+  TestTube2,
+  DollarSign,
+  FileText,
 } from "lucide-react";
 import AppointmentPrintSlip, { AppointmentSlipData } from "@/components/appointments/AppointmentPrintSlip";
+
+export type ServiceCategory = "OPD" | "ULTRASOUND" | "XRAY" | "LAB_TEST";
+
+const DIAGNOSTIC_PRESETS: Record<"ULTRASOUND" | "XRAY" | "LAB_TEST", Array<{ name: string; fee: number }>> = {
+  ULTRASOUND: [
+    { name: "Abdomen Ultrasound", fee: 1500 },
+    { name: "Pelvic Ultrasound", fee: 1500 },
+    { name: "KUB Ultrasound", fee: 1500 },
+    { name: "Obstetric / Pregnancy USG", fee: 1500 },
+    { name: "Doppler Ultrasound", fee: 3000 },
+    { name: "Thyroid Ultrasound", fee: 2000 },
+    { name: "Breast Ultrasound", fee: 2000 },
+    { name: "Soft Tissue Ultrasound", fee: 1500 },
+  ],
+  XRAY: [
+    { name: "Chest PA View", fee: 1000 },
+    { name: "Spine AP & Lateral", fee: 1500 },
+    { name: "Pelvis AP View", fee: 1000 },
+    { name: "Extremity (Arm / Leg / Foot)", fee: 1000 },
+    { name: "X-Ray Skull AP/Lat", fee: 1200 },
+    { name: "X-Ray Abdomen Plain", fee: 1000 },
+    { name: "X-Ray Knee Joint", fee: 1000 },
+  ],
+  LAB_TEST: [
+    { name: "CBC (Complete Blood Count)", fee: 600 },
+    { name: "Blood Sugar Fasting / Random", fee: 200 },
+    { name: "LFT (Liver Function Test)", fee: 1500 },
+    { name: "RFT / Serum Creatinine & Urea", fee: 1000 },
+    { name: "Urine Complete Examination (R/E)", fee: 400 },
+    { name: "Lipid Profile", fee: 1600 },
+    { name: "Serum Uric Acid", fee: 500 },
+    { name: "Typhoid / Widal Test", fee: 700 },
+    { name: "Hepatitis B & C Screening", fee: 1200 },
+    { name: "HbA1c (Glycated Hemoglobin)", fee: 1200 },
+    { name: "Serum Electrolytes", fee: 1200 },
+  ],
+};
 
 interface Doctor {
   id: string;
@@ -87,6 +129,11 @@ export default function AppointmentBookingWizard() {
   const [isLookingUpMR, setIsLookingUpMR] = useState(false);
   const [mrLookupStatus, setMrLookupStatus] = useState<{ found: boolean; message: string } | null>(null);
   const [suggestingMR, setSuggestingMR] = useState(false);
+
+  // Service Selection: OPD | ULTRASOUND | XRAY | LAB_TEST
+  const [serviceCategory, setServiceCategory] = useState<ServiceCategory>("OPD");
+  const [testName, setTestName] = useState<string>("Abdomen Ultrasound");
+  const [testFee, setTestFee] = useState<string>("1500");
 
   // Doctor & Department State
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -192,6 +239,21 @@ export default function AppointmentBookingWizard() {
     const active = appointmentType === "EMERGENCY" ? emg : appointmentType === "FOLLOW_UP" ? fol : reg;
     return { regular: reg, followUp: fol, emergency: emg, active };
   }, [selectedDoctor, appointmentType]);
+
+  // Handle service category switch
+  const handleSelectServiceCategory = (cat: ServiceCategory) => {
+    setServiceCategory(cat);
+    if (cat === "ULTRASOUND") {
+      setTestName(DIAGNOSTIC_PRESETS.ULTRASOUND[0].name);
+      setTestFee(String(DIAGNOSTIC_PRESETS.ULTRASOUND[0].fee));
+    } else if (cat === "XRAY") {
+      setTestName(DIAGNOSTIC_PRESETS.XRAY[0].name);
+      setTestFee(String(DIAGNOSTIC_PRESETS.XRAY[0].fee));
+    } else if (cat === "LAB_TEST") {
+      setTestName(DIAGNOSTIC_PRESETS.LAB_TEST[0].name);
+      setTestFee(String(DIAGNOSTIC_PRESETS.LAB_TEST[0].fee));
+    }
+  };
 
   // Live patient search as user types name or phone
   useEffect(() => {
@@ -341,7 +403,7 @@ export default function AppointmentBookingWizard() {
     }
   };
 
-  // Submit appointment
+  // Submit appointment / diagnostic token
   const handleBookAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -355,15 +417,49 @@ export default function AppointmentBookingWizard() {
       return;
     }
 
-    if (!selectedDoctorId) {
-      setSubmitError("Please select an attending doctor.");
+    const isDiag = serviceCategory !== "OPD";
+
+    if (serviceCategory === "OPD" && !selectedDoctorId) {
+      setSubmitError("Please select an attending doctor for the OPD appointment.");
       return;
     }
+
+    if (isDiag && !testName.trim()) {
+      setSubmitError("Please enter or select a test/investigation name.");
+      return;
+    }
+
+    if (isDiag && (isNaN(Number(testFee)) || Number(testFee) < 0)) {
+      setSubmitError("Please enter a valid fee amount.");
+      return;
+    }
+
+    // Determine target doctor
+    const effectiveDoctorId = selectedDoctorId || (allDoctors.length > 0 ? allDoctors[0].id : "");
+    if (!effectiveDoctorId) {
+      setSubmitError("No doctors are available in the system.");
+      return;
+    }
+
+    const chosenDoc = allDoctors.find((d) => d.id === effectiveDoctorId);
 
     setIsSubmitting(true);
     setSubmitError(null);
 
     try {
+      const catLabel =
+        serviceCategory === "ULTRASOUND"
+          ? "Ultrasound"
+          : serviceCategory === "XRAY"
+          ? "X-Ray"
+          : serviceCategory === "LAB_TEST"
+          ? "Lab Test"
+          : "OPD";
+
+      const finalReason = isDiag
+        ? `${catLabel}: ${testName.trim()}`
+        : reason.trim() || "Doctor Consultation";
+
       const payload = {
         mrNumber: patientMR.trim() || undefined,
         patientId: selectedPatientId || undefined,
@@ -374,12 +470,15 @@ export default function AppointmentBookingWizard() {
         address: patientAddress.trim() || undefined,
         relationType: patientRelationType.trim() || undefined,
         relatedPersonName: patientGuardianName.trim() || undefined,
-        doctorId: selectedDoctorId,
-        departmentId: selectedDoctor?.departmentId,
+        doctorId: effectiveDoctorId,
+        departmentId: chosenDoc?.departmentId,
         appointmentDate,
-        reason: reason.trim() || "Doctor Consultation",
-        appointmentType,
-        isEmergency: appointmentType === "EMERGENCY",
+        reason: finalReason,
+        serviceCategory,
+        testName: isDiag ? testName.trim() : undefined,
+        fee: isDiag ? Number(testFee) : undefined,
+        appointmentType: isDiag ? "REGULAR" : appointmentType,
+        isEmergency: !isDiag && appointmentType === "EMERGENCY",
       };
 
       const res = await fetch("/api/appointments", {
@@ -395,6 +494,9 @@ export default function AppointmentBookingWizard() {
         setSubmitError(data.error || "Failed to book appointment.");
         return;
       }
+
+      const effectiveFee = isDiag ? String(testFee) : String(data.appointment.consultationFee || doctorFees.active);
+      const serviceDisplay = isDiag ? `${catLabel}: ${testName.trim()}` : (reason.trim() || chosenDoc?.specialization || "OPD");
 
       setSuccessData({
         id: data.appointment.id,
@@ -413,21 +515,23 @@ export default function AppointmentBookingWizard() {
         guardianName: patientGuardianName.trim() || data.appointment.patient?.relatedPersonName || data.appointment.patient?.emergencyContactName || null,
         relationType: patientRelationType.trim() || data.appointment.patient?.relationType || data.appointment.patient?.emergencyContactRelation || "S/O",
         address: patientAddress.trim() || data.appointment.patient?.address || null,
-        doctorName: selectedDoctor ? (selectedDoctor.firstName.startsWith("Dr") ? `${selectedDoctor.firstName} ${selectedDoctor.lastName}` : `Dr. ${selectedDoctor.firstName} ${selectedDoctor.lastName}`) : "Attending Doctor",
-        specialization: selectedDoctor?.specialization,
-        departmentName: selectedDoctor?.departmentName || "General OPD",
-        roomNumber: selectedDoctor?.roomNumber || null,
-        qualificationsEnglish: selectedDoctor?.qualifications,
-        designationEnglish: selectedDoctor?.designationEnglish,
-        doctorNameUrdu: selectedDoctor?.nameUrdu || data.appointment.doctor?.nameUrdu,
-        specializationUrdu: selectedDoctor?.specializationUrdu || data.appointment.doctor?.specializationUrdu,
-        qualificationsUrdu: selectedDoctor?.qualificationsUrdu || data.appointment.doctor?.qualificationsUrdu,
-        subSpecialtyUrdu: selectedDoctor?.subSpecialtyUrdu || data.appointment.doctor?.subSpecialtyUrdu,
+        doctorName: chosenDoc ? (chosenDoc.firstName.startsWith("Dr") ? `${chosenDoc.firstName} ${chosenDoc.lastName}` : `Dr. ${chosenDoc.firstName} ${chosenDoc.lastName}`) : "Attending Doctor",
+        specialization: chosenDoc?.specialization,
+        departmentName: isDiag ? (catLabel === "Lab Test" ? "Pathology / Lab" : "Radiology & Imaging") : (chosenDoc?.departmentName || "General OPD"),
+        roomNumber: chosenDoc?.roomNumber || null,
+        qualificationsEnglish: chosenDoc?.qualifications,
+        designationEnglish: chosenDoc?.designationEnglish,
+        doctorNameUrdu: chosenDoc?.nameUrdu || data.appointment.doctor?.nameUrdu,
+        specializationUrdu: chosenDoc?.specializationUrdu || data.appointment.doctor?.specializationUrdu,
+        qualificationsUrdu: chosenDoc?.qualificationsUrdu || data.appointment.doctor?.qualificationsUrdu,
+        subSpecialtyUrdu: chosenDoc?.subSpecialtyUrdu || data.appointment.doctor?.subSpecialtyUrdu,
         appointmentDate,
         appointmentTime: data.appointment.appointmentTime || new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }),
-        appointmentType,
-        consultationFee: String(data.appointment.consultationFee || doctorFees.active),
-        reason: reason.trim() || "Doctor Consultation",
+        appointmentType: isDiag ? "REGULAR" : appointmentType,
+        serviceType: serviceDisplay,
+        consultationFee: effectiveFee,
+        amount: effectiveFee,
+        reason: finalReason,
         queuePosition: data.queuePosition || 1,
       });
     } catch {
@@ -452,6 +556,9 @@ export default function AppointmentBookingWizard() {
     setSelectedDoctorId("");
     setAppointmentType("REGULAR");
     setReason("");
+    setServiceCategory("OPD");
+    setTestName("Abdomen Ultrasound");
+    setTestFee("1500");
     setSuccessData(null);
     setSubmitError(null);
   };
@@ -470,6 +577,11 @@ export default function AppointmentBookingWizard() {
   // SUCCESS / TOKEN SLIP VIEW
   // --------------------------------------------------------------------------
   if (successData) {
+    const isDiagSuccess = successData.serviceType?.includes("Ultrasound") ||
+      successData.serviceType?.includes("X-Ray") ||
+      successData.serviceType?.includes("Lab Test") ||
+      serviceCategory !== "OPD";
+
     return (
       <div className="max-w-4xl mx-auto space-y-4">
         {/* Navigation Actions (Hidden during print) */}
@@ -501,14 +613,17 @@ export default function AppointmentBookingWizard() {
           </Link>
         </div>
 
-        {/* Official Printable Slip Component */}
-        <AppointmentPrintSlip data={successData} />
+        {/* Official Printable Slip Component (defaults to Thermal for fast diagnostic tokens, or A4) */}
+        <AppointmentPrintSlip
+          data={successData}
+          defaultLayout={isDiagSuccess ? "THERMAL" : "A4"}
+        />
       </div>
     );
   }
 
   // --------------------------------------------------------------------------
-  // QUICK APPOINTMENT BOOKING FORM
+  // MAIN PATIENT BOOKING & REGISTRATION FORM
   // --------------------------------------------------------------------------
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -516,19 +631,19 @@ export default function AppointmentBookingWizard() {
       <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
         <div>
           <div className="flex items-center gap-2 text-xs font-bold text-teal-700 uppercase tracking-wider">
-            <span>Outpatient (OPD) Desk</span>
+            <span>Hospital Frontdesk</span>
             <span>•</span>
-            <span>Quick Booking</span>
+            <span>Patient Registration &amp; Token</span>
           </div>
           <h1 className="text-2xl font-extrabold text-slate-900 mt-1">
-            Book Patient Appointment
+            Book Patient Token
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Quick frontdesk entry — enter basic patient details and select doctor.
+            Single unified registration for OPD, Ultrasound, X-Ray, and Lab Tests.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Link
             href="/patients/new"
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 transition"
@@ -552,7 +667,7 @@ export default function AppointmentBookingWizard() {
         <div className="flex items-center gap-2.5">
           <Sparkles className="w-4 h-4 text-sky-600 shrink-0" />
           <span>
-            <strong>Need to admit a patient to the hospital?</strong> Inpatient admission and full patient intake are handled in{" "}
+            <strong>Inpatient Care:</strong> Need to admit a patient to the ward or ICU? Inpatient admission is handled in{" "}
             <Link href="/patients/new" className="font-bold underline text-sky-800 hover:text-sky-950">
               Admit Patient →
             </Link>
@@ -663,7 +778,7 @@ export default function AppointmentBookingWizard() {
               </div>
             )}
             <p className="text-[11px] text-slate-500">
-              The MR Number stays consistent throughout all modules (OPD, Inpatient, Nursing, Pharmacy, and Billing).
+              The MR Number stays consistent throughout all modules (OPD, Ultrasound, X-Ray, Lab, Inpatient, and Billing).
             </p>
           </div>
 
@@ -822,236 +937,449 @@ export default function AppointmentBookingWizard() {
           </div>
         </div>
 
-        {/* Section 2: Doctor Selection & 3-Tier Fee Schedule */}
-        <div className="space-y-4 pt-2">
+        {/* Section 2: Service Selection (OPD, Ultrasound, X-Ray, Lab Test) */}
+        <div className="space-y-3 pt-2">
           <div className="flex items-center justify-between border-b border-slate-100 pb-2">
             <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
               <span className="w-6 h-6 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-xs font-bold">2</span>
-              Select Doctor
+              Select Service Category
             </h2>
-            {selectedDoctor && (
-              <span className="text-xs font-bold text-emerald-700">
-                Active Fee: PKR {Number(doctorFees.active).toLocaleString()}
-              </span>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Attending Physician <span className="text-rose-500">*</span>
-            </label>
-            <div className="relative">
-              <Stethoscope className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-              <select
-                required
-                value={selectedDoctorId}
-                onChange={(e) => setSelectedDoctorId(e.target.value)}
-                disabled={isLoadingDepts}
-                className="w-full text-sm font-medium pl-9 pr-3 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white disabled:bg-slate-50"
-              >
-                <option value="">-- Choose Doctor --</option>
-                {allDoctors.map((doc) => (
-                  <option key={doc.id} value={doc.id}>
-                    Dr. {doc.firstName} {doc.lastName} — {doc.specialization} {doc.roomNumber ? `(Room: ${doc.roomNumber})` : (doc.departmentName ? `(${doc.departmentName})` : "")} • Reg: PKR {Number(doc.regularFee ?? doc.consultationFee).toLocaleString()}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Selected Doctor Summary Card with 3 Fee Tiers */}
-          {selectedDoctor && (
-            <div className="bg-teal-50 border border-teal-200 rounded-xl p-4 space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-teal-900">
-                <div>
-                  <p className="font-extrabold text-sm text-teal-950">
-                    Dr. {selectedDoctor.firstName} {selectedDoctor.lastName}
-                  </p>
-                  <p className="text-teal-800 font-medium">
-                    {selectedDoctor.specialization} {selectedDoctor.departmentName ? `• ${selectedDoctor.departmentName}` : ""}
-                  </p>
-                  {selectedDoctor.roomNumber ? (
-                    <p className="text-teal-700 mt-0.5 font-bold">📍 Room: {selectedDoctor.roomNumber}</p>
-                  ) : (
-                    <p className="text-slate-400 mt-0.5 text-[11px]">No room assigned</p>
-                  )}
-                </div>
-                <div className="text-right">
-                  <span className="text-[10px] font-bold uppercase text-teal-700 block">Current Visit Fee</span>
-                  <span className="text-lg font-black text-emerald-800">
-                    PKR {Number(doctorFees.active).toLocaleString()}
-                  </span>
-                </div>
-              </div>
-
-              {/* 3 Fee Tiers breakdown */}
-              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-teal-200/60 text-center">
-                <div className={`p-2 rounded-lg border text-xs ${appointmentType === "REGULAR" ? "bg-white border-teal-600 shadow-xs ring-1 ring-teal-500" : "bg-teal-50/60 border-teal-200 text-teal-800"}`}>
-                  <span className="text-[10px] font-bold uppercase tracking-wider block text-slate-600">The Regular Fee</span>
-                  <span className="font-bold text-slate-900 text-xs">PKR {Number(doctorFees.regular).toLocaleString()}</span>
-                </div>
-                <div className={`p-2 rounded-lg border text-xs ${appointmentType === "FOLLOW_UP" ? "bg-white border-sky-600 shadow-xs ring-1 ring-sky-500" : "bg-teal-50/60 border-teal-200 text-teal-800"}`}>
-                  <span className="text-[10px] font-bold uppercase tracking-wider block text-slate-600">Follow UP Fee</span>
-                  <span className="font-bold text-slate-900 text-xs">PKR {Number(doctorFees.followUp).toLocaleString()}</span>
-                </div>
-                <div className={`p-2 rounded-lg border text-xs ${appointmentType === "EMERGENCY" ? "bg-white border-rose-600 shadow-xs ring-1 ring-rose-500" : "bg-teal-50/60 border-teal-200 text-rose-800"}`}>
-                  <span className="text-[10px] font-bold uppercase tracking-wider block text-rose-700">Emergency Fee</span>
-                  <span className="font-bold text-rose-900 text-xs">PKR {Number(doctorFees.emergency).toLocaleString()}</span>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Section 3: Appointment Type & Schedule */}
-        <div className="space-y-4 pt-2">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-            <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <span className="w-6 h-6 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-xs font-bold">3</span>
-              Appointment Type &amp; Schedule
-            </h2>
-            <span className="text-[11px] font-semibold text-slate-500 uppercase">
-              {appointmentType === "EMERGENCY" ? "Emergency Priority" : appointmentType === "FOLLOW_UP" ? "Follow-up Visit" : "Regular Consultation"}
+            <span className="text-xs font-bold text-teal-700">
+              {serviceCategory === "OPD"
+                ? "OPD Doctor Consultation"
+                : serviceCategory === "ULTRASOUND"
+                ? "Ultrasound (USG)"
+                : serviceCategory === "XRAY"
+                ? "Digital X-Ray"
+                : "Clinical Lab Test"}
             </span>
           </div>
 
-          {/* Appointment Type Options with dynamic fees */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-              Appointment Type <span className="text-rose-500">*</span>
-            </label>
-            <div className="grid grid-cols-3 gap-3">
-              <button
-                type="button"
-                onClick={() => setAppointmentType("REGULAR")}
-                className={`py-2.5 px-3 rounded-xl text-xs font-bold border transition flex flex-col items-center justify-center gap-0.5 cursor-pointer ${
-                  appointmentType === "REGULAR"
-                    ? "bg-teal-600 text-white border-teal-600 shadow-sm"
-                    : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-                }`}
-              >
-                <span>Regular</span>
-                <span className={`text-[10px] font-semibold ${appointmentType === "REGULAR" ? "text-teal-100" : "text-slate-500"}`}>
-                  PKR {Number(doctorFees.regular).toLocaleString()}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setAppointmentType("FOLLOW_UP")}
-                className={`py-2.5 px-3 rounded-xl text-xs font-bold border transition flex flex-col items-center justify-center gap-0.5 cursor-pointer ${
-                  appointmentType === "FOLLOW_UP"
-                    ? "bg-sky-600 text-white border-sky-600 shadow-sm"
-                    : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-                }`}
-              >
-                <span>Follow-up</span>
-                <span className={`text-[10px] font-semibold ${appointmentType === "FOLLOW_UP" ? "text-sky-100" : "text-slate-500"}`}>
-                  PKR {Number(doctorFees.followUp).toLocaleString()}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setAppointmentType("EMERGENCY")}
-                className={`py-2.5 px-3 rounded-xl text-xs font-bold border transition flex flex-col items-center justify-center gap-0.5 cursor-pointer ${
-                  appointmentType === "EMERGENCY"
-                    ? "bg-rose-600 text-white border-rose-600 shadow-sm animate-pulse"
-                    : "bg-white border-rose-200 text-rose-700 hover:bg-rose-50"
-                }`}
-              >
-                <span>Emergency</span>
-                <span className={`text-[10px] font-semibold ${appointmentType === "EMERGENCY" ? "text-rose-100" : "text-rose-600"}`}>
-                  PKR {Number(doctorFees.emergency).toLocaleString()}
-                </span>
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Date Picker */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Appointment Date
-              </label>
-              <div className="relative">
-                <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                <input
-                  type="date"
-                  value={appointmentDate}
-                  onChange={(e) => setAppointmentDate(e.target.value)}
-                  className="w-full text-sm font-medium pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
-                />
-              </div>
-              <div className="flex items-center gap-2 mt-1.5">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            {[
+              { id: "OPD", label: "OPD", sub: "Doctor Consultation", icon: Stethoscope },
+              { id: "ULTRASOUND", label: "Ultrasound", sub: "Sonography / USG", icon: Activity },
+              { id: "XRAY", label: "X-Ray", sub: "Digital Radiology", icon: Layers },
+              { id: "LAB_TEST", label: "Lab Test", sub: "Pathology / Blood", icon: TestTube2 },
+            ].map((item) => {
+              const isSelected = serviceCategory === item.id;
+              const Icon = item.icon;
+              return (
                 <button
+                  key={item.id}
                   type="button"
-                  onClick={() => setAppointmentDate(new Date().toISOString().split("T")[0])}
-                  className={`text-[11px] font-semibold px-2 py-0.5 rounded border transition ${
-                    appointmentDate === new Date().toISOString().split("T")[0]
-                      ? "bg-teal-600 text-white border-teal-600"
-                      : "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200"
+                  onClick={() => handleSelectServiceCategory(item.id as ServiceCategory)}
+                  className={`p-3 rounded-xl border text-left transition flex flex-col justify-between cursor-pointer ${
+                    isSelected
+                      ? "bg-teal-700 text-white border-teal-700 shadow-sm ring-2 ring-teal-500/30"
+                      : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300"
                   }`}
                 >
-                  Today
+                  <div className="flex items-center justify-between">
+                    <Icon className={`w-4 h-4 ${isSelected ? "text-teal-200" : "text-slate-400"}`} />
+                    {isSelected && <Check className="w-3.5 h-3.5 text-teal-200" />}
+                  </div>
+                  <div className="mt-2">
+                    <span className="font-extrabold text-sm block leading-tight">{item.label}</span>
+                    <span className={`text-[10px] block mt-0.5 leading-tight ${isSelected ? "text-teal-100" : "text-slate-500"}`}>
+                      {item.sub}
+                    </span>
+                  </div>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const d = new Date();
-                    d.setDate(d.getDate() + 1);
-                    setAppointmentDate(d.toISOString().split("T")[0]);
-                  }}
-                  className={`text-[11px] font-semibold px-2 py-0.5 rounded border transition ${
-                    appointmentDate !== new Date().toISOString().split("T")[0]
-                      ? "bg-teal-600 text-white border-teal-600"
-                      : "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200"
-                  }`}
-                >
-                  Tomorrow
-                </button>
-              </div>
-            </div>
-
-            {/* Appointment Time (Automatic) */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-semibold text-slate-700">
-                  Appointment Time
-                </label>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200">
-                  Auto-Recorded
-                </span>
-              </div>
-              <div className="relative">
-                <Clock className="w-4 h-4 text-teal-600 absolute left-3 top-3" />
-                <div className="w-full text-sm font-medium pl-9 pr-3 py-2 border border-slate-200 rounded-lg bg-slate-50 text-slate-700 flex items-center justify-between">
-                  <span>Current Booking Time</span>
-                  <span className="text-xs text-slate-400 font-normal">Auto-set</span>
-                </div>
-              </div>
-              <p className="text-[11px] text-slate-400 mt-1">
-                Token # and exact timestamp are assigned automatically upon booking.
-              </p>
-            </div>
-          </div>
-
-          {/* Simple Notes / Presenting Complaint (Optional) */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Presenting Complaint / Reason <span className="text-slate-400 font-normal">(Optional)</span>
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. Routine consultation, checkup, fever"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              className="w-full text-sm font-medium px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
-            />
+              );
+            })}
           </div>
         </div>
 
-        {/* Action Button */}
+        {/* ========================================================================= */}
+        {/* CONDITIONAL SECTION: IF OPD IS SELECTED */}
+        {/* ========================================================================= */}
+        {serviceCategory === "OPD" && (
+          <>
+            {/* Section 3: Doctor Selection & 3-Tier Fee Schedule */}
+            <div className="space-y-4 pt-2">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-xs font-bold">3</span>
+                  Select Doctor
+                </h2>
+                {selectedDoctor && (
+                  <span className="text-xs font-bold text-emerald-700">
+                    Active Fee: PKR {Number(doctorFees.active).toLocaleString()}
+                  </span>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Attending Physician <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <Stethoscope className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  <select
+                    required
+                    value={selectedDoctorId}
+                    onChange={(e) => setSelectedDoctorId(e.target.value)}
+                    disabled={isLoadingDepts}
+                    className="w-full text-sm font-medium pl-9 pr-3 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white disabled:bg-slate-50"
+                  >
+                    <option value="">-- Choose Doctor --</option>
+                    {allDoctors.map((doc) => (
+                      <option key={doc.id} value={doc.id}>
+                        Dr. {doc.firstName} {doc.lastName} — {doc.specialization} {doc.roomNumber ? `(Room: ${doc.roomNumber})` : (doc.departmentName ? `(${doc.departmentName})` : "")} • Reg: PKR {Number(doc.regularFee ?? doc.consultationFee).toLocaleString()}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Selected Doctor Summary Card with 3 Fee Tiers */}
+              {selectedDoctor && (
+                <div className="bg-teal-50 border border-teal-200 rounded-xl p-4 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-teal-900">
+                    <div>
+                      <p className="font-extrabold text-sm text-teal-950">
+                        Dr. {selectedDoctor.firstName} {selectedDoctor.lastName}
+                      </p>
+                      <p className="text-teal-800 font-medium">
+                        {selectedDoctor.specialization} {selectedDoctor.departmentName ? `• ${selectedDoctor.departmentName}` : ""}
+                      </p>
+                      {selectedDoctor.roomNumber ? (
+                        <p className="text-teal-700 mt-0.5 font-bold">📍 Room: {selectedDoctor.roomNumber}</p>
+                      ) : (
+                        <p className="text-slate-400 mt-0.5 text-[11px]">No room assigned</p>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] font-bold uppercase text-teal-700 block">Current Visit Fee</span>
+                      <span className="text-lg font-black text-emerald-800">
+                        PKR {Number(doctorFees.active).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 3 Fee Tiers breakdown */}
+                  <div className="grid grid-cols-3 gap-2 pt-2 border-t border-teal-200/60 text-center">
+                    <div className={`p-2 rounded-lg border text-xs ${appointmentType === "REGULAR" ? "bg-white border-teal-600 shadow-xs ring-1 ring-teal-500" : "bg-teal-50/60 border-teal-200 text-teal-800"}`}>
+                      <span className="text-[10px] font-bold uppercase tracking-wider block text-slate-600">The Regular Fee</span>
+                      <span className="font-bold text-slate-900 text-xs">PKR {Number(doctorFees.regular).toLocaleString()}</span>
+                    </div>
+                    <div className={`p-2 rounded-lg border text-xs ${appointmentType === "FOLLOW_UP" ? "bg-white border-sky-600 shadow-xs ring-1 ring-sky-500" : "bg-teal-50/60 border-teal-200 text-teal-800"}`}>
+                      <span className="text-[10px] font-bold uppercase tracking-wider block text-slate-600">Follow UP Fee</span>
+                      <span className="font-bold text-slate-900 text-xs">PKR {Number(doctorFees.followUp).toLocaleString()}</span>
+                    </div>
+                    <div className={`p-2 rounded-lg border text-xs ${appointmentType === "EMERGENCY" ? "bg-white border-rose-600 shadow-xs ring-1 ring-rose-500" : "bg-teal-50/60 border-teal-200 text-rose-800"}`}>
+                      <span className="text-[10px] font-bold uppercase tracking-wider block text-rose-700">Emergency Fee</span>
+                      <span className="font-bold text-rose-900 text-xs">PKR {Number(doctorFees.emergency).toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Section 4: Appointment Type & Schedule */}
+            <div className="space-y-4 pt-2">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-xs font-bold">4</span>
+                  Appointment Type &amp; Schedule
+                </h2>
+                <span className="text-[11px] font-semibold text-slate-500 uppercase">
+                  {appointmentType === "EMERGENCY" ? "Emergency Priority" : appointmentType === "FOLLOW_UP" ? "Follow-up Visit" : "Regular Consultation"}
+                </span>
+              </div>
+
+              {/* Appointment Type Options with dynamic fees */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Appointment Type <span className="text-rose-500">*</span>
+                </label>
+                <div className="grid grid-cols-3 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setAppointmentType("REGULAR")}
+                    className={`py-2.5 px-3 rounded-xl text-xs font-bold border transition flex flex-col items-center justify-center gap-0.5 cursor-pointer ${
+                      appointmentType === "REGULAR"
+                        ? "bg-teal-600 text-white border-teal-600 shadow-sm"
+                        : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    <span>Regular</span>
+                    <span className={`text-[10px] font-semibold ${appointmentType === "REGULAR" ? "text-teal-100" : "text-slate-500"}`}>
+                      PKR {Number(doctorFees.regular).toLocaleString()}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setAppointmentType("FOLLOW_UP")}
+                    className={`py-2.5 px-3 rounded-xl text-xs font-bold border transition flex flex-col items-center justify-center gap-0.5 cursor-pointer ${
+                      appointmentType === "FOLLOW_UP"
+                        ? "bg-sky-600 text-white border-sky-600 shadow-sm"
+                        : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    <span>Follow-up</span>
+                    <span className={`text-[10px] font-semibold ${appointmentType === "FOLLOW_UP" ? "text-sky-100" : "text-slate-500"}`}>
+                      PKR {Number(doctorFees.followUp).toLocaleString()}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setAppointmentType("EMERGENCY")}
+                    className={`py-2.5 px-3 rounded-xl text-xs font-bold border transition flex flex-col items-center justify-center gap-0.5 cursor-pointer ${
+                      appointmentType === "EMERGENCY"
+                        ? "bg-rose-600 text-white border-rose-600 shadow-sm animate-pulse"
+                        : "bg-white border-rose-200 text-rose-700 hover:bg-rose-50"
+                    }`}
+                  >
+                    <span>Emergency</span>
+                    <span className={`text-[10px] font-semibold ${appointmentType === "EMERGENCY" ? "text-rose-100" : "text-rose-600"}`}>
+                      PKR {Number(doctorFees.emergency).toLocaleString()}
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Date Picker */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Appointment Date
+                  </label>
+                  <div className="relative">
+                    <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                    <input
+                      type="date"
+                      value={appointmentDate}
+                      onChange={(e) => setAppointmentDate(e.target.value)}
+                      className="w-full text-sm font-medium pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setAppointmentDate(new Date().toISOString().split("T")[0])}
+                      className={`text-[11px] font-semibold px-2 py-0.5 rounded border transition ${
+                        appointmentDate === new Date().toISOString().split("T")[0]
+                          ? "bg-teal-600 text-white border-teal-600"
+                          : "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200"
+                      }`}
+                    >
+                      Today
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const d = new Date();
+                        d.setDate(d.getDate() + 1);
+                        setAppointmentDate(d.toISOString().split("T")[0]);
+                      }}
+                      className={`text-[11px] font-semibold px-2 py-0.5 rounded border transition ${
+                        appointmentDate !== new Date().toISOString().split("T")[0]
+                          ? "bg-teal-600 text-white border-teal-600"
+                          : "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200"
+                      }`}
+                    >
+                      Tomorrow
+                    </button>
+                  </div>
+                </div>
+
+                {/* Appointment Time (Automatic) */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-semibold text-slate-700">
+                      Appointment Time
+                    </label>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200">
+                      Auto-Recorded
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <Clock className="w-4 h-4 text-teal-600 absolute left-3 top-3" />
+                    <div className="w-full text-sm font-medium pl-9 pr-3 py-2 border border-slate-200 rounded-lg bg-slate-50 text-slate-700 flex items-center justify-between">
+                      <span>Current Booking Time</span>
+                      <span className="text-xs text-slate-400 font-normal">Auto-set</span>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Token # and exact timestamp are assigned automatically upon booking.
+                  </p>
+                </div>
+              </div>
+
+              {/* Simple Notes / Presenting Complaint (Optional) */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Presenting Complaint / Reason <span className="text-slate-400 font-normal">(Optional)</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Routine checkup, Fever, Chest discomfort, Follow-up"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  className="w-full text-sm font-medium px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
+                />
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ========================================================================= */}
+        {/* CONDITIONAL SECTION: IF ULTRASOUND, X-RAY, OR LAB TEST IS SELECTED */}
+        {/* ========================================================================= */}
+        {serviceCategory !== "OPD" && (
+          <div className="space-y-4 pt-2">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <span className="w-6 h-6 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-xs font-bold">3</span>
+                {serviceCategory === "ULTRASOUND"
+                  ? "Ultrasound Test & Fee Details"
+                  : serviceCategory === "XRAY"
+                  ? "X-Ray Investigation & Fee Details"
+                  : "Laboratory Test & Fee Details"}
+              </h2>
+              <span className="text-xs font-bold text-emerald-700 font-mono">
+                Total Fee: PKR {Number(testFee || 0).toLocaleString()}
+              </span>
+            </div>
+
+            {/* Test / Investigation Name Input */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Investigation / Test Name <span className="text-rose-500">*</span>
+              </label>
+              <div className="relative">
+                <FileText className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                <input
+                  type="text"
+                  required
+                  placeholder={`e.g. ${serviceCategory === "ULTRASOUND" ? "Abdomen Ultrasound" : serviceCategory === "XRAY" ? "Chest PA View" : "Complete Blood Count (CBC)"}`}
+                  value={testName}
+                  onChange={(e) => setTestName(e.target.value)}
+                  className="w-full text-sm font-bold pl-9 pr-3 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
+                />
+              </div>
+
+              {/* 1-Click Popular Presets */}
+              <div className="mt-2.5">
+                <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1.5">
+                  Popular {serviceCategory === "ULTRASOUND" ? "Ultrasound" : serviceCategory === "XRAY" ? "X-Ray" : "Lab"} Presets (1-Click Fill):
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {(DIAGNOSTIC_PRESETS[serviceCategory] || []).map((preset) => {
+                    const isPicked = testName.toLowerCase() === preset.name.toLowerCase();
+                    return (
+                      <button
+                        key={preset.name}
+                        type="button"
+                        onClick={() => {
+                          setTestName(preset.name);
+                          setTestFee(String(preset.fee));
+                        }}
+                        className={`text-xs px-2.5 py-1 rounded-md font-semibold border transition flex items-center gap-1.5 cursor-pointer ${
+                          isPicked
+                            ? "bg-teal-700 text-white border-teal-700 shadow-2xs"
+                            : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300"
+                        }`}
+                      >
+                        <span>{preset.name}</span>
+                        <span className={`text-[10.5px] font-mono font-bold ${isPicked ? "text-teal-200" : "text-emerald-700"}`}>
+                          PKR {preset.fee}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Fee Input & Attending Doctor Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+              {/* Fee Input (Editable) */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Investigation Fee (PKR) <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <DollarSign className="w-4 h-4 text-emerald-600 absolute left-3 top-3" />
+                  <input
+                    type="number"
+                    min="0"
+                    step="50"
+                    required
+                    value={testFee}
+                    onChange={(e) => setTestFee(e.target.value)}
+                    className="w-full text-base font-mono font-black pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white text-emerald-800"
+                  />
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Standard hospital fee is auto-filled. You can edit or discount as needed.
+                </p>
+              </div>
+
+              {/* Referring / Reporting Doctor Selection */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Reporting / Referring Doctor
+                </label>
+                <div className="relative">
+                  <Stethoscope className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  <select
+                    value={selectedDoctorId}
+                    onChange={(e) => setSelectedDoctorId(e.target.value)}
+                    className="w-full text-sm font-medium pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
+                  >
+                    <option value="">-- On-Duty Specialist / Hospital Default --</option>
+                    {allDoctors.map((doc) => (
+                      <option key={doc.id} value={doc.id}>
+                        Dr. {doc.firstName} {doc.lastName} ({doc.specialization})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Doctor on slip (defaults to on-duty specialist if unselected).
+                </p>
+              </div>
+            </div>
+
+            {/* Date & Time Row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Date of Investigation
+                </label>
+                <div className="relative">
+                  <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  <input
+                    type="date"
+                    value={appointmentDate}
+                    onChange={(e) => setAppointmentDate(e.target.value)}
+                    className="w-full text-sm font-medium pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Investigation Time
+                </label>
+                <div className="relative">
+                  <Clock className="w-4 h-4 text-teal-600 absolute left-3 top-3" />
+                  <div className="w-full text-sm font-medium pl-9 pr-3 py-2 border border-slate-200 rounded-lg bg-slate-50 text-slate-700 flex items-center justify-between">
+                    <span>Immediate / Walk-in</span>
+                    <span className="text-xs text-slate-400 font-normal">Auto-timestamped</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Action Buttons */}
         <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
           <Link
             href="/appointments"
@@ -1063,17 +1391,21 @@ export default function AppointmentBookingWizard() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="px-6 py-2.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm shadow-sm transition flex items-center gap-2 disabled:opacity-50"
+            className="px-6 py-2.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm shadow-sm transition flex items-center gap-2 disabled:opacity-50 cursor-pointer"
           >
             {isSubmitting ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span>Booking &amp; Generating Token...</span>
+                <span>Generating Token &amp; Slip...</span>
               </>
             ) : (
               <>
                 <CheckCircle2 className="w-4 h-4" />
-                <span>Book Appointment &amp; Issue Token</span>
+                <span>
+                  {serviceCategory === "OPD"
+                    ? "Book Appointment & Issue Token"
+                    : `Issue ${serviceCategory === "ULTRASOUND" ? "Ultrasound" : serviceCategory === "XRAY" ? "X-Ray" : "Lab Test"} Token & Slip`}
+                </span>
               </>
             )}
           </button>
