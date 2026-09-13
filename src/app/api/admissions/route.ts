@@ -34,6 +34,7 @@ const createAdmissionSchema = z.object({
   familyHistory: z.string().optional().nullable(),
   allergies: z.array(z.string()).optional(),
   treatmentPlan: z.string().optional().nullable(),
+  admissionFee: z.union([z.number(), z.string()]).optional().nullable(),
   // Baseline vitals
   pulse: z.number().int().optional().nullable(),
   temperature: z.number().optional().nullable(),
@@ -407,6 +408,9 @@ export async function POST(request: NextRequest) {
           diastolicBP: val.diastolicBP || null,
           weight: val.weight ? val.weight : null,
           height: val.height ? val.height : null,
+          admissionFee: val.admissionFee != null && val.admissionFee !== ""
+            ? new Prisma.Decimal(Number(val.admissionFee))
+            : null,
           status: AdmissionStatus.ADMITTED,
           createdById: user.id,
         },

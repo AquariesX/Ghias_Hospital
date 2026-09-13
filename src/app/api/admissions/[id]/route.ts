@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { canViewPatients } from "@/lib/rbac";
 import { createAuditLog } from "@/lib/audit";
-import { AdmissionStatus } from "@prisma/client";
+import { AdmissionStatus, Prisma } from "@prisma/client";
 
 const updateAdmissionSchema = z.object({
   status: z.enum([
@@ -17,6 +17,7 @@ const updateAdmissionSchema = z.object({
     "CANCELLED",
   ]).optional(),
   roomBedNo: z.string().min(1).optional(),
+  admissionFee: z.union([z.number(), z.string()]).optional().nullable(),
 
   // Clinical initial assessment fields
   presentingComplaints: z.string().optional().nullable(),
@@ -231,6 +232,7 @@ export async function PUT(
         data: {
           status: val.status ? (val.status as AdmissionStatus) : undefined,
           roomBedNo: val.roomBedNo ? val.roomBedNo.trim() : undefined,
+          admissionFee: val.admissionFee !== undefined ? (val.admissionFee != null && val.admissionFee !== "" ? new Prisma.Decimal(Number(val.admissionFee)) : null) : undefined,
           presentingComplaints: val.presentingComplaints !== undefined ? val.presentingComplaints : undefined,
           medicationHistory: val.medicationHistory !== undefined ? val.medicationHistory : undefined,
           familyHistory: val.familyHistory !== undefined ? val.familyHistory : undefined,

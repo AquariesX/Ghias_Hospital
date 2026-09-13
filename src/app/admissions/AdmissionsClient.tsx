@@ -20,6 +20,7 @@ import {
   XCircle,
   Activity,
   ShieldAlert,
+  DollarSign,
 } from "lucide-react";
 
 interface DoctorOption {
@@ -139,6 +140,7 @@ export default function AdmissionsClient() {
   const [selectedBedId, setSelectedBedId] = useState("");
   const [roomBedNo, setRoomBedNo] = useState("");
   const [selectedDoctorId, setSelectedDoctorId] = useState(queryDoctorId || "");
+  const [admissionFee, setAdmissionFee] = useState<string>("");
 
   // System Live Timestamp Display
   const [systemDate, setSystemDate] = useState<string>(() => formatSystemDate());
@@ -160,6 +162,7 @@ export default function AdmissionsClient() {
     roomBedNo: string;
     admissionSource: string;
     mrNumber: string;
+    fee?: number;
   } | null>(null);
 
   // Live system clock updater for realistic frontdesk timestamp
@@ -381,6 +384,7 @@ export default function AdmissionsClient() {
         admissionSource,
         bedId: selectedBedId || undefined,
         roomBedNo: roomBedNo.trim(),
+        admissionFee: admissionFee ? Number(admissionFee) : undefined,
         provisionalDiagnosis: provisionalDiagnosis.trim() || undefined,
         finalDiagnosis: finalDiagnosis.trim() || undefined,
         operation: operation.trim() || undefined,
@@ -412,6 +416,7 @@ export default function AdmissionsClient() {
         roomBedNo: admission.roomBedNo,
         admissionSource: admission.admissionSource,
         mrNumber: mrNumber || autoMrNumber,
+        fee: admissionFee ? Number(admissionFee) : 0,
       });
 
       // Refresh next MR number for future walk-ins and refresh rooms
@@ -431,6 +436,7 @@ export default function AdmissionsClient() {
     setSelectedBedId("");
     setRoomBedNo("");
     setSelectedDoctorId("");
+    setAdmissionFee("");
     setProvisionalDiagnosis("");
     setFinalDiagnosis("");
     setOperation("");
@@ -488,7 +494,11 @@ export default function AdmissionsClient() {
               <p className="text-xs text-slate-600">
                 M.R. No: <span className="font-mono font-bold text-slate-900">{successData.mrNumber}</span> • Assigned to{" "}
                 <span className="font-bold text-slate-900">{successData.roomBedNo}</span> via{" "}
-                <span className="font-bold text-teal-800">[{successData.admissionSource}]</span>. The patient is now officially admitted and accessible on the Nurse Station and Ward Dashboard.
+                <span className="font-bold text-teal-800">[{successData.admissionSource}]</span> • Admission Fee:{" "}
+                <span className="font-mono font-bold text-emerald-800">
+                  {successData.fee ? `PKR ${successData.fee.toLocaleString()}` : "PKR 0"}
+                </span>
+                . The patient is now officially admitted and accessible on the Nurse Station and Ward Dashboard.
               </p>
             </div>
           </div>
@@ -1131,12 +1141,71 @@ export default function AdmissionsClient() {
             </div>
           </div>
 
-          {/* SECTION 3: CLINICAL INFORMATION ENTERED DURING ADMISSION */}
+          {/* SECTION 3: ADMISSION FEE & ADVANCE DEPOSIT */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <span className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-emerald-700" />
+                <span>3. Admission Fee / Advance Deposit</span>
+              </span>
+              <span className="text-[11px] font-medium text-slate-400">
+                Fee details will be recorded and shown in Day-End closing report
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Admission Fee (PKR)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-2.5 text-xs font-bold text-slate-400">PKR</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="100"
+                    placeholder="e.g. 5000"
+                    value={admissionFee}
+                    onChange={(e) => setAdmissionFee(e.target.value)}
+                    className="w-full text-xs font-mono font-bold text-emerald-900 border border-slate-300 rounded-xl py-2.5 pl-12 pr-3 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white"
+                  />
+                </div>
+                <span className="text-[10px] text-slate-400 mt-1 block">
+                  Admission fee / deposit recorded in hospital ledger &amp; day-end report.
+                </span>
+              </div>
+
+              {/* Quick Fee Presets */}
+              <div className="sm:col-span-2 flex flex-col justify-center">
+                <span className="text-[10.5px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                  Quick Amount Presets:
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {[0, 1000, 2000, 3000, 5000, 7000, 10000, 15000, 20000].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setAdmissionFee(preset.toString())}
+                      className={`px-3 py-1.5 text-xs rounded-xl border font-mono transition cursor-pointer ${
+                        admissionFee === preset.toString()
+                          ? "bg-teal-800 text-white border-teal-800 font-bold shadow-xs"
+                          : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
+                      }`}
+                    >
+                      {preset === 0 ? "Free / 0" : `PKR ${preset.toLocaleString()}`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* SECTION 4: CLINICAL INFORMATION ENTERED DURING ADMISSION */}
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <span className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-teal-700" />
-                <span>3. Clinical Information Entered During Admission</span>
+                <span>4. Clinical Information Entered During Admission</span>
               </span>
               <span className="text-[11px] font-medium text-slate-400">
                 Admitting Diagnosis & Surgical Details

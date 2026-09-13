@@ -22,7 +22,10 @@ export async function GET(request: NextRequest) {
 
     // Appointment filters for the selected day
     const aptWhere: Record<string, unknown> = {
-      appointmentDate: targetDate,
+      OR: [
+        { appointmentDate: { gte: targetDate, lte: nextDay } },
+        { createdAt: { gte: targetDate, lte: nextDay } },
+      ],
     };
     if (status) {
       aptWhere.status = status as AppointmentStatus;
@@ -34,7 +37,10 @@ export async function GET(request: NextRequest) {
 
     // Admission filters for the selected day
     const admWhere: Record<string, unknown> = {
-      admissionDate: targetDate,
+      OR: [
+        { admissionDate: { gte: targetDate, lte: nextDay } },
+        { createdAt: { gte: targetDate, lte: nextDay } },
+      ],
     };
     if (status) {
       admWhere.status = status as AdmissionStatus;
@@ -48,13 +54,13 @@ export async function GET(request: NextRequest) {
 
     // Discharge filter: admissions discharged on this date
     const dischWhere: Record<string, unknown> = {
-      dischargeDate: targetDate,
+      dischargeDate: { gte: targetDate, lte: nextDay },
     };
     if (doctorId) dischWhere.doctorId = doctorId;
 
     // Expense filters for the selected day
     const expWhere: Record<string, unknown> = {
-      date: targetDate,
+      date: { gte: targetDate, lte: nextDay },
     };
 
     // Parallel database aggregations
