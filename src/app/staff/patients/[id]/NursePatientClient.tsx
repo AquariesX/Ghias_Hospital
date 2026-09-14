@@ -1223,7 +1223,7 @@ export default function NursePatientClient({
                   label="Clinical Observation & Patient Notes"
                   value={noteObservation}
                   onChange={setNoteObservation}
-                  placeholder="Write clinical observations... You can highlight or color any word, line, or text with the color toolbar above."
+                  placeholder="Enter detailed clinical observations and nursing progress notes..."
                   minHeight="140px"
                   required
                 />

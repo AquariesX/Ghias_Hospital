@@ -384,6 +384,8 @@ model Appointment {
   @@index([appointmentDate])
   @@index([status])
   @@index([appointmentType])
+  @@index([appointmentDate, status])
+  @@index([doctorId, appointmentDate])
 }
 
 /// Clinical Consultation encounter recorded by Doctor
@@ -467,6 +469,7 @@ model VitalSign {
   @@index([patientId])
   @@index([admissionId])
   @@index([recordedAt])
+  @@index([patientId, recordedAt])
 }
 
 /// Doctor's Digital Prescription
@@ -575,6 +578,7 @@ model NursingNote {
   @@index([patientId])
   @@index([admissionId])
   @@index([recordedAt])
+  @@index([patientId, recordedAt])
 }
 
 /// Emergency Triage Assessment
@@ -618,6 +622,8 @@ model EmergencyTriage {
   @@index([patientId])
   @@index([priority])
   @@index([triagedAt])
+  @@index([triagedAt, priority])
+  @@index([admissionId])
 }
 
 /// Hospital patient admissions (Inpatient & Emergency admissions)
@@ -706,6 +712,8 @@ model Admission {
   @@index([admissionDate])
   @@index([status])
   @@index([admissionSource])
+  @@index([patientId, status])
+  @@index([admissionDate, status])
 }
 
 /// Official hospital consent statements/declarations (versioned, non-electronically-signable)
