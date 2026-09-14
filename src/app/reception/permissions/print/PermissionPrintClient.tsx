@@ -70,27 +70,40 @@ export default function PermissionPrintClient({ data: initialData }: PermissionP
   return (
     <div className="min-h-screen bg-slate-100 py-6 px-4 font-sans text-slate-900 print:bg-white print:p-0">
       {/* Top Floating Action Bar (Hidden during printing) */}
-      <div className="max-w-4xl mx-auto mb-6 flex items-center justify-between print:hidden">
-        <Link
-          href="/reception/permissions"
-          className="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 hover:text-slate-900 bg-white border border-slate-300 hover:bg-slate-50 px-4 py-2 rounded-xl transition shadow-xs"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Back to Consents Wizard</span>
-        </Link>
+      <div className="max-w-4xl mx-auto mb-6 print:hidden">
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Link
+              href="/reception/permissions"
+              className="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 hover:text-slate-950 bg-slate-100 hover:bg-slate-200 px-3.5 py-2 rounded-xl transition"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back to Consents</span>
+            </Link>
 
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-slate-500 hidden sm:inline font-medium">
-            {data.selectedPermissions.length} Form(s) • Ready for Physical Signature
-          </span>
-          <button
-            type="button"
-            onClick={handlePrint}
-            className="inline-flex items-center gap-2 text-xs font-bold text-white bg-teal-800 hover:bg-teal-900 px-5 py-2 rounded-xl shadow-xs transition"
-          >
-            <Printer className="w-4 h-4" />
-            <span>Print Document (A4)</span>
-          </button>
+            <div>
+              <p className="text-xs font-bold text-slate-900">
+                {data.patient.fullName} <span className="font-mono text-slate-500 font-normal">({data.patient.mrNumber})</span>
+              </p>
+              <p className="text-[11px] text-slate-500">
+                {data.selectedPermissions.length} Form(s) • Standard A4 Portrait Paper
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            <span className="text-[11px] text-slate-400 hidden md:inline">
+              Tip: Press <kbd className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-300 font-mono text-[10px]">Ctrl</kbd> + <kbd className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-300 font-mono text-[10px]">P</kbd>
+            </span>
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="inline-flex items-center justify-center gap-2 text-xs font-bold text-white bg-teal-800 hover:bg-teal-900 px-6 py-2.5 rounded-xl shadow-xs transition cursor-pointer"
+            >
+              <Printer className="w-4 h-4" />
+              <span>Print Document (A4)</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -101,3 +114,4 @@ export default function PermissionPrintClient({ data: initialData }: PermissionP
     </div>
   );
 }
+

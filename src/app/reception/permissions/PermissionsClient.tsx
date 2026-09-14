@@ -1574,8 +1574,10 @@ export default function PermissionsClient() {
             </div>
 
             {/* Modal Scrollable Document Body */}
-            <div className="flex-1 overflow-y-auto p-6">
-              <PermissionDocumentView data={previewData} showWatermark={true} />
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-200/70 flex justify-center">
+              <div className="w-full max-w-[210mm] bg-white shadow-xl rounded-sm">
+                <PermissionDocumentView data={previewData} showWatermark={true} />
+              </div>
             </div>
 
             {/* Modal Footer */}

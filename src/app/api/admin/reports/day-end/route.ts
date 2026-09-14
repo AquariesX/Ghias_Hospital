@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAdminAccess } from "@/lib/billing-auth";
+import { requireDayEndOrExpenseAccess } from "@/lib/billing-auth";
 import { createAuditLog } from "@/lib/audit";
 import { AppointmentStatus, AdmissionStatus, AdmissionSource } from "@prisma/client";
 
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
-    const admin = await requireAdminAccess(request);
+    const user = await requireDayEndOrExpenseAccess(request);
 
     const { searchParams } = request.nextUrl;
     const dateStr = searchParams.get("date")?.trim() || new Date().toISOString().split("T")[0];
@@ -240,9 +240,9 @@ export async function GET(request: NextRequest) {
 
     // Audit Log
     await createAuditLog({
-      userId: admin.id,
-      userName: `${admin.firstName} ${admin.lastName}`,
-      userRole: admin.role,
+      userId: user.id,
+      userName: `${user.firstName} ${user.lastName}`,
+      userRole: user.role,
       action: "GENERATE_DAY_END_REPORT",
       entity: "REPORT",
       newValue: JSON.stringify({
@@ -262,7 +262,7 @@ export async function GET(request: NextRequest) {
         reportTitle: "DAY END REPORT",
         reportDate: dateStr,
         generatedAt: new Date().toISOString(),
-        generatedByName: `${admin.firstName} ${admin.lastName}`,
+        generatedByName: `${user.firstName} ${user.lastName}`,
         filtersApplied: {
           departmentId: departmentId || "ALL",
           doctorId: doctorId || "ALL",
@@ -381,3 +381,61 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Failed to generate Day End Report" }, { status: 500 });
   }
 }
+
+/**
+ * POST /api/admin/reports/day-end
+ * Allows Receptionist / Admin to perform official "Day End Closing", record audit log, and return confirmation.
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const user = await requireDayEndOrExpenseAccess(request);
+    const body = await request.json().catch(() => ({}));
+
+    const date = body.date || new Date().toISOString().split("T")[0];
+    const totalAppointmentsRevenue = Number(body.totalAppointmentsRevenue || 0);
+    const totalAdmissionsRevenue = Number(body.totalAdmissionsRevenue || 0);
+    const totalExpenses = Number(body.totalExpenses || 0);
+    const netCashInHand = Number(body.netCashInHand || (totalAppointmentsRevenue + totalAdmissionsRevenue - totalExpenses));
+    const closingRemarks = body.remarks ? String(body.remarks).trim() : "Standard Day-End Closing Completed";
+
+    // Record official audit log
+    await createAuditLog({
+      userId: user.id,
+      userName: `${user.firstName} ${user.lastName}`,
+      userRole: user.role,
+      action: "DAY_END_CLOSING_PERFORMED",
+      entity: "FINANCIAL_REPORT",
+      entityId: `DAY-END-${date}`,
+      newValue: JSON.stringify({
+        closingDate: date,
+        performedBy: `${user.firstName} ${user.lastName} (${user.role})`,
+        totalAppointmentsRevenue,
+        totalAdmissionsRevenue,
+        grossRevenue: totalAppointmentsRevenue + totalAdmissionsRevenue,
+        totalExpenses,
+        netCashInHand,
+        remarks: closingRemarks,
+        closedAt: new Date().toISOString(),
+      }),
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: `Day End Closing for ${date} successfully recorded.`,
+      closingRecord: {
+        date,
+        performedBy: `${user.firstName} ${user.lastName}`,
+        role: user.role,
+        grossRevenue: totalAppointmentsRevenue + totalAdmissionsRevenue,
+        totalExpenses,
+        netCashInHand,
+        closedAt: new Date().toISOString(),
+      },
+    });
+  } catch (err: unknown) {
+    if (err instanceof Response) return err;
+    console.error("Day End Closing error:", err);
+    return NextResponse.json({ error: "Failed to complete Day End Closing" }, { status: 500 });
+  }
+}
+

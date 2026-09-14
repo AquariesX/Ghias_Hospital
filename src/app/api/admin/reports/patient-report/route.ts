@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAdminAccess } from "@/lib/billing-auth";
+import { requireDayEndOrExpenseAccess } from "@/lib/billing-auth";
 import { createAuditLog } from "@/lib/audit";
 import { Gender, PatientStatus, AdmissionStatus } from "@prisma/client";
 
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
-    const admin = await requireAdminAccess(request);
+    const admin = await requireDayEndOrExpenseAccess(request);
 
     const { searchParams } = request.nextUrl;
     const dateFrom = searchParams.get("dateFrom")?.trim() || "";

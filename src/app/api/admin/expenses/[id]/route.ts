@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
-import { requireAdminAccess } from "@/lib/billing-auth";
+import { requireDayEndOrExpenseAccess } from "@/lib/billing-auth";
 import { createAuditLog } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +19,7 @@ export async function PUT(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const admin = await requireAdminAccess(request);
+    const user = await requireDayEndOrExpenseAccess(request);
     const { id } = await context.params;
     const body = await request.json();
     const validated = updateExpenseSchema.parse(body);
@@ -45,9 +45,9 @@ export async function PUT(
     });
 
     await createAuditLog({
-      userId: admin.id,
-      userName: `${admin.firstName} ${admin.lastName}`,
-      userRole: admin.role,
+      userId: user.id,
+      userName: `${user.firstName} ${user.lastName}`,
+      userRole: user.role,
       action: "UPDATE_EXPENSE",
       entity: "EXPENSE",
       entityId: updated.id,
@@ -89,7 +89,7 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const admin = await requireAdminAccess(request);
+    const user = await requireDayEndOrExpenseAccess(request);
     const { id } = await context.params;
 
     const existing = await prisma.expense.findUnique({
@@ -105,9 +105,9 @@ export async function DELETE(
     });
 
     await createAuditLog({
-      userId: admin.id,
-      userName: `${admin.firstName} ${admin.lastName}`,
-      userRole: admin.role,
+      userId: user.id,
+      userName: `${user.firstName} ${user.lastName}`,
+      userRole: user.role,
       action: "DELETE_EXPENSE",
       entity: "EXPENSE",
       entityId: id,

@@ -26,6 +26,13 @@ export function getDashboardPath(role: UserRole | string): string {
  * - /staff is strictly for NURSE, RECEPTIONIST, and STAFF
  */
 export function isAuthorizedForPath(role: UserRole | string, pathname: string): boolean {
+  if (
+    pathname.startsWith("/admin/reports/day-end") ||
+    pathname.startsWith("/admin/billing/expenses")
+  ) {
+    return role === "ADMIN" || role === "RECEPTIONIST" || role === "STAFF";
+  }
+
   if (pathname.startsWith("/admin")) {
     return role === "ADMIN";
   }

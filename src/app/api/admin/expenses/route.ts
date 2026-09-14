@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
-import { requireAdminAccess } from "@/lib/billing-auth";
+import { requireDayEndOrExpenseAccess } from "@/lib/billing-auth";
 import { createAuditLog } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +16,7 @@ const createExpenseSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAdminAccess(request);
+    await requireDayEndOrExpenseAccess(request);
 
     const { searchParams } = request.nextUrl;
     const search = searchParams.get("search")?.trim() || "";
@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const admin = await requireAdminAccess(request);
+    const user = await requireDayEndOrExpenseAccess(request);
     const body = await request.json();
     const validated = createExpenseSchema.parse(body);
 
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
         amount: validated.amount,
         date: new Date(`${validated.date}T00:00:00.000Z`),
         category: validated.category.toUpperCase().trim(),
-        addedById: admin.id,
+        addedById: user.id,
       },
       include: {
         addedBy: {
@@ -116,9 +116,9 @@ export async function POST(request: NextRequest) {
     });
 
     await createAuditLog({
-      userId: admin.id,
-      userName: `${admin.firstName} ${admin.lastName}`,
-      userRole: admin.role,
+      userId: user.id,
+      userName: `${user.firstName} ${user.lastName}`,
+      userRole: user.role,
       action: "CREATE_EXPENSE",
       entity: "EXPENSE",
       entityId: expense.id,
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
           amount: Number(expense.amount),
           date: expense.date.toISOString().split("T")[0],
           category: expense.category,
-          addedBy: `${admin.firstName} ${admin.lastName}`,
+          addedBy: `${user.firstName} ${user.lastName}`,
           createdAt: expense.createdAt.toISOString(),
         },
       },

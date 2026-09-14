@@ -621,6 +621,62 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
                 </ul>
               </div>
 
+              {/* Daily Closing & Financial Operations for Receptionist & Staff */}
+              {(user.role === "RECEPTIONIST" || user.role === "STAFF" || user.role === "ADMIN") && (
+                <div>
+                  <div className="px-3 text-[11px] font-semibold uppercase tracking-wider text-amber-400 mb-2 flex items-center justify-between">
+                    <span>Cash &amp; Closing</span>
+                    <span className="text-[9px] bg-amber-950/80 text-amber-300 font-bold border border-amber-800/60 px-1.5 py-0.5 rounded">
+                      Day End
+                    </span>
+                  </div>
+                  <ul className="space-y-1">
+                    <li>
+                      <Link
+                        href="/admin/reports/day-end"
+                        className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${pathname.startsWith("/admin/reports/day-end")
+                            ? "bg-teal-700 text-white shadow-sm"
+                            : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                          }`}
+                      >
+                        <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Day End Report
+                      </Link>
+                    </li>
+                    <li>
+                      <Link
+                        href="/admin/reports/day-end"
+                        className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors text-amber-300 hover:bg-slate-800 hover:text-amber-200`}
+                      >
+                        <svg className="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                        </svg>
+                        Do Day End (Close Day)
+                      </Link>
+                    </li>
+                    <li>
+                      <Link
+                        href="/admin/billing/expenses"
+                        className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${pathname.startsWith("/admin/billing/expenses")
+                            ? "bg-teal-700 text-white shadow-sm"
+                            : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                          }`}
+                      >
+                        <svg className="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+                            d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
+                        </svg>
+                        Hospital Expenses
+                      </Link>
+                    </li>
+                  </ul>
+                </div>
+              )}
+
               {/* Hospital Modules */}
               <div>
                 <div className="px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2 flex items-center justify-between">

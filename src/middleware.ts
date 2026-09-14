@@ -36,6 +36,14 @@ function getRoleDashboard(role: string): string {
 }
 
 function isRoleAuthorizedForPath(role: string, pathname: string): boolean {
+  // Allow receptionists and staff to access day-end report and expenses
+  if (
+    pathname.startsWith("/admin/reports/day-end") ||
+    pathname.startsWith("/admin/billing/expenses")
+  ) {
+    return role === "ADMIN" || role === "RECEPTIONIST" || role === "STAFF";
+  }
+
   if (pathname.startsWith("/admin")) {
     return role === "ADMIN";
   }

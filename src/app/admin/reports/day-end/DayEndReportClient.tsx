@@ -245,8 +245,50 @@ export default function DayEndReportClient() {
     setTimeout(() => fetchDayEndReport(), 0);
   };
 
+  const [isClosingModalOpen, setIsClosingModalOpen] = useState(false);
+  const [closingRemarks, setClosingRemarks] = useState("");
+  const [isSubmittingClosing, setIsSubmittingClosing] = useState(false);
+  const [closingSuccessMsg, setClosingSuccessMsg] = useState<string | null>(null);
+
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleConfirmClosing = async () => {
+    if (!reportData) return;
+    setIsSubmittingClosing(true);
+    try {
+      const res = await fetch("/api/admin/reports/day-end", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          date: reportDate,
+          totalAppointmentsRevenue: reportData.financialSummary.appointmentFees,
+          totalAdmissionsRevenue: reportData.financialSummary.admissionFees,
+          totalExpenses: reportData.financialSummary.totalExpenses,
+          netCashInHand: reportData.financialSummary.netTotal,
+          remarks: closingRemarks || "Day-End Closing Completed by Receptionist / Cashier",
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to record Day End closing");
+      }
+
+      const resJson = await res.json();
+      setClosingSuccessMsg(resJson.message || "Day End closing completed successfully!");
+      setIsClosingModalOpen(false);
+
+      // Trigger print of the official closing slip
+      setTimeout(() => {
+        window.print();
+      }, 400);
+    } catch (err: any) {
+      alert(err.message || "Failed to complete Day End closing");
+    } finally {
+      setIsSubmittingClosing(false);
+    }
   };
 
   // Prepare combined patient records list
@@ -392,6 +434,16 @@ export default function DayEndReportClient() {
           </button>
           <button
             type="button"
+            onClick={() => setIsClosingModalOpen(true)}
+            disabled={!reportData || isLoading}
+            className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-lg transition inline-flex items-center gap-2 shadow-xs cursor-pointer disabled:opacity-50"
+            title="Perform Day End Closing and record official cash handover"
+          >
+            <CheckCircle2 className="w-4 h-4" />
+            <span>Do Day End</span>
+          </button>
+          <button
+            type="button"
             onClick={handlePrint}
             disabled={!reportData || isLoading}
             className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-lg transition inline-flex items-center gap-2 shadow-xs cursor-pointer disabled:opacity-50"
@@ -401,6 +453,23 @@ export default function DayEndReportClient() {
           </button>
         </div>
       </div>
+
+      {/* Closing Success Notification */}
+      {closingSuccessMsg && (
+        <div className="no-print p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-between text-xs font-semibold">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+            <span>{closingSuccessMsg}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setClosingSuccessMsg(null)}
+            className="text-emerald-700 hover:text-emerald-950 font-bold"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Filter Toolbar (Hidden during print) */}
       <form
@@ -836,6 +905,106 @@ export default function DayEndReportClient() {
           )}
         </>
       )}
+
+      {/* Day End Closing Confirmation Modal */}
+      {isClosingModalOpen && reportData && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 no-print">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-emerald-100 text-emerald-800 rounded-lg">
+                  <Receipt className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    Day End Closing &amp; Cash Handover
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Closing Date: <strong className="text-slate-800">{reportDate}</strong>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsClosingModalOpen(false)}
+                className="p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Financial Summary */}
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2 text-xs">
+              <div className="flex justify-between text-slate-600">
+                <span>OPD Appointments Revenue:</span>
+                <span className="font-mono font-bold text-slate-900">
+                  PKR {reportData.financialSummary.appointmentFees.toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between text-slate-600">
+                <span>Inpatient Admissions Revenue:</span>
+                <span className="font-mono font-bold text-slate-900">
+                  PKR {reportData.financialSummary.admissionFees.toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between text-slate-800 font-bold pt-1.5 border-t border-slate-200">
+                <span>Total Gross Collections:</span>
+                <span className="font-mono text-teal-800 font-bold">
+                  PKR {reportData.financialSummary.totalFees.toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between text-rose-700">
+                <span>Less: Total Hospital Expenses:</span>
+                <span className="font-mono font-bold">
+                  - PKR {reportData.financialSummary.totalExpenses.toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-sm font-black text-slate-950 pt-2 border-t-2 border-slate-300">
+                <span>Net Cash in Hand to Handover:</span>
+                <span className="font-mono text-base text-emerald-700">
+                  PKR {reportData.financialSummary.netTotal.toLocaleString()}
+                </span>
+              </div>
+            </div>
+
+            {/* Handover Remarks */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Cash Handover / Closing Remarks (Optional)
+              </label>
+              <textarea
+                rows={2}
+                value={closingRemarks}
+                onChange={(e) => setClosingRemarks(e.target.value)}
+                placeholder="e.g. Cash submitted to supervisor / Safe, denominations verified."
+                className="w-full text-xs p-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-teal-500 bg-white"
+              />
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsClosingModalOpen(false)}
+                disabled={isSubmittingClosing}
+                className="px-4 py-2 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmClosing}
+                disabled={isSubmittingClosing}
+                className="px-5 py-2.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs inline-flex items-center gap-2 shadow-xs cursor-pointer disabled:opacity-50"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>{isSubmittingClosing ? "Closing & Recording..." : "Confirm & Print Day End Slip"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

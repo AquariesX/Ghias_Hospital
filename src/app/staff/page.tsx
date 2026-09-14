@@ -16,6 +16,8 @@ import {
   BedDouble,
   FileCheck2,
   Flame,
+  Receipt,
+  Coins,
 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -666,6 +668,44 @@ export default async function StaffDashboardPage() {
             </div>
             <div className="flex items-center gap-1 text-xs font-semibold mt-4 text-teal-600 group-hover:translate-x-1 transition">
               <span>Open Consents Wizard</span>
+              <ArrowRight className="w-4 h-4" />
+            </div>
+          </Link>
+
+          <Link
+            href="/admin/reports/day-end"
+            className="bg-white border border-slate-200 hover:border-emerald-500 p-5 rounded-xl shadow-xs transition flex flex-col justify-between group"
+          >
+            <div>
+              <div className="p-2.5 rounded-lg bg-emerald-50 text-emerald-700 w-fit mb-3">
+                <Receipt className="w-5 h-5" />
+              </div>
+              <h2 className="text-base font-bold text-slate-900">Day End Closing</h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Audit daily OPD, admissions revenue, deducted expenses, and print closing slip.
+              </p>
+            </div>
+            <div className="flex items-center gap-1 text-xs font-semibold mt-4 text-emerald-600 group-hover:translate-x-1 transition">
+              <span>Do Day End &amp; Report</span>
+              <ArrowRight className="w-4 h-4" />
+            </div>
+          </Link>
+
+          <Link
+            href="/admin/billing/expenses"
+            className="bg-white border border-slate-200 hover:border-amber-500 p-5 rounded-xl shadow-xs transition flex flex-col justify-between group"
+          >
+            <div>
+              <div className="p-2.5 rounded-lg bg-amber-50 text-amber-700 w-fit mb-3">
+                <Coins className="w-5 h-5" />
+              </div>
+              <h2 className="text-base font-bold text-slate-900">Hospital Expenses</h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Record and manage daily operational expenses, generator fuel, supplies, and petty cash.
+              </p>
+            </div>
+            <div className="flex items-center gap-1 text-xs font-semibold mt-4 text-amber-600 group-hover:translate-x-1 transition">
+              <span>Manage Expenses</span>
               <ArrowRight className="w-4 h-4" />
             </div>
           </Link>
