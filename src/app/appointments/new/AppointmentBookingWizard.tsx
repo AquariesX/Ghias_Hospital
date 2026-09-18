@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -24,6 +24,7 @@ import {
   TestTube2,
   DollarSign,
   FileText,
+  RefreshCw,
 } from "lucide-react";
 import AppointmentPrintSlip, { AppointmentSlipData } from "@/components/appointments/AppointmentPrintSlip";
 
@@ -111,7 +112,15 @@ interface SuccessData extends AppointmentSlipData {
   queuePosition: number;
 }
 
-export default function AppointmentBookingWizard() {
+export interface AppointmentBookingWizardProps {
+  initialDepartments?: Department[];
+  initialDoctors?: Doctor[];
+}
+
+export default function AppointmentBookingWizard({
+  initialDepartments = [],
+  initialDoctors = [],
+}: AppointmentBookingWizardProps) {
   const searchParams = useSearchParams();
   const preselectedPatientId = searchParams.get("patientId");
 
@@ -136,9 +145,10 @@ export default function AppointmentBookingWizard() {
   const [testFee, setTestFee] = useState<string>("1500");
 
   // Doctor & Department State
-  const [departments, setDepartments] = useState<Department[]>([]);
+  const [departments, setDepartments] = useState<Department[]>(initialDepartments);
+  const [directDoctors, setDirectDoctors] = useState<Doctor[]>(initialDoctors);
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>("");
-  const [isLoadingDepts, setIsLoadingDepts] = useState(true);
+  const [isLoadingDepts, setIsLoadingDepts] = useState(initialDepartments.length === 0);
 
   // Schedule & Optional notes
   const [appointmentDate, setAppointmentDate] = useState<string>(
@@ -157,24 +167,45 @@ export default function AppointmentBookingWizard() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [successData, setSuccessData] = useState<SuccessData | null>(null);
 
-  // Load Departments & Doctors on mount
-  useEffect(() => {
-    async function loadDepts() {
-      try {
-        setIsLoadingDepts(true);
-        const res = await fetch("/api/appointments/departments");
-        if (res.ok) {
+  // Robust Department & Doctor loader with fallback
+  const fetchDoctorsAndDepts = useCallback(async () => {
+    try {
+      setIsLoadingDepts(true);
+      const res = await fetch("/api/appointments/departments");
+      if (res.ok) {
+        const ct = res.headers.get("content-type");
+        if (ct && ct.includes("application/json")) {
           const data = await res.json();
-          setDepartments(data.departments || []);
+          if (Array.isArray(data.departments) && data.departments.length > 0) {
+            setDepartments(data.departments);
+          }
         }
-      } catch (err) {
-        console.error("Failed to load departments:", err);
-      } finally {
-        setIsLoadingDepts(false);
       }
+
+      // Always query /api/doctors as supplementary/fallback to ensure no doctor is missed
+      const docRes = await fetch("/api/doctors");
+      if (docRes.ok) {
+        const ct = docRes.headers.get("content-type");
+        if (ct && ct.includes("application/json")) {
+          const docData = await docRes.json();
+          if (Array.isArray(docData.doctors) && docData.doctors.length > 0) {
+            setDirectDoctors(docData.doctors);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load departments/doctors:", err);
+    } finally {
+      setIsLoadingDepts(false);
     }
-    loadDepts();
   }, []);
+
+  // Load Departments & Doctors if not preloaded or on refresh
+  useEffect(() => {
+    if (initialDepartments.length === 0 && initialDoctors.length === 0) {
+      fetchDoctorsAndDepts();
+    }
+  }, [initialDepartments.length, initialDoctors.length, fetchDoctorsAndDepts]);
 
   // If patientId preselected in URL (e.g. from patient profile)
   useEffect(() => {
@@ -213,17 +244,42 @@ export default function AppointmentBookingWizard() {
   // Flattened list of active doctors with department info
   const allDoctors = useMemo(() => {
     const list: Array<Doctor & { departmentName: string; departmentId: string }> = [];
+    const seenIds = new Set<string>();
+
     for (const dept of departments) {
+      if (!dept.doctors) continue;
       for (const doc of dept.doctors) {
+        if (!seenIds.has(doc.id)) {
+          seenIds.add(doc.id);
+          list.push({
+            ...doc,
+            departmentName: dept.name,
+            departmentId: dept.id,
+          });
+        }
+      }
+    }
+
+    for (const doc of directDoctors) {
+      if (!seenIds.has(doc.id)) {
+        seenIds.add(doc.id);
         list.push({
           ...doc,
-          departmentName: dept.name,
-          departmentId: dept.id,
+          departmentName: "OPD / General Consultation",
+          departmentId: "general-opd",
         });
       }
     }
+
     return list;
-  }, [departments]);
+  }, [departments, directDoctors]);
+
+  // Auto-select first doctor if none currently selected
+  useEffect(() => {
+    if (!selectedDoctorId && allDoctors.length > 0) {
+      setSelectedDoctorId(allDoctors[0].id);
+    }
+  }, [allDoctors, selectedDoctorId]);
 
   // Selected doctor object
   const selectedDoctor = allDoctors.find((d) => d.id === selectedDoctorId);
@@ -1011,19 +1067,32 @@ export default function AppointmentBookingWizard() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Attending Physician <span className="text-rose-500">*</span>
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold text-slate-700">
+                    Attending Physician <span className="text-rose-500">*</span>
+                  </label>
+                  {allDoctors.length > 0 && (
+                    <span className="text-[11px] text-teal-700 font-semibold bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
+                      {allDoctors.length} {allDoctors.length === 1 ? "doctor" : "doctors"} available
+                    </span>
+                  )}
+                </div>
                 <div className="relative">
                   <Stethoscope className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                   <select
                     required
                     value={selectedDoctorId}
                     onChange={(e) => setSelectedDoctorId(e.target.value)}
-                    disabled={isLoadingDepts}
+                    disabled={isLoadingDepts && allDoctors.length === 0}
                     className="w-full text-sm font-medium pl-9 pr-3 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white disabled:bg-slate-50"
                   >
-                    <option value="">-- Choose Doctor --</option>
+                    <option value="">
+                      {isLoadingDepts && allDoctors.length === 0
+                        ? "-- Loading Doctors... --"
+                        : allDoctors.length === 0
+                        ? "-- No Doctors Available --"
+                        : "-- Choose Doctor --"}
+                    </option>
                     {allDoctors.map((doc) => (
                       <option key={doc.id} value={doc.id}>
                         Dr. {doc.firstName} {doc.lastName} — {doc.specialization} {doc.roomNumber ? `(Room: ${doc.roomNumber})` : (doc.departmentName ? `(${doc.departmentName})` : "")} • Reg: PKR {Number(doc.regularFee ?? doc.consultationFee).toLocaleString()}
@@ -1031,6 +1100,18 @@ export default function AppointmentBookingWizard() {
                     ))}
                   </select>
                 </div>
+                {allDoctors.length === 0 && !isLoadingDepts && (
+                  <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center justify-between text-xs text-amber-800">
+                    <span>No active doctors loaded. Please check doctor records or click retry.</span>
+                    <button
+                      type="button"
+                      onClick={() => fetchDoctorsAndDepts()}
+                      className="px-2.5 py-1 bg-amber-600 text-white rounded font-medium hover:bg-amber-700 text-xs inline-flex items-center gap-1"
+                    >
+                      <RefreshCw className="w-3 h-3" /> Retry
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Selected Doctor Summary Card with 3 Fee Tiers */}

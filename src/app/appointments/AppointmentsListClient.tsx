@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import {
   Calendar,
@@ -70,10 +70,26 @@ interface AppointmentItem {
 interface Department {
   id: string;
   name: string;
-  doctors: Array<{ id: string; firstName: string; lastName: string }>;
+  doctors: Array<{ id: string; firstName: string; lastName: string; specialization?: string | null }>;
 }
 
-export default function AppointmentsListClient() {
+export interface DoctorOption {
+  id: string;
+  firstName: string;
+  lastName: string;
+  specialization?: string | null;
+  departmentId?: string | null;
+}
+
+export interface AppointmentsListClientProps {
+  initialDepartments?: Department[];
+  initialDoctors?: DoctorOption[];
+}
+
+export default function AppointmentsListClient({
+  initialDepartments = [],
+  initialDoctors = [],
+}: AppointmentsListClientProps) {
   // Filters
   const [dateFilter, setDateFilter] = useState<string>("today");
   const [customDate, setCustomDate] = useState<string>("");
@@ -85,7 +101,8 @@ export default function AppointmentsListClient() {
 
   // Data & State
   const [appointments, setAppointments] = useState<AppointmentItem[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
+  const [departments, setDepartments] = useState<Department[]>(initialDepartments);
+  const [allDoctorsList, setAllDoctorsList] = useState<DoctorOption[]>(initialDoctors);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [page, setPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
@@ -99,21 +116,60 @@ export default function AppointmentsListClient() {
   // Print Token Slip modal
   const [printSlipApt, setPrintSlipApt] = useState<AppointmentItem | null>(null);
 
-  // Fetch departments for dropdown filters
+  // Fetch departments & doctors for dropdown filters if not preloaded
   useEffect(() => {
-    async function loadDepts() {
+    async function loadDeptsAndDoctors() {
       try {
         const res = await fetch("/api/appointments/departments");
         if (res.ok) {
-          const data = await res.json();
-          setDepartments(data.departments || []);
+          const ct = res.headers.get("content-type");
+          if (ct && ct.includes("application/json")) {
+            const data = await res.json();
+            if (Array.isArray(data.departments) && data.departments.length > 0) {
+              setDepartments(data.departments);
+            }
+          }
+        }
+
+        const docRes = await fetch("/api/doctors");
+        if (docRes.ok) {
+          const ct = docRes.headers.get("content-type");
+          if (ct && ct.includes("application/json")) {
+            const docData = await docRes.json();
+            if (Array.isArray(docData.doctors) && docData.doctors.length > 0) {
+              setAllDoctorsList(docData.doctors);
+            }
+          }
         }
       } catch (err) {
-        console.error("Failed to load departments:", err);
+        console.error("Failed to load departments/doctors:", err);
       }
     }
-    loadDepts();
-  }, []);
+    if (initialDepartments.length === 0 || initialDoctors.length === 0) {
+      loadDeptsAndDoctors();
+    }
+  }, [initialDepartments.length, initialDoctors.length]);
+
+  // Derived available doctors list based on selected department
+  const availableDoctors = useMemo(() => {
+    if (departmentId) {
+      const dept = departments.find((d) => d.id === departmentId);
+      if (dept && dept.doctors && dept.doctors.length > 0) {
+        return dept.doctors;
+      }
+      return allDoctorsList.filter((doc) => doc.departmentId === departmentId);
+    }
+    const map = new Map<string, { id: string; firstName: string; lastName: string; specialization?: string | null }>();
+    for (const doc of allDoctorsList) {
+      map.set(doc.id, doc);
+    }
+    for (const dept of departments) {
+      for (const doc of dept.doctors || []) {
+        map.set(doc.id, doc);
+      }
+    }
+    return Array.from(map.values());
+  }, [departments, departmentId, allDoctorsList]);
 
   // Fetch appointments effect
   useEffect(() => {
@@ -328,9 +384,9 @@ export default function AppointmentsListClient() {
         </div>
 
         {/* Dropdowns & Search */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2.5 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5 text-xs">
           {/* Search box */}
-          <div className="md:col-span-2 relative">
+          <div className="sm:col-span-2 lg:col-span-2 relative">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
@@ -359,6 +415,25 @@ export default function AppointmentsListClient() {
               {departments.map((d, index) => (
                 <option key={`${d.id}-${index}`} value={d.id}>
                   {d.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Doctor dropdown */}
+          <div>
+            <select
+              value={doctorId}
+              onChange={(e) => {
+                setDoctorId(e.target.value);
+                setPage(1);
+              }}
+              className="w-full p-2 text-xs rounded-lg border border-slate-300 text-black bg-white focus:ring-1 focus:ring-teal-500"
+            >
+              <option value="">All Doctors ({availableDoctors.length})</option>
+              {availableDoctors.map((doc) => (
+                <option key={doc.id} value={doc.id}>
+                  Dr. {doc.firstName} {doc.lastName}
                 </option>
               ))}
             </select>
