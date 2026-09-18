@@ -31,8 +31,14 @@ const createAdmissionSchema = z.object({
   operation: z.string().optional().nullable(),
   presentingComplaints: z.string().optional().nullable(),
   medicationHistory: z.string().optional().nullable(),
+  medicalHistory: z.string().optional().nullable(),
   familyHistory: z.string().optional().nullable(),
-  allergies: z.array(z.string()).optional(),
+  allergies: z.union([z.array(z.string()), z.string()]).optional().nullable(),
+  generalExamination: z.string().optional().nullable(),
+  generalPhysicalExamination: z.string().optional().nullable(),
+  investigations: z.string().optional().nullable(),
+  nutritionalStatus: z.string().optional().nullable(),
+  advisedDiet: z.string().optional().nullable(),
   treatmentPlan: z.string().optional().nullable(),
   admissionFee: z.union([z.number(), z.string()]).optional().nullable(),
   // Baseline vitals
@@ -40,6 +46,7 @@ const createAdmissionSchema = z.object({
   temperature: z.number().optional().nullable(),
   systolicBP: z.number().int().optional().nullable(),
   diastolicBP: z.number().int().optional().nullable(),
+  respiratoryRate: z.number().int().optional().nullable(),
   weight: z.number().optional().nullable(),
   height: z.number().optional().nullable(),
 });
@@ -382,6 +389,23 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      // Parse allergies
+      let parsedAllergies: string[] = [];
+      if (Array.isArray(val.allergies)) {
+        parsedAllergies = val.allergies.map((a) => a.trim()).filter(Boolean);
+      } else if (typeof val.allergies === "string") {
+        parsedAllergies = val.allergies.split(",").map((a) => a.trim()).filter(Boolean);
+      } else if (patient.allergies && Array.isArray(patient.allergies)) {
+        parsedAllergies = patient.allergies;
+      }
+
+      // Calculate BMI if height (in cm) and weight (in kg) are provided
+      let calculatedBmi: number | null = null;
+      if (val.weight && val.height && Number(val.height) > 0) {
+        const heightInMeters = Number(val.height) / 100;
+        calculatedBmi = Math.round((Number(val.weight) / (heightInMeters * heightInMeters)) * 10) / 10;
+      }
+
       const newAdm = await tx.admission.create({
         data: {
           admissionNumber,
@@ -398,9 +422,13 @@ export async function POST(request: NextRequest) {
           finalDiagnosis: val.finalDiagnosis || null,
           operation: val.operation || null,
           presentingComplaints: val.presentingComplaints || null,
-          medicationHistory: val.medicationHistory || null,
+          medicationHistory: val.medicationHistory || val.medicalHistory || null,
           familyHistory: val.familyHistory || null,
-          allergies: val.allergies || patient.allergies || [],
+          allergies: parsedAllergies,
+          generalExamination: val.generalExamination || val.generalPhysicalExamination || null,
+          investigations: val.investigations || null,
+          nutritionalStatus: val.nutritionalStatus || null,
+          advisedDiet: val.advisedDiet || null,
           treatmentPlan: val.treatmentPlan || null,
           pulse: val.pulse || null,
           temperature: val.temperature ? val.temperature : null,
@@ -408,6 +436,7 @@ export async function POST(request: NextRequest) {
           diastolicBP: val.diastolicBP || null,
           weight: val.weight ? val.weight : null,
           height: val.height ? val.height : null,
+          bmi: calculatedBmi ? new Prisma.Decimal(calculatedBmi) : null,
           admissionFee: val.admissionFee != null && val.admissionFee !== ""
             ? new Prisma.Decimal(Number(val.admissionFee))
             : null,
@@ -417,7 +446,7 @@ export async function POST(request: NextRequest) {
       });
 
       // If baseline vitals were provided, record baseline vitalSign row
-      if (val.pulse || val.systolicBP || val.diastolicBP || val.temperature) {
+      if (val.pulse || val.systolicBP || val.diastolicBP || val.temperature || val.respiratoryRate || val.weight || val.height) {
         await tx.vitalSign.create({
           data: {
             patientId: patient.id,
@@ -427,14 +456,25 @@ export async function POST(request: NextRequest) {
             diastolicBP: val.diastolicBP || null,
             pulse: val.pulse || null,
             temperature: val.temperature ? val.temperature : null,
+            respiratoryRate: val.respiratoryRate || null,
             weight: val.weight ? val.weight : null,
             height: val.height ? val.height : null,
+            bmi: calculatedBmi ? new Prisma.Decimal(calculatedBmi) : null,
             generalCondition: "Stable",
             observations: "Recorded at hospital admission",
             recordedById: user.id,
             recordedByName: `${user.firstName} ${user.lastName}`,
             recordedByRole: user.role,
           },
+        });
+      }
+
+      // Update patient's registered allergies if new ones provided
+      if (parsedAllergies.length > 0) {
+        const mergedAllergies = Array.from(new Set([...(patient.allergies || []), ...parsedAllergies]));
+        await tx.patient.update({
+          where: { id: patient.id },
+          data: { allergies: mergedAllergies },
         });
       }
 

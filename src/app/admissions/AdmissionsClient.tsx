@@ -21,6 +21,13 @@ import {
   Activity,
   ShieldAlert,
   DollarSign,
+  Printer,
+  ClipboardList,
+  HeartPulse,
+  Scale,
+  UtensilsCrossed,
+  FileText,
+  FlaskConical,
 } from "lucide-react";
 
 interface DoctorOption {
@@ -69,6 +76,7 @@ interface PatientResult {
   relationType?: string | null;
   relatedPersonName?: string | null;
   status: string;
+  allergies?: string[];
 }
 
 function calculateAgeYears(dobString?: string | null): number | "" {
@@ -100,7 +108,11 @@ function formatSystemTime(date: Date = new Date()): string {
   });
 }
 
-export default function AdmissionsClient() {
+export default function AdmissionsClient({
+  initialRooms,
+}: {
+  initialRooms?: AvailableRoom[];
+} = {}) {
   const searchParams = useSearchParams();
 
   const queryPatientId = searchParams.get("patientId");
@@ -134,8 +146,8 @@ export default function AdmissionsClient() {
 
   // Admission & Bed Details
   const [admissionSource, setAdmissionSource] = useState<"IPD" | "EMERGENCY">("IPD");
-  const [availableRooms, setAvailableRooms] = useState<AvailableRoom[]>([]);
-  const [isLoadingRooms, setIsLoadingRooms] = useState(true);
+  const [availableRooms, setAvailableRooms] = useState<AvailableRoom[]>(initialRooms || []);
+  const [isLoadingRooms, setIsLoadingRooms] = useState(!initialRooms || initialRooms.length === 0);
   const [selectedRoomId, setSelectedRoomId] = useState("");
   const [selectedBedId, setSelectedBedId] = useState("");
   const [roomBedNo, setRoomBedNo] = useState("");
@@ -146,10 +158,36 @@ export default function AdmissionsClient() {
   const [systemDate, setSystemDate] = useState<string>(() => formatSystemDate());
   const [systemTime, setSystemTime] = useState<string>(() => formatSystemTime());
 
-  // Clinical Details
+  // Clinical Assessment Information (From Physical Chart Reg No. R-59488)
+  const [presentingComplaints, setPresentingComplaints] = useState("");
+  const [medicationHistory, setMedicationHistory] = useState("");
+  const [familyHistory, setFamilyHistory] = useState("");
+  const [allergies, setAllergies] = useState("");
+
+  // Baseline Vitals
+  const [pulse, setPulse] = useState<number | "">("");
+  const [temperature, setTemperature] = useState<number | "">("");
+  const [systolicBP, setSystolicBP] = useState<number | "">("");
+  const [diastolicBP, setDiastolicBP] = useState<number | "">("");
+  const [respiratoryRate, setRespiratoryRate] = useState<number | "">("");
+
+  // Physical Examination
+  const [generalExamination, setGeneralExamination] = useState("");
+
+  // Diagnostic Details
   const [provisionalDiagnosis, setProvisionalDiagnosis] = useState(queryDiagnosis || "");
+  const [investigations, setInvestigations] = useState("");
   const [finalDiagnosis, setFinalDiagnosis] = useState("");
   const [operation, setOperation] = useState("");
+
+  // Nutritional Status & Diet
+  const [weight, setWeight] = useState<number | "">("");
+  const [height, setHeight] = useState<number | "">("");
+  const [nutritionalStatus, setNutritionalStatus] = useState("Well-nourished");
+  const [advisedDiet, setAdvisedDiet] = useState("");
+
+  // Treatment Plan (Optional)
+  const [treatmentPlan, setTreatmentPlan] = useState("");
 
   // Submission & Feedback
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -179,11 +217,14 @@ export default function AdmissionsClient() {
   const fetchNextMRNumber = async () => {
     try {
       const res = await fetch("/api/patients/next-number");
+      if (!res.ok) return;
+      const cType = res.headers.get("content-type");
+      if (!cType || !cType.includes("application/json")) return;
       const json = await res.json();
-      if (res.ok && json.data?.mrNumber) {
+      if (json.data?.mrNumber) {
         setAutoMrNumber(json.data.mrNumber);
         setMrNumber(json.data.mrNumber);
-      } else if (res.ok && json.mrNumber) {
+      } else if (json.mrNumber) {
         setAutoMrNumber(json.mrNumber);
         setMrNumber(json.mrNumber);
       }
@@ -203,9 +244,14 @@ export default function AdmissionsClient() {
   useEffect(() => {
     let isMounted = true;
     fetch("/api/doctors")
-      .then((r) => r.json())
+      .then(async (r) => {
+        if (!r.ok) return null;
+        const cType = r.headers.get("content-type");
+        if (!cType || !cType.includes("application/json")) return null;
+        return r.json();
+      })
       .then((data) => {
-        if (isMounted) {
+        if (isMounted && data) {
           const list = Array.isArray(data.data) ? data.data : Array.isArray(data.doctors) ? data.doctors : [];
           setDoctors(list);
         }
@@ -225,8 +271,21 @@ export default function AdmissionsClient() {
     setIsLoadingRooms(true);
     try {
       const res = await fetch("/api/rooms/available");
+      if (!res.ok) {
+        if (res.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        console.warn(`Failed to fetch rooms: HTTP ${res.status}`);
+        return;
+      }
+      const cType = res.headers.get("content-type");
+      if (!cType || !cType.includes("application/json")) {
+        console.warn("Expected JSON from /api/rooms/available, got:", cType);
+        return;
+      }
       const json = await res.json();
-      if (res.ok && Array.isArray(json.rooms)) {
+      if (Array.isArray(json.rooms)) {
         setAvailableRooms(json.rooms);
       }
     } catch (err) {
@@ -237,23 +296,10 @@ export default function AdmissionsClient() {
   };
 
   useEffect(() => {
-    let isMounted = true;
-    fetch("/api/rooms/available")
-      .then((res) => res.json())
-      .then((json) => {
-        if (isMounted && Array.isArray(json.rooms)) {
-          setAvailableRooms(json.rooms);
-        }
-      })
-      .catch((err) => console.error("Failed to load available rooms:", err))
-      .finally(() => {
-        if (isMounted) setIsLoadingRooms(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+    if (!initialRooms || initialRooms.length === 0) {
+      fetchAvailableRooms();
+    }
+  }, [initialRooms]);
 
   const handleRoomChange = (roomId: string) => {
     setSelectedRoomId(roomId);
@@ -288,6 +334,9 @@ export default function AdmissionsClient() {
     setAddress(p.address || "");
     setPhone(p.phone || "");
     setCnic(p.cnic || "");
+    if (p.allergies && Array.isArray(p.allergies) && p.allergies.length > 0) {
+      setAllergies(p.allergies.join(", "));
+    }
   };
 
   // Pre-load patient if queryPatientId provided in URL
@@ -343,6 +392,7 @@ export default function AdmissionsClient() {
     setAddress("");
     setPhone("");
     setCnic("");
+    setAllergies("");
     fetchNextMRNumber();
   };
 
@@ -385,9 +435,28 @@ export default function AdmissionsClient() {
         bedId: selectedBedId || undefined,
         roomBedNo: roomBedNo.trim(),
         admissionFee: admissionFee ? Number(admissionFee) : undefined,
+        // Clinical Assessment (Chart Reg No. R-59488)
+        presentingComplaints: presentingComplaints.trim() || undefined,
+        medicationHistory: medicationHistory.trim() || undefined,
+        medicalHistory: medicationHistory.trim() || undefined,
+        familyHistory: familyHistory.trim() || undefined,
+        allergies: allergies.trim() ? allergies.split(",").map((s) => s.trim()).filter(Boolean) : undefined,
+        generalExamination: generalExamination.trim() || undefined,
+        generalPhysicalExamination: generalExamination.trim() || undefined,
         provisionalDiagnosis: provisionalDiagnosis.trim() || undefined,
+        investigations: investigations.trim() || undefined,
         finalDiagnosis: finalDiagnosis.trim() || undefined,
         operation: operation.trim() || undefined,
+        nutritionalStatus: nutritionalStatus.trim() || undefined,
+        advisedDiet: advisedDiet.trim() || undefined,
+        treatmentPlan: treatmentPlan.trim() || undefined,
+        pulse: pulse !== "" ? Number(pulse) : undefined,
+        temperature: temperature !== "" ? Number(temperature) : undefined,
+        systolicBP: systolicBP !== "" ? Number(systolicBP) : undefined,
+        diastolicBP: diastolicBP !== "" ? Number(diastolicBP) : undefined,
+        respiratoryRate: respiratoryRate !== "" ? Number(respiratoryRate) : undefined,
+        weight: weight !== "" ? Number(weight) : undefined,
+        height: height !== "" ? Number(height) : undefined,
       };
 
       const res = await fetch("/api/admissions", {
@@ -437,9 +506,25 @@ export default function AdmissionsClient() {
     setRoomBedNo("");
     setSelectedDoctorId("");
     setAdmissionFee("");
+    setPresentingComplaints("");
+    setMedicationHistory("");
+    setFamilyHistory("");
+    setAllergies("");
+    setPulse("");
+    setTemperature("");
+    setSystolicBP("");
+    setDiastolicBP("");
+    setRespiratoryRate("");
+    setGeneralExamination("");
     setProvisionalDiagnosis("");
+    setInvestigations("");
     setFinalDiagnosis("");
     setOperation("");
+    setWeight("");
+    setHeight("");
+    setNutritionalStatus("Well-nourished");
+    setAdvisedDiet("");
+    setTreatmentPlan("");
     setAdmissionSource("IPD");
     fetchAvailableRooms();
   };
@@ -505,11 +590,20 @@ export default function AdmissionsClient() {
 
           <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-slate-100">
             <Link
-              href={`/reception/permissions?patientId=${successData.patientId}&admissionId=${successData.admissionId}`}
-              className="inline-flex items-center gap-2 text-xs font-bold text-white bg-teal-800 hover:bg-teal-900 px-5 py-2.5 rounded-xl shadow-xs transition"
+              href={`/admissions/${successData.admissionId}/assessment`}
+              target="_blank"
+              className="inline-flex items-center gap-2 text-xs font-bold text-white bg-slate-900 hover:bg-black px-5 py-2.5 rounded-xl shadow-xs transition"
             >
-              <FileCheck2 className="w-4 h-4" />
-              <span>Generate Patient Consents Now</span>
+              <Printer className="w-4 h-4 text-teal-300" />
+              <span>Print Clinical Assessment Sheet (Reg No. R-59488)</span>
+            </Link>
+
+            <Link
+              href={`/reception/permissions?patientId=${successData.patientId}&admissionId=${successData.admissionId}`}
+              className="inline-flex items-center gap-2 text-xs font-bold text-teal-900 bg-teal-50 border border-teal-200 hover:bg-teal-100 px-5 py-2.5 rounded-xl shadow-2xs transition"
+            >
+              <FileCheck2 className="w-4 h-4 text-teal-700" />
+              <span>Generate Patient Consents</span>
             </Link>
 
             <Link
@@ -1200,64 +1294,412 @@ export default function AdmissionsClient() {
             </div>
           </div>
 
-          {/* SECTION 4: CLINICAL INFORMATION ENTERED DURING ADMISSION */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-5">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <span className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-teal-700" />
-                <span>4. Clinical Information Entered During Admission</span>
-              </span>
-              <span className="text-[11px] font-medium text-slate-400">
-                Admitting Diagnosis & Surgical Details
+          {/* SECTION 4: CLINICAL ASSESSMENT & PATIENT HISTORY (GHIAS HOSPITAL PHALIA REG NO. R-59488) */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-3 border-b border-slate-100 gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-teal-50 border border-teal-200 text-teal-800 flex items-center justify-center shrink-0">
+                  <ClipboardList className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-slate-900 uppercase tracking-wider block">
+                    4. Patient Clinical Assessment &amp; History
+                  </span>
+                  <span className="text-[11px] text-slate-500">
+                    Inpatient Assessment Chart • Standard Registry No. R-59488
+                  </span>
+                </div>
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-teal-50 text-teal-800 border border-teal-200 self-start sm:self-auto">
+                Physical Slip Sync
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-              {/* Provisional Diagnosis */}
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Provisional Diagnosis
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Acute Appendicitis, Observation"
-                  value={provisionalDiagnosis}
-                  onChange={(e) => setProvisionalDiagnosis(e.target.value)}
-                  className="w-full text-xs text-black border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white"
-                />
+            {/* Sub-Card A: History & Symptoms */}
+            <div className="bg-slate-50/60 border border-slate-200 rounded-2xl p-4.5 space-y-4">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-800 uppercase tracking-wider pb-2 border-b border-slate-200/60">
+                <FileText className="w-3.5 h-3.5 text-teal-700" />
+                <span>Clinical History &amp; Presenting Complaints</span>
               </div>
 
-              {/* Final Diagnosis */}
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Final Diagnosis (Optional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="Confirmed clinical diagnosis"
-                  value={finalDiagnosis}
-                  onChange={(e) => setFinalDiagnosis(e.target.value)}
-                  className="w-full text-xs text-black border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                {/* Presenting Complaints */}
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Presenting Complaints
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="Chief complaints & symptoms prompting admission (e.g. severe lower abdominal pain for 2 days, vomiting, high fever)..."
+                    value={presentingComplaints}
+                    onChange={(e) => setPresentingComplaints(e.target.value)}
+                    className="w-full text-xs text-black border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white"
+                  />
+                </div>
+
+                {/* Medication / Medical History */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Medication / Medical History
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="Past illnesses, previous hospitalizations, current medications..."
+                    value={medicationHistory}
+                    onChange={(e) => setMedicationHistory(e.target.value)}
+                    className="w-full text-xs text-black border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white"
+                  />
+                </div>
+
+                {/* Family History */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Family History
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="Familial conditions e.g. Diabetes, Hypertension, Asthma, Ischemic Heart Disease..."
+                    value={familyHistory}
+                    onChange={(e) => setFamilyHistory(e.target.value)}
+                    className="w-full text-xs text-black border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white"
+                  />
+                </div>
+
+                {/* Allergies with quick chips */}
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Allergies
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Penicillin, NSAIDs, Sulfa, Dust, Eggs (comma-separated)"
+                    value={allergies}
+                    onChange={(e) => setAllergies(e.target.value)}
+                    className="w-full text-xs text-black border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white font-medium"
+                  />
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Quick Add:</span>
+                    {["No Known Allergies (NKA)", "Penicillin", "NSAIDs", "Sulfa", "Aspirin", "Latex", "Cephalosporins"].map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => {
+                          if (!allergies) {
+                            setAllergies(item);
+                          } else if (!allergies.includes(item)) {
+                            setAllergies(`${allergies}, ${item}`);
+                          }
+                        }}
+                        className="text-[10px] px-2 py-0.5 rounded-md border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 font-medium transition cursor-pointer"
+                      >
+                        + {item}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Sub-Card B: Baseline Vitals & General Physical Examination */}
+            <div className="bg-slate-50/60 border border-slate-200 rounded-2xl p-4.5 space-y-4">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200/60">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  <HeartPulse className="w-3.5 h-3.5 text-rose-600" />
+                  <span>Baseline Vitals &amp; General Physical Examination</span>
+                </div>
+                <span className="text-[10px] text-slate-400 font-medium">Auto-recorded to patient Vital Signs</span>
               </div>
 
-              {/* Operation (if any) */}
+              {/* Vitals Strip matching physical chart: Pulse | Temp | BP | R/R */}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                {/* Pulse */}
+                <div>
+                  <label className="block text-[10.5px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Pulse (bpm)
+                  </label>
+                  <input
+                    type="number"
+                    min="30"
+                    max="220"
+                    placeholder="e.g. 78"
+                    value={pulse}
+                    onChange={(e) => setPulse(e.target.value === "" ? "" : parseInt(e.target.value, 10))}
+                    className="w-full text-xs text-black font-mono font-bold border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white"
+                  />
+                </div>
+
+                {/* Temp */}
+                <div>
+                  <label className="block text-[10.5px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Temp (°F)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="90"
+                    max="110"
+                    placeholder="e.g. 98.6"
+                    value={temperature}
+                    onChange={(e) => setTemperature(e.target.value === "" ? "" : parseFloat(e.target.value))}
+                    className="w-full text-xs text-black font-mono font-bold border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white"
+                  />
+                </div>
+
+                {/* Blood Pressure (BP) */}
+                <div className="col-span-2 sm:col-span-2">
+                  <label className="block text-[10.5px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Blood Pressure (Systolic / Diastolic)
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      min="50"
+                      max="260"
+                      placeholder="Sys (120)"
+                      value={systolicBP}
+                      onChange={(e) => setSystolicBP(e.target.value === "" ? "" : parseInt(e.target.value, 10))}
+                      className="w-full text-xs text-black font-mono font-bold border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white"
+                    />
+                    <span className="text-slate-400 font-bold">/</span>
+                    <input
+                      type="number"
+                      min="30"
+                      max="160"
+                      placeholder="Dia (80)"
+                      value={diastolicBP}
+                      onChange={(e) => setDiastolicBP(e.target.value === "" ? "" : parseInt(e.target.value, 10))}
+                      className="w-full text-xs text-black font-mono font-bold border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white"
+                    />
+                    <span className="text-[10px] text-slate-400 font-bold">mmHg</span>
+                  </div>
+                </div>
+
+                {/* Respiratory Rate (R/R) */}
+                <div className="col-span-2 sm:col-span-1">
+                  <label className="block text-[10.5px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    R/R (/min)
+                  </label>
+                  <input
+                    type="number"
+                    min="8"
+                    max="60"
+                    placeholder="e.g. 18"
+                    value={respiratoryRate}
+                    onChange={(e) => setRespiratoryRate(e.target.value === "" ? "" : parseInt(e.target.value, 10))}
+                    className="w-full text-xs text-black font-mono font-bold border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white"
+                  />
+                </div>
+              </div>
+
+              {/* General Physical Examination (GPE) */}
               <div>
                 <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Operation (if any)
+                  General Physical Examination (GPE)
                 </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Laparoscopic Appendectomy"
-                  value={operation}
-                  onChange={(e) => setOperation(e.target.value)}
+                <textarea
+                  rows={2}
+                  placeholder="Bedside examination findings: Pallor, Cyanosis, Jaundice, Edema, Clubbing, Chest / CVS / Abdomen / CNS status..."
+                  value={generalExamination}
+                  onChange={(e) => setGeneralExamination(e.target.value)}
                   className="w-full text-xs text-black border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white"
                 />
               </div>
             </div>
 
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-[11px] text-slate-600">
-              <span className="font-bold text-slate-700">Clinical Workflow Note:</span> Stored directly in the Admission record. Intake vital signs, nursing notes, and bedside assessments are administered directly by the ward nurse upon patient transfer.
+            {/* Sub-Card C: Diagnostics & Investigations */}
+            <div className="bg-slate-50/60 border border-slate-200 rounded-2xl p-4.5 space-y-4">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-800 uppercase tracking-wider pb-2 border-b border-slate-200/60">
+                <FlaskConical className="w-3.5 h-3.5 text-teal-700" />
+                <span>Diagnosis &amp; Investigations</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                {/* Provisional Diagnosis */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Provisional Diagnosis
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Acute Appendicitis, Observation"
+                    value={provisionalDiagnosis}
+                    onChange={(e) => setProvisionalDiagnosis(e.target.value)}
+                    className="w-full text-xs text-black border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white font-medium"
+                  />
+                </div>
+
+                {/* Final Diagnosis */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Final Diagnosis (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Confirmed clinical diagnosis upon workup"
+                    value={finalDiagnosis}
+                    onChange={(e) => setFinalDiagnosis(e.target.value)}
+                    className="w-full text-xs text-black border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white font-medium"
+                  />
+                </div>
+
+                {/* Investigations */}
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Investigations
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="Required laboratory & radiology tests (e.g. CBC, Serum Creatinine, Blood Sugar Random, Ultrasound Abdomen, X-Ray Chest)..."
+                    value={investigations}
+                    onChange={(e) => setInvestigations(e.target.value)}
+                    className="w-full text-xs text-black border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white"
+                  />
+                </div>
+
+                {/* Operation (if any) */}
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Operation / Surgical Procedure (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Laparoscopic Appendectomy, Hernioplasty, Wound Debridement"
+                    value={operation}
+                    onChange={(e) => setOperation(e.target.value)}
+                    className="w-full text-xs text-black border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Sub-Card D: Nutritional Status & Advised Diet */}
+            <div className="bg-slate-50/60 border border-slate-200 rounded-2xl p-4.5 space-y-4">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200/60">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  <Scale className="w-3.5 h-3.5 text-teal-700" />
+                  <span>Nutritional Status &amp; Advised Diet</span>
+                </div>
+                {weight && height && Number(height) > 0 && (
+                  <span className="text-[10px] font-bold text-teal-800 bg-teal-100 px-2 py-0.5 rounded-full font-mono">
+                    BMI: {(Number(weight) / Math.pow(Number(height) / 100, 2)).toFixed(1)} kg/m²
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                {/* Weight */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Weight (kg)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="1"
+                    max="300"
+                    placeholder="e.g. 70"
+                    value={weight}
+                    onChange={(e) => setWeight(e.target.value === "" ? "" : parseFloat(e.target.value))}
+                    className="w-full text-xs text-black font-mono font-bold border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white"
+                  />
+                </div>
+
+                {/* Height */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Height (cm)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    min="30"
+                    max="250"
+                    placeholder="e.g. 170"
+                    value={height}
+                    onChange={(e) => setHeight(e.target.value === "" ? "" : parseFloat(e.target.value))}
+                    className="w-full text-xs text-black font-mono font-bold border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white"
+                  />
+                </div>
+
+                {/* Nutritional Status */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Nutritional Status
+                  </label>
+                  <select
+                    value={nutritionalStatus}
+                    onChange={(e) => setNutritionalStatus(e.target.value)}
+                    className="w-full text-xs text-black border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white font-medium"
+                  >
+                    <option value="Well-nourished">Well-nourished</option>
+                    <option value="Moderate / Fair">Moderate / Fair</option>
+                    <option value="Mild Malnutrition">Mild Malnutrition</option>
+                    <option value="Severe Malnutrition">Severe Malnutrition</option>
+                    <option value="Obese">Obese</option>
+                  </select>
+                </div>
+
+                {/* Advised Diet with presets */}
+                <div className="sm:col-span-3">
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center gap-1">
+                    <UtensilsCrossed className="w-3 h-3 text-slate-500" />
+                    <span>Advised Diet</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Normal diet, Soft diet, Low salt, Diabetic diet, NPO"
+                    value={advisedDiet}
+                    onChange={(e) => setAdvisedDiet(e.target.value)}
+                    className="w-full text-xs text-black border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white font-medium"
+                  />
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Presets:</span>
+                    {[
+                      "Normal / Regular Diet",
+                      "Soft Diet",
+                      "Diabetic Diet",
+                      "Low Salt / Cardiac",
+                      "High Protein",
+                      "NPO (Nil by mouth)",
+                      "Liquid Diet",
+                    ].map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => setAdvisedDiet(item)}
+                        className={`text-[10px] px-2 py-0.5 rounded-md border font-medium transition cursor-pointer ${
+                          advisedDiet === item
+                            ? "bg-teal-700 text-white border-teal-700 font-bold"
+                            : "border-slate-200 bg-white hover:bg-slate-100 text-slate-600"
+                        }`}
+                      >
+                        {item}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Sub-Card E: Treatment Plan (Optional) */}
+            <div className="bg-slate-50/60 border border-slate-200 rounded-2xl p-4.5 space-y-3">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200/60">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  <Stethoscope className="w-3.5 h-3.5 text-teal-700" />
+                  <span>Treatment Plan (Optional)</span>
+                </div>
+                <span className="text-[10px] text-slate-400">Can be refined further by Ward Doctor &amp; Nurse</span>
+              </div>
+
+              <div>
+                <textarea
+                  rows={3}
+                  placeholder="Initial treatment instructions, IV fluid orders, emergency medications, nursing monitoring frequency..."
+                  value={treatmentPlan}
+                  onChange={(e) => setTreatmentPlan(e.target.value)}
+                  className="w-full text-xs text-black border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 bg-white"
+                />
+              </div>
             </div>
           </div>
 

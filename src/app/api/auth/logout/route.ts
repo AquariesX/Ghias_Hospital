@@ -7,15 +7,29 @@ export async function POST() {
     const cookieStore = await cookies();
     cookieStore.delete(COOKIE_NAME);
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       message: "Logged out successfully",
     });
+
+    response.cookies.set(COOKIE_NAME, "", {
+      path: "/",
+      maxAge: 0,
+      expires: new Date(0),
+    });
+
+    return response;
   } catch (error) {
     console.error("Logout API error:", error);
-    return NextResponse.json(
-      { error: "Failed to process logout" },
-      { status: 500 }
+    const response = NextResponse.json(
+      { success: true, message: "Logged out" },
+      { status: 200 }
     );
+    response.cookies.set(COOKIE_NAME, "", {
+      path: "/",
+      maxAge: 0,
+      expires: new Date(0),
+    });
+    return response;
   }
 }

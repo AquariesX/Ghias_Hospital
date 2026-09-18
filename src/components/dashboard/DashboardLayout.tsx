@@ -30,20 +30,16 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
   const handleLogout = async () => {
     try {
       setIsLoggingOut(true);
-      const res = await fetch("/api/auth/logout", {
+      await fetch("/api/auth/logout", {
         method: "POST",
+      }).catch((err) => {
+        console.warn("Logout request network warning:", err);
       });
-
-      if (res.ok) {
-        router.push("/login");
-        router.refresh();
-      } else {
-        console.error("Logout request failed");
-        setIsLoggingOut(false);
-      }
     } catch (error) {
       console.error("Logout error:", error);
-      setIsLoggingOut(false);
+    } finally {
+      // Force hard redirect to login to clear all in-memory client state
+      window.location.href = "/login";
     }
   };
 
