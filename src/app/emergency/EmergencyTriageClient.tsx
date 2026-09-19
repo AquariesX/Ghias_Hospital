@@ -771,7 +771,7 @@ export default function EmergencyTriageClient({
           <div className="flex items-center gap-2 mb-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-rose-600 animate-ping inline-block" />
             <span className="text-xs font-bold uppercase tracking-wider text-rose-700 bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-200">
-              Ghias Hospital Phalia • REG No. 59488
+              Ghias Hospital Phalia â€¢ REG No. 59488
             </span>
             <span className="text-xs font-semibold text-slate-500">
               Triage Assessment Area &amp; Emergency Station
@@ -1023,13 +1023,13 @@ export default function EmergencyTriageClient({
                         </Link>
                         <div className="text-xs text-slate-500 mt-0.5">
                           {item.patient.relationType && item.patient.relatedPersonName
-                            ? `${item.patient.relationType} ${item.patient.relatedPersonName} • `
+                            ? `${item.patient.relationType} ${item.patient.relatedPersonName} â€¢ `
                             : ""}
                           <span className="font-semibold text-slate-700">{item.patient.gender}</span>
                         </div>
                         <div className="text-[11px] text-slate-500 flex flex-wrap items-center gap-1.5 mt-1">
                           <span className="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-slate-700 font-medium">
-                            📞 {item.patient.phone}
+                            ðŸ“ž {item.patient.phone}
                           </span>
                           {item.patient.cnic && (
                             <span className="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-slate-600 text-[10px]">
@@ -1080,23 +1080,23 @@ export default function EmergencyTriageClient({
                       <td className="py-3.5 px-4 text-xs text-slate-800 whitespace-nowrap">
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span className="bg-blue-50 text-blue-800 border border-blue-200 px-1.5 py-0.5 rounded text-[11px] font-mono font-bold">
-                            BP {item.systolicBP && item.diastolicBP ? `${item.systolicBP}/${item.diastolicBP}` : "—"}
+                            BP {item.systolicBP && item.diastolicBP ? `${item.systolicBP}/${item.diastolicBP}` : "â€”"}
                           </span>
                           <span className="bg-purple-50 text-purple-800 border border-purple-200 px-1.5 py-0.5 rounded text-[11px] font-mono font-bold">
-                            HR {item.pulse || "—"}
+                            HR {item.pulse || "â€”"}
                           </span>
                           <span className="bg-rose-50 text-rose-800 border border-rose-200 px-1.5 py-0.5 rounded text-[11px] font-mono font-bold">
-                            SpO2 {item.oxygenSaturation ? `${item.oxygenSaturation}%` : "—"}
+                            SpO2 {item.oxygenSaturation ? `${item.oxygenSaturation}%` : "â€”"}
                           </span>
                           {item.temperature && (
                             <span className="bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded text-[11px] font-mono">
-                              {item.temperature}°F
+                              {item.temperature}Â°F
                             </span>
                           )}
                         </div>
                         <div className="text-[10px] text-slate-500 mt-1 font-sans">
                           Pain: <strong className="text-slate-700">{item.painScore !== null ? `${item.painScore}/10` : "N/A"}</strong>
-                          {item.generalCondition && ` • ${item.generalCondition}`}
+                          {item.generalCondition && ` â€¢ ${item.generalCondition}`}
                         </div>
                       </td>
 
@@ -1162,15 +1162,7 @@ export default function EmergencyTriageClient({
                             Discharge
                           </button>
                         )}
-                        <button
-                          type="button"
-                          onClick={() => setSelectedRecord(item)}
-                          className="inline-flex items-center gap-1 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg transition shadow-2xs"
-                          title="View printable official emergency slip"
-                        >
-                          <FileText className="w-3.5 h-3.5" />
-                          Slip
-                        </button>
+
                         <Link
                           href={`/staff/patients/${item.patient.id}`}
                           className="inline-flex items-center gap-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition shadow-2xs"
@@ -1203,7 +1195,7 @@ export default function EmergencyTriageClient({
                 </div>
                 <div>
                   <h3 className="text-base font-bold">New Emergency Patient Registration &amp; Triage</h3>
-                  <p className="text-xs text-slate-300">Ghias Hospital Phalia • REG No. 59488</p>
+                  <p className="text-xs text-slate-300">Ghias Hospital Phalia â€¢ REG No. 59488</p>
                 </div>
               </div>
               <button
@@ -1272,7 +1264,7 @@ export default function EmergencyTriageClient({
                           ({selectedPatient.mrNumber || selectedPatient.patientNumber})
                         </span>
                         <div className="text-xs text-slate-500 mt-0.5">
-                          {selectedPatient.gender} • Phone: {selectedPatient.phone} • CNIC: {selectedPatient.cnic || "N/A"}
+                          {selectedPatient.gender} â€¢ Phone: {selectedPatient.phone} â€¢ CNIC: {selectedPatient.cnic || "N/A"}
                         </div>
                       </div>
                       <button
@@ -1705,7 +1697,7 @@ export default function EmergencyTriageClient({
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">Temp (°F)</label>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">Temp (Â°F)</label>
                     <input
                       type="number"
                       step="0.1"
@@ -1740,7 +1732,7 @@ export default function EmergencyTriageClient({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Pain Score (0–10): <span className="text-rose-600 font-extrabold">{painScore}</span>
+                      Pain Score (0â€“10): <span className="text-rose-600 font-extrabold">{painScore}</span>
                     </label>
                     <input
                       type="range"
@@ -1897,276 +1889,7 @@ export default function EmergencyTriageClient({
         </div>
       )}
 
-      {/* ========================================================= */}
-      {/* SLIP VIEW & PRINT MODAL                                   */}
-      {/* ========================================================= */}
-      {selectedRecord && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs overflow-y-auto print:p-0 print:bg-white">
-          <div className="bg-white w-full max-w-3xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-6 max-h-[95vh] flex flex-col print:border-none print:shadow-none print:max-h-none">
-            {/* Header / Print Actions (hidden when printing) */}
-            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-900 text-white print:hidden shrink-0">
-              <div className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-rose-400" />
-                <h3 className="font-bold text-base">Emergency Triage Slip &amp; Assessment Card</h3>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => window.print()}
-                  className="inline-flex items-center gap-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-xs"
-                >
-                  <Printer className="w-3.5 h-3.5" />
-                  Print Emergency Slip
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedRecord(null)}
-                  className="p-1 rounded-md text-slate-300 hover:text-white"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
 
-            {/* Printable Emergency Slip Body */}
-            <div className="p-8 overflow-y-auto space-y-6 print:p-0">
-              {/* Hospital Official Branding */}
-              <div className="border-b-2 border-slate-900 pb-4 text-center">
-                <h1 className="text-2xl font-black text-slate-950 tracking-wider">
-                  GHIAS HOSPITAL PHALIA
-                </h1>
-                <div className="text-xs font-black uppercase tracking-widest text-slate-700 mt-0.5">
-                  REG No. 59488 • TRIAGE ASSESSMENT AREA &amp; EMERGENCY UNIT
-                </div>
-                <p className="text-[11px] text-slate-500 mt-1">
-                  Near Bypass / Main Road, Phalia • Emergency Hotline: (0546) 59488 • 24/7 Trauma Care
-                </p>
-              </div>
-
-              {/* Triage Stamp */}
-              <div className="flex items-center justify-between p-3.5 rounded-xl border border-slate-300 bg-slate-50">
-                <div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 block">
-                    TRIAGE LEVEL CLASSIFICATION
-                  </span>
-                  <div className="text-lg font-black text-slate-900 mt-0.5">
-                    {selectedRecord.triageLevel || selectedRecord.priority}
-                  </div>
-                  <div className="text-xs font-bold text-rose-700">
-                    Response Target: {selectedRecord.targetTime || "Immediate Evaluation"}
-                  </div>
-                </div>
-
-                <div className="text-right font-mono text-xs">
-                  <div>
-                    MR #:{" "}
-                    <strong className="text-base text-slate-950">
-                      {selectedRecord.patient.mrNumber || selectedRecord.patient.patientNumber}
-                    </strong>
-                  </div>
-                  {selectedRecord.admission && (
-                    <div className="text-slate-600">
-                      Adm #: {selectedRecord.admission.admissionNumber}
-                    </div>
-                  )}
-                  <div className="text-slate-500 text-[11px]">
-                    Triaged by: {selectedRecord.triagedByName}
-                  </div>
-                </div>
-              </div>
-
-              {/* Patient Demographics Box */}
-              <div className="border border-slate-200 rounded-xl p-4 space-y-2 text-xs">
-                <div className="font-bold uppercase tracking-wider text-slate-700 text-[11px] border-b pb-1">
-                  Patient Demographics
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  <div>
-                    <span className="text-slate-400 block text-[10px]">Patient Name</span>
-                    <span className="font-bold text-slate-900 text-sm">
-                      {selectedRecord.patient.firstName} {selectedRecord.patient.lastName}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[10px]">Relation</span>
-                    <span className="font-semibold text-slate-800">
-                      {selectedRecord.patient.relationType || "S/o"}{" "}
-                      {selectedRecord.patient.relatedPersonName || "—"}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[10px]">Gender / Marital</span>
-                    <span className="font-semibold text-slate-800">
-                      {selectedRecord.patient.gender} • {selectedRecord.patient.maritalStatus || "—"}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[10px]">CNIC</span>
-                    <span className="font-mono text-slate-800 font-medium">
-                      {selectedRecord.patient.cnic || "—"}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-slate-100">
-                  <div>
-                    <span className="text-slate-400 block text-[10px]">Contact Phone</span>
-                    <span className="font-semibold text-slate-800">{selectedRecord.patient.phone}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[10px]">Blood Group</span>
-                    <span className="font-bold text-rose-700">
-                      {selectedRecord.patient.bloodGroup ? selectedRecord.patient.bloodGroup.replace("_", " ") : "O+"}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[10px]">Admission Time</span>
-                    <span className="font-semibold text-slate-800">
-                      {new Date(selectedRecord.admissionDateTime || selectedRecord.triagedAt).toLocaleString()}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[10px]">Discharge Time</span>
-                    <span className="font-semibold text-slate-800">
-                      {selectedRecord.dischargeDateTime
-                        ? new Date(selectedRecord.dischargeDateTime).toLocaleString()
-                        : "Active in ER"}
-                    </span>
-                  </div>
-                </div>
-
-                {selectedRecord.patient.address && (
-                  <div className="pt-1 border-t border-slate-100">
-                    <span className="text-slate-400 block text-[10px]">Address</span>
-                    <span className="text-slate-700">{selectedRecord.patient.address}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Vitals & Clinical Assessment */}
-              <div className="border border-slate-200 rounded-xl p-4 space-y-3 text-xs">
-                <div className="font-bold uppercase tracking-wider text-slate-700 text-[11px] border-b pb-1">
-                  Clinical Examination &amp; Vitals
-                </div>
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 text-center">
-                  <div className="p-2 bg-slate-50 rounded-lg border border-slate-200">
-                    <span className="text-[10px] text-slate-400 block uppercase">Blood Pressure</span>
-                    <span className="text-sm font-black text-slate-900">
-                      {selectedRecord.systolicBP && selectedRecord.diastolicBP
-                        ? `${selectedRecord.systolicBP}/${selectedRecord.diastolicBP}`
-                        : "—"}
-                    </span>
-                  </div>
-                  <div className="p-2 bg-slate-50 rounded-lg border border-slate-200">
-                    <span className="text-[10px] text-slate-400 block uppercase">Pulse</span>
-                    <span className="text-sm font-black text-slate-900">
-                      {selectedRecord.pulse ? `${selectedRecord.pulse} bpm` : "—"}
-                    </span>
-                  </div>
-                  <div className="p-2 bg-slate-50 rounded-lg border border-slate-200">
-                    <span className="text-[10px] text-slate-400 block uppercase">Temperature</span>
-                    <span className="text-sm font-black text-slate-900">
-                      {selectedRecord.temperature ? `${selectedRecord.temperature}°F` : "—"}
-                    </span>
-                  </div>
-                  <div className="p-2 bg-slate-50 rounded-lg border border-slate-200">
-                    <span className="text-[10px] text-slate-400 block uppercase">SpO2</span>
-                    <span className="text-sm font-black text-rose-700">
-                      {selectedRecord.oxygenSaturation ? `${selectedRecord.oxygenSaturation}%` : "—"}
-                    </span>
-                  </div>
-                  <div className="p-2 bg-slate-50 rounded-lg border border-slate-200">
-                    <span className="text-[10px] text-slate-400 block uppercase">Resp. Rate</span>
-                    <span className="text-sm font-black text-slate-900">
-                      {selectedRecord.respiratoryRate ? `${selectedRecord.respiratoryRate}/min` : "—"}
-                    </span>
-                  </div>
-                  <div className="p-2 bg-slate-50 rounded-lg border border-slate-200">
-                    <span className="text-[10px] text-slate-400 block uppercase">Pain Score</span>
-                    <span className="text-sm font-black text-slate-900">
-                      {selectedRecord.painScore !== null ? `${selectedRecord.painScore}/10` : "—"}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="space-y-1.5 pt-1">
-                  <div>
-                    <span className="font-bold text-slate-900">Chief Complaint: </span>
-                    <span className="text-slate-800">{selectedRecord.chiefComplaint}</span>
-                  </div>
-                  {selectedRecord.observations && (
-                    <div>
-                      <span className="font-bold text-slate-900">Observations: </span>
-                      <span className="text-slate-700">{selectedRecord.observations}</span>
-                    </div>
-                  )}
-                  {selectedRecord.provisionalDiagnosis && (
-                    <div>
-                      <span className="font-bold text-rose-800">Provisional Diagnosis: </span>
-                      <span className="text-slate-900 font-semibold">{selectedRecord.provisionalDiagnosis}</span>
-                    </div>
-                  )}
-                  {selectedRecord.finalDiagnosis && (
-                    <div>
-                      <span className="font-bold text-emerald-800">Final Diagnosis: </span>
-                      <span className="text-slate-900 font-semibold">{selectedRecord.finalDiagnosis}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Medication Sheet Table */}
-              <div className="border border-slate-200 rounded-xl p-4 space-y-2 text-xs">
-                <div className="font-bold uppercase tracking-wider text-slate-700 text-[11px] border-b pb-1">
-                  Emergency Medication Administration Record
-                </div>
-                {selectedRecord.medicationSheet && selectedRecord.medicationSheet.length > 0 ? (
-                  <table className="w-full text-left border-collapse mt-2">
-                    <thead className="bg-slate-100 text-slate-700 text-[10px] font-black uppercase">
-                      <tr>
-                        <th className="py-2 px-2 border">#</th>
-                        <th className="py-2 px-2 border">Medicine Name</th>
-                        <th className="py-2 px-2 border">Dosage</th>
-                        <th className="py-2 px-2 border">Route</th>
-                        <th className="py-2 px-2 border">Frequency</th>
-                        <th className="py-2 px-2 border">Status</th>
-                        <th className="py-2 px-2 border">Instructions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200 text-xs">
-                      {selectedRecord.medicationSheet.map((med, i) => (
-                        <tr key={i}>
-                          <td className="py-2 px-2 border text-center font-bold">{i + 1}</td>
-                          <td className="py-2 px-2 border font-bold text-slate-900">{med.medicineName}</td>
-                          <td className="py-2 px-2 border">{med.dosage || "—"}</td>
-                          <td className="py-2 px-2 border font-medium">{med.route}</td>
-                          <td className="py-2 px-2 border">{med.frequency}</td>
-                          <td className="py-2 px-2 border font-bold text-emerald-700">{med.status}</td>
-                          <td className="py-2 px-2 border text-slate-600">{med.instructions || "—"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <p className="text-slate-400 italic">No medications recorded yet for this triage encounter.</p>
-                )}
-              </div>
-
-              {/* Signatures Footer */}
-              <div className="pt-10 grid grid-cols-2 text-center text-xs font-bold text-slate-700">
-                <div>
-                  <div className="w-48 border-t border-slate-400 mx-auto mb-1" />
-                  <span>Triage Nurse / Officer Signature</span>
-                </div>
-                <div>
-                  <div className="w-48 border-t border-slate-400 mx-auto mb-1" />
-                  <span>Attending Medical Officer Signature</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ========================================================= */}
       {/* DISCHARGE EMERGENCY PATIENT MODAL (TABBED INTERFACE)       */}
@@ -2185,9 +1908,9 @@ export default function EmergencyTriageClient({
                     Emergency Patient Discharge &amp; Medication Order
                   </h3>
                   <p className="text-xs text-rose-200">
-                    {recordToDischarge.patient.firstName} {recordToDischarge.patient.lastName} • MR#{" "}
-                    <strong>{recordToDischarge.patient.mrNumber || recordToDischarge.patient.patientNumber}</strong> •{" "}
-                    {recordToDischarge.patient.gender} • Phone: {recordToDischarge.patient.phone}
+                    {recordToDischarge.patient.firstName} {recordToDischarge.patient.lastName} â€¢ MR#{" "}
+                    <strong>{recordToDischarge.patient.mrNumber || recordToDischarge.patient.patientNumber}</strong> â€¢{" "}
+                    {recordToDischarge.patient.gender} â€¢ Phone: {recordToDischarge.patient.phone}
                   </p>
                 </div>
               </div>
@@ -2317,8 +2040,8 @@ export default function EmergencyTriageClient({
                       <strong>Vitals at Admission:</strong> BP{" "}
                       {recordToDischarge.systolicBP && recordToDischarge.diastolicBP
                         ? `${recordToDischarge.systolicBP}/${recordToDischarge.diastolicBP}`
-                        : "—"}
-                      , Pulse: {recordToDischarge.pulse || "—"}, Temp: {recordToDischarge.temperature || "—"}°F
+                        : "â€”"}
+                      , Pulse: {recordToDischarge.pulse || "â€”"}, Temp: {recordToDischarge.temperature || "â€”"}Â°F
                     </p>
                   </div>
 
@@ -2590,7 +2313,7 @@ export default function EmergencyTriageClient({
                     </label>
                     <textarea
                       rows={2}
-                      placeholder="Take prescribed medications on time. Maintain bed rest and light diet. Return to Ghias Hospital Emergency immediately if fever > 101°F, bleeding, severe vomiting or acute pain recurs..."
+                      placeholder="Take prescribed medications on time. Maintain bed rest and light diet. Return to Ghias Hospital Emergency immediately if fever > 101Â°F, bleeding, severe vomiting or acute pain recurs..."
                       value={dischargeInstructions}
                       onChange={(e) => setDischargeInstructions(e.target.value)}
                       className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-rose-500 bg-white"
@@ -2608,7 +2331,7 @@ export default function EmergencyTriageClient({
                       onClick={() => setDischargeTab("OUTCOME")}
                       className="text-xs font-bold text-slate-600 hover:text-slate-900 flex items-center gap-1"
                     >
-                      ← Back to Outcome Details
+                      â† Back to Outcome Details
                     </button>
                   ) : (
                     <button
@@ -2616,7 +2339,7 @@ export default function EmergencyTriageClient({
                       onClick={() => setDischargeTab("MEDICATIONS")}
                       className="text-xs font-bold text-rose-700 hover:text-rose-900 flex items-center gap-1"
                     >
-                      Enter Discharge Medications →
+                      Enter Discharge Medications â†’
                     </button>
                   )}
                 </div>
@@ -2678,7 +2401,7 @@ export default function EmergencyTriageClient({
                 <div>
                   <h3 className="font-bold text-base">Official Discharge Form (A4 Print Preview)</h3>
                   <p className="text-xs text-slate-300">
-                    Patient: {recordToPrintDischarge.patient.firstName} {recordToPrintDischarge.patient.lastName} • MR#{" "}
+                    Patient: {recordToPrintDischarge.patient.firstName} {recordToPrintDischarge.patient.lastName} â€¢ MR#{" "}
                     {recordToPrintDischarge.patient.mrNumber || recordToPrintDischarge.patient.patientNumber}
                   </p>
                 </div>
