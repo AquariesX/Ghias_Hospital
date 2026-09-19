@@ -203,7 +203,16 @@ export default function AppointmentA4PrescriptionSlip({
       `}</style>
 
       {/* Top Header Section */}
-      <div className="w-full">
+      <div className="w-full relative">
+        {/* Prominent Header Token Number (Number Only, no 'Token #' text) */}
+        {data.tokenNumber && (
+          <div className="absolute right-0 top-0 sm:top-1 z-10">
+            <div className="min-w-[42px] h-[42px] px-2.5 rounded-full border-2 border-slate-900 flex items-center justify-center font-black font-mono text-xl text-slate-950 bg-white shadow-2xs">
+              {data.tokenNumber}
+            </div>
+          </div>
+        )}
+
         {/* Top Hospital Name in Urdu Nastaliq */}
         <div className="text-center pt-1 pb-1">
           <h1
@@ -277,7 +286,7 @@ export default function AppointmentA4PrescriptionSlip({
 
         {/* Patient Information Bar */}
         <div className="text-[12.5px] text-slate-900 space-y-2 py-1">
-          {/* Line 1: MR # | Out Door | Token # | Contact No | Timestamp */}
+          {/* Line 1: MR # | Out Door | Contact No | Timestamp */}
           <div className="flex items-center justify-between font-medium">
             <div className="flex items-center gap-1.5">
               <span className="font-bold text-slate-950">MR # :</span>
@@ -291,13 +300,6 @@ export default function AppointmentA4PrescriptionSlip({
                 (data.appointmentType === "EMERGENCY"
                   ? "Emergency"
                   : "Out Door")}
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <span className="font-bold text-slate-950">Token # :</span>
-              <span className="font-black font-mono text-base text-slate-950">
-                {data.tokenNumber}
-              </span>
             </div>
 
             <div className="flex items-center gap-1.5">
@@ -456,10 +458,10 @@ export default function AppointmentA4PrescriptionSlip({
 
         {/* Right Column: Rx Prescription Area */}
         <div className="p-4 pl-6 flex flex-col justify-between relative">
-          {/* Top Right Rx Emblem */}
+          {/* Top Right VPO Emblem */}
           <div className="flex items-start justify-end pb-2">
-            <div className="w-9 h-9 rounded-full border-2 border-slate-700 flex items-center justify-center font-serif text-lg font-bold text-slate-800 select-none">
-              R
+            <div className="min-w-9 h-7 px-2 rounded-md border-2 border-slate-700 flex items-center justify-center font-bold text-xs text-slate-800 select-none uppercase tracking-wider">
+              VPO
             </div>
           </div>
 

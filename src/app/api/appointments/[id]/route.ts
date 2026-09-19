@@ -9,6 +9,7 @@ const updateAppointmentSchema = z.object({
   status: z.nativeEnum(AppointmentStatus).optional(),
   appointmentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   appointmentTime: z.string().min(1).optional(),
+  consultationFee: z.union([z.string(), z.number()]).optional(),
   notes: z.string().max(1000).optional().nullable(),
   cancellationReason: z.string().max(500).optional(),
 });
@@ -136,7 +137,7 @@ export async function PATCH(
       );
     }
 
-    const { status, appointmentDate, appointmentTime, notes, cancellationReason } = parseResult.data;
+    const { status, appointmentDate, appointmentTime, consultationFee, notes, cancellationReason } = parseResult.data;
 
     const existing = await prisma.appointment.findFirst({
       where: { OR: [{ id }, { appointmentNumber: id }] },
@@ -164,6 +165,13 @@ export async function PATCH(
     }
 
     const updateData: Record<string, unknown> = {};
+
+    if (consultationFee !== undefined && consultationFee !== null && consultationFee !== "") {
+      const parsedFee = Number(consultationFee);
+      if (!isNaN(parsedFee) && parsedFee >= 0) {
+        updateData.consultationFee = parsedFee;
+      }
+    }
 
     if (status) {
       updateData.status = status;
