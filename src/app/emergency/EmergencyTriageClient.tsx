@@ -24,7 +24,11 @@ import {
   FileText,
   Activity,
   ArrowRight,
+  ExternalLink,
 } from "lucide-react";
+import EmergencyDischargeDocument, {
+  DischargeMedicationItem,
+} from "@/components/emergency/EmergencyDischargeDocument";
 
 export interface MedicationItem {
   id?: string;
@@ -68,6 +72,12 @@ export interface EmergencyTriageRecord {
     admissionTime: string | null;
     dischargeDate: string | null;
     dischargeTime: string | null;
+    dischargeCondition?: string | null;
+    dischargeSummary?: string | null;
+    dischargeInstructions?: string | null;
+    dischargeMedications?: string | null;
+    finalDiagnosis?: string | null;
+    outcome?: string | null;
   } | null;
   patient: {
     id: string;
@@ -158,6 +168,50 @@ export const TRIAGE_TIERS = [
   },
 ];
 
+function getDischargePrintData(rec: EmergencyTriageRecord) {
+  return {
+    patient: {
+      id: rec.patient.id,
+      mrNumber: rec.patient.mrNumber,
+      patientNumber: rec.patient.patientNumber,
+      firstName: rec.patient.firstName,
+      lastName: rec.patient.lastName,
+      gender: rec.patient.gender,
+      dateOfBirth: rec.patient.dateOfBirth,
+      phone: rec.patient.phone,
+      cnic: rec.patient.cnic,
+      relationType: rec.patient.relationType,
+      relatedPersonName: rec.patient.relatedPersonName,
+      address: rec.patient.address,
+    },
+    triage: {
+      id: rec.id,
+      admissionDateTime: rec.admissionDateTime,
+      triagedAt: rec.triagedAt,
+      triagedByName: rec.triagedByName,
+      systolicBP: rec.systolicBP,
+      diastolicBP: rec.diastolicBP,
+      pulse: rec.pulse,
+      temperature: rec.temperature,
+      weight: (rec.patient.vitalSigns?.[0] as any)?.weight || null,
+      oxygenSaturation: rec.oxygenSaturation,
+      respiratoryRate: rec.respiratoryRate,
+      chiefComplaint: rec.chiefComplaint,
+      provisionalDiagnosis: rec.provisionalDiagnosis,
+      finalDiagnosis: rec.finalDiagnosis || rec.admission?.finalDiagnosis,
+      observations: rec.observations,
+    },
+    discharge: {
+      dischargeDateTime: rec.dischargeDateTime || rec.admission?.dischargeDate,
+      dischargeCondition: rec.admission?.dischargeCondition,
+      dischargeSummary: rec.admission?.dischargeSummary,
+      dischargeInstructions: rec.admission?.dischargeInstructions,
+      dischargeMedications: rec.admission?.dischargeMedications,
+      outcome: rec.admission?.outcome || rec.admission?.dischargeCondition,
+    },
+  };
+}
+
 export default function EmergencyTriageClient({
   initialNewModalOpen = false,
   userRole = "STAFF",
@@ -183,44 +237,159 @@ export default function EmergencyTriageClient({
   // Discharge Patient Modal state
   const [dischargeModalOpen, setDischargeModalOpen] = useState(false);
   const [recordToDischarge, setRecordToDischarge] = useState<EmergencyTriageRecord | null>(null);
+  const [dischargeTab, setDischargeTab] = useState<"OUTCOME" | "MEDICATIONS">("OUTCOME");
   const [dischargeDateTimeVal, setDischargeDateTimeVal] = useState("");
   const [dischargeCondition, setDischargeCondition] = useState<string>("Satisfactory / Discharged Home");
   const [dischargeSummary, setDischargeSummary] = useState("");
   const [dischargeInstructions, setDischargeInstructions] = useState("");
   const [dischargeMedications, setDischargeMedications] = useState("");
   const [dischargeFinalDiagnosis, setDischargeFinalDiagnosis] = useState("");
+  const [dischargeMedList, setDischargeMedList] = useState<DischargeMedicationItem[]>([]);
   const [discharging, setDischarging] = useState(false);
   const [dischargeError, setDischargeError] = useState<string | null>(null);
 
+  // Discharge Print Form Modal state
+  const [dischargePrintModalOpen, setDischargePrintModalOpen] = useState(false);
+  const [recordToPrintDischarge, setRecordToPrintDischarge] = useState<EmergencyTriageRecord | null>(null);
+
+  const addDischargeMedRow = (prefill?: Partial<DischargeMedicationItem>) => {
+    setDischargeMedList((prev) => [
+      ...prev,
+      {
+        id: `dmed-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        medicineName: prefill?.medicineName || "",
+        dosage: prefill?.dosage || "1 Tab",
+        route: prefill?.route || "Oral",
+        frequency: prefill?.frequency || "TDS",
+        timing: prefill?.timing || "After meals",
+        duration: prefill?.duration || "5 days",
+        instructions: prefill?.instructions || "",
+      },
+    ]);
+  };
+
+  const removeDischargeMedRow = (index: number) => {
+    setDischargeMedList((prev) => {
+      const filtered = prev.filter((_, i) => i !== index);
+      return filtered.length === 0
+        ? [
+            {
+              id: `dmed-${Date.now()}`,
+              medicineName: "",
+              dosage: "1 Tab",
+              route: "Oral",
+              frequency: "TDS",
+              timing: "After meals",
+              duration: "5 days",
+              instructions: "",
+            },
+          ]
+        : filtered;
+    });
+  };
+
+  const updateDischargeMedRow = (index: number, field: keyof DischargeMedicationItem, val: string) => {
+    setDischargeMedList((prev) => {
+      const copy = [...prev];
+      copy[index] = { ...copy[index], [field]: val };
+      return copy;
+    });
+  };
+
+  const copyFromEmergencyMAR = () => {
+    if (!recordToDischarge?.medicationSheet || recordToDischarge.medicationSheet.length === 0) return;
+    const imported: DischargeMedicationItem[] = recordToDischarge.medicationSheet.map((m, idx) => ({
+      id: `dmed-imp-${Date.now()}-${idx}`,
+      medicineName: m.medicineName,
+      dosage: m.dosage || "1 Tab",
+      route: m.route || "Oral",
+      frequency: m.frequency === "STAT" ? "TDS" : m.frequency || "TDS",
+      timing: "After meals",
+      duration: "5 days",
+      instructions: m.instructions || "",
+    }));
+    setDischargeMedList((prev) => [...prev, ...imported]);
+  };
+
   const handleOpenDischarge = (record: EmergencyTriageRecord) => {
     setRecordToDischarge(record);
+    setDischargeTab("OUTCOME");
     setDischargeDateTimeVal(new Date().toISOString().slice(0, 16));
-    setDischargeCondition("Satisfactory / Discharged Home");
-    setDischargeFinalDiagnosis(record.finalDiagnosis || record.provisionalDiagnosis || "");
-    setDischargeSummary("");
-    setDischargeInstructions("Take prescribed medications. Return immediately to Emergency if symptoms worsen or recur.");
-    setDischargeMedications("");
+    setDischargeCondition(record.admission?.dischargeCondition || "Satisfactory / Discharged Home");
+    setDischargeFinalDiagnosis(
+      record.admission?.finalDiagnosis || record.finalDiagnosis || record.provisionalDiagnosis || ""
+    );
+    setDischargeSummary(record.admission?.dischargeSummary || "");
+    setDischargeInstructions(
+      record.admission?.dischargeInstructions ||
+        "Take prescribed medications on time. Maintain adequate hydration and rest. Return immediately to Emergency if symptoms worsen or recur."
+    );
+
+    let initialMeds: DischargeMedicationItem[] = [];
+    if (record.admission?.dischargeMedications) {
+      try {
+        const parsed = JSON.parse(record.admission.dischargeMedications);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          initialMeds = parsed;
+        } else {
+          setDischargeMedications(record.admission.dischargeMedications);
+        }
+      } catch {
+        setDischargeMedications(record.admission.dischargeMedications);
+      }
+    }
+
+    if (initialMeds.length === 0) {
+      initialMeds = [
+        {
+          id: `dmed-${Date.now()}-1`,
+          medicineName: "Tab Panadol 500mg",
+          dosage: "500 mg",
+          route: "Oral",
+          frequency: "TDS",
+          timing: "After meals",
+          duration: "5 days",
+          instructions: "For mild fever or pain",
+        },
+      ];
+    }
+    setDischargeMedList(initialMeds);
     setDischargeError(null);
     setDischargeModalOpen(true);
   };
 
-  const handleConfirmDischarge = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleOpenDischargePrint = (record: EmergencyTriageRecord) => {
+    setRecordToPrintDischarge(record);
+    setDischargePrintModalOpen(true);
+  };
+
+  const handleConfirmDischarge = async (e?: React.FormEvent, shouldPrint: boolean = false) => {
+    if (e) e.preventDefault();
     if (!recordToDischarge) return;
     try {
       setDischarging(true);
       setDischargeError(null);
+
+      // Serialize medications list or freeform text
+      const validMeds = dischargeMedList.filter((m) => m.medicineName.trim().length > 0);
+      const serializedMedications =
+        validMeds.length > 0
+          ? JSON.stringify(validMeds)
+          : dischargeMedications.trim() || undefined;
+
+      const effectiveDischargeTime = dischargeDateTimeVal || new Date().toISOString();
+
       const res = await fetch("/api/staff/emergency/discharge", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           triageId: recordToDischarge.id,
           admissionId: recordToDischarge.admission?.id,
-          dischargeDateTime: dischargeDateTimeVal || new Date().toISOString(),
+          dischargeDateTime: effectiveDischargeTime,
           dischargeCondition,
           dischargeSummary: dischargeSummary.trim() || undefined,
           dischargeInstructions: dischargeInstructions.trim() || undefined,
-          dischargeMedications: dischargeMedications.trim() || undefined,
+          dischargeMedications: serializedMedications,
           finalDiagnosis: dischargeFinalDiagnosis.trim() || undefined,
         }),
       });
@@ -228,9 +397,48 @@ export default function EmergencyTriageClient({
       if (!res.ok) {
         throw new Error(data.error || "Failed to discharge emergency patient");
       }
+
+      const dischargedCopy: EmergencyTriageRecord = {
+        ...recordToDischarge,
+        dischargeDateTime: effectiveDischargeTime,
+        finalDiagnosis: dischargeFinalDiagnosis.trim() || recordToDischarge.finalDiagnosis,
+        admission: recordToDischarge.admission
+          ? {
+              ...recordToDischarge.admission,
+              dischargeDate: effectiveDischargeTime,
+              dischargeCondition,
+              dischargeSummary: dischargeSummary.trim(),
+              dischargeInstructions: dischargeInstructions.trim(),
+              dischargeMedications: serializedMedications || null,
+              finalDiagnosis: dischargeFinalDiagnosis.trim(),
+              outcome: dischargeCondition,
+            }
+          : {
+              id: `adm-${recordToDischarge.id}`,
+              admissionNumber: `ADM-${recordToDischarge.patient.patientNumber}`,
+              roomBedNo: "ER Bay",
+              status: "DISCHARGED",
+              admissionDate: recordToDischarge.admissionDateTime || recordToDischarge.triagedAt,
+              admissionTime: null,
+              dischargeDate: effectiveDischargeTime,
+              dischargeTime: null,
+              dischargeCondition,
+              dischargeSummary: dischargeSummary.trim(),
+              dischargeInstructions: dischargeInstructions.trim(),
+              dischargeMedications: serializedMedications || null,
+              finalDiagnosis: dischargeFinalDiagnosis.trim(),
+              outcome: dischargeCondition,
+            },
+      };
+
       setDischargeModalOpen(false);
       setRecordToDischarge(null);
       fetchQueue();
+
+      if (shouldPrint) {
+        setRecordToPrintDischarge(dischargedCopy);
+        setDischargePrintModalOpen(true);
+      }
     } catch (err: any) {
       setDischargeError(err.message || "Failed to discharge emergency patient");
     } finally {
@@ -923,7 +1131,27 @@ export default function EmergencyTriageClient({
                       </td>
 
                       <td className="py-3.5 px-4 text-right whitespace-nowrap space-x-1.5">
-                        {!isDischarged && (
+                        {isDischarged ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenDischargePrint(item)}
+                              className="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-2.5 py-1.5 rounded-lg transition shadow-2xs"
+                              title="Print official Discharge Form"
+                            >
+                              <Printer className="w-3.5 h-3.5" />
+                              Discharge Form
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenDischarge(item)}
+                              className="inline-flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-2 py-1.5 rounded-lg transition shadow-2xs"
+                              title="Edit discharge medications or advice"
+                            >
+                              Edit
+                            </button>
+                          </>
+                        ) : (
                           <button
                             type="button"
                             onClick={() => handleOpenDischarge(item)}
@@ -1941,21 +2169,25 @@ export default function EmergencyTriageClient({
       )}
 
       {/* ========================================================= */}
-      {/* DISCHARGE EMERGENCY PATIENT MODAL                         */}
+      {/* DISCHARGE EMERGENCY PATIENT MODAL (TABBED INTERFACE)       */}
       {/* ========================================================= */}
       {dischargeModalOpen && recordToDischarge && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-6 max-h-[92vh] flex flex-col">
-            {/* Header */}
-            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-rose-900 to-slate-900 text-white shrink-0">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-rose-600 flex items-center justify-center text-white">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-6 max-h-[94vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-rose-950 via-slate-900 to-rose-900 text-white shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-rose-600 flex items-center justify-center text-white shadow-xs">
                   <ArrowRight className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold">Emergency Patient Discharge</h3>
+                  <h3 className="text-base font-bold flex items-center gap-2">
+                    Emergency Patient Discharge &amp; Medication Order
+                  </h3>
                   <p className="text-xs text-rose-200">
-                    {recordToDischarge.patient.firstName} {recordToDischarge.patient.lastName} • MR# {recordToDischarge.patient.mrNumber || recordToDischarge.patient.patientNumber}
+                    {recordToDischarge.patient.firstName} {recordToDischarge.patient.lastName} • MR#{" "}
+                    <strong>{recordToDischarge.patient.mrNumber || recordToDischarge.patient.patientNumber}</strong> •{" "}
+                    {recordToDischarge.patient.gender} • Phone: {recordToDischarge.patient.phone}
                   </p>
                 </div>
               </div>
@@ -1968,8 +2200,42 @@ export default function EmergencyTriageClient({
               </button>
             </div>
 
-            {/* Body */}
-            <form onSubmit={handleConfirmDischarge} className="p-6 overflow-y-auto space-y-4 text-sm flex-1">
+            {/* Modal Navigation Tabs */}
+            <div className="flex items-center border-b border-slate-200 bg-slate-50 px-6 pt-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setDischargeTab("OUTCOME")}
+                className={`flex items-center gap-2 pb-3 px-4 font-bold text-xs uppercase tracking-wider border-b-2 transition ${
+                  dischargeTab === "OUTCOME"
+                    ? "border-rose-600 text-rose-700 bg-white rounded-t-lg shadow-2xs"
+                    : "border-transparent text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <FileText className="w-4 h-4" />
+                1. Outcome &amp; Clinical Summary
+              </button>
+              <button
+                type="button"
+                onClick={() => setDischargeTab("MEDICATIONS")}
+                className={`flex items-center gap-2 pb-3 px-4 font-bold text-xs uppercase tracking-wider border-b-2 transition ${
+                  dischargeTab === "MEDICATIONS"
+                    ? "border-rose-600 text-rose-700 bg-white rounded-t-lg shadow-2xs"
+                    : "border-transparent text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <Pill className="w-4 h-4" />
+                2. Discharge Medications &amp; Instructions
+                <span className="ml-1 bg-rose-100 text-rose-800 px-1.5 py-0.5 rounded-full text-[10px] font-extrabold">
+                  {dischargeMedList.filter((m) => m.medicineName.trim()).length}
+                </span>
+              </button>
+            </div>
+
+            {/* Modal Form Body */}
+            <form
+              onSubmit={(e) => handleConfirmDischarge(e, false)}
+              className="p-6 overflow-y-auto space-y-4 text-sm flex-1"
+            >
               {dischargeError && (
                 <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-semibold flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0" />
@@ -1977,120 +2243,486 @@ export default function EmergencyTriageClient({
                 </div>
               )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
-                    Date &amp; Time of Discharge *
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={dischargeDateTimeVal}
-                    onChange={(e) => setDischargeDateTimeVal(e.target.value)}
-                    required
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-rose-500 font-mono"
-                  />
+              {/* TAB 1: OUTCOME & CLINICAL SUMMARY */}
+              {dischargeTab === "OUTCOME" && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
+                        Date &amp; Time of Discharge *
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={dischargeDateTimeVal}
+                        onChange={(e) => setDischargeDateTimeVal(e.target.value)}
+                        required
+                        className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-rose-500 font-mono bg-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
+                        Discharge Condition / Outcome *
+                      </label>
+                      <select
+                        value={dischargeCondition}
+                        onChange={(e) => setDischargeCondition(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-rose-500 bg-white font-semibold"
+                      >
+                        <option value="Satisfactory / Discharged Home">Satisfactory / Discharged Home</option>
+                        <option value="Stable">Stable</option>
+                        <option value="Transferred to IPD Ward">Transferred to IPD Ward</option>
+                        <option value="Referred to Higher Facility">Referred to Higher Facility</option>
+                        <option value="LAMA (Left Against Medical Advice)">LAMA (Left Against Medical Advice)</option>
+                        <option value="Deceased">Deceased</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
+                      Final Clinical Diagnosis
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Acute Gastritis, Resolved Vasovagal Syncope, Stable Angina"
+                      value={dischargeFinalDiagnosis}
+                      onChange={(e) => setDischargeFinalDiagnosis(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-rose-500 bg-white font-medium"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
+                      Discharge Clinical Summary / Outcome Notes
+                    </label>
+                    <textarea
+                      rows={3}
+                      placeholder="Emergency treatment provided, clinical stability achieved, vitals stable, fit for discharge..."
+                      value={dischargeSummary}
+                      onChange={(e) => setDischargeSummary(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-rose-500 bg-white"
+                    />
+                  </div>
+
+                  {/* Summary of Vitals & Chief Complaint for Nurse Reference */}
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-1 text-slate-700">
+                    <span className="font-bold text-slate-900 block text-[11px] uppercase tracking-wider">
+                      Initial Triage Reference
+                    </span>
+                    <p>
+                      <strong>Chief Complaint:</strong> {recordToDischarge.chiefComplaint}
+                    </p>
+                    <p>
+                      <strong>Vitals at Admission:</strong> BP{" "}
+                      {recordToDischarge.systolicBP && recordToDischarge.diastolicBP
+                        ? `${recordToDischarge.systolicBP}/${recordToDischarge.diastolicBP}`
+                        : "—"}
+                      , Pulse: {recordToDischarge.pulse || "—"}, Temp: {recordToDischarge.temperature || "—"}°F
+                    </p>
+                  </div>
+
+                  <div className="pt-2 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setDischargeTab("MEDICATIONS")}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-rose-50 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold hover:bg-rose-100 transition shadow-2xs"
+                    >
+                      <span>Continue to Discharge Medications</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
+              )}
 
-                <div>
-                  <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
-                    Discharge Condition *
-                  </label>
-                  <select
-                    value={dischargeCondition}
-                    onChange={(e) => setDischargeCondition(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-rose-500"
-                  >
-                    <option value="Satisfactory / Discharged Home">Satisfactory / Discharged Home</option>
-                    <option value="Stable">Stable</option>
-                    <option value="Transferred to IPD Ward">Transferred to IPD Ward</option>
-                    <option value="Referred to Higher Facility">Referred to Higher Facility</option>
-                    <option value="LAMA (Left Against Medical Advice)">LAMA (Left Against Medical Advice)</option>
-                    <option value="Deceased">Deceased</option>
-                  </select>
+              {/* TAB 2: DISCHARGE MEDICATIONS & INSTRUCTIONS */}
+              {dischargeTab === "MEDICATIONS" && (
+                <div className="space-y-4">
+                  {/* Top Toolbar for Medications Tab */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-200">
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-900">
+                        Discharge Medications for Patient
+                      </h4>
+                      <p className="text-[11px] text-slate-500">
+                        These will appear under &quot;Discharge Medications&quot; on the official printed Discharge Form.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {recordToDischarge.medicationSheet && recordToDischarge.medicationSheet.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={copyFromEmergencyMAR}
+                          className="inline-flex items-center gap-1 text-xs font-bold text-purple-700 hover:text-purple-900 bg-purple-50 px-2.5 py-1.5 rounded-lg border border-purple-200 transition"
+                          title="Copy emergency medications given during triage"
+                        >
+                          <Pill className="w-3.5 h-3.5" />
+                          Import Emergency Meds
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => addDischargeMedRow()}
+                        className="inline-flex items-center gap-1 text-xs font-bold text-rose-700 hover:text-rose-900 bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-200 transition shadow-2xs"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Add Medicine Row
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Quick-Add Presets for Nurses */}
+                  <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+                    <span className="text-[10px] font-black uppercase text-slate-500 block mb-1.5">
+                      Quick Add Common Emergency Prescriptions:
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        {
+                          name: "Tab Panadol 500mg",
+                          dose: "500 mg",
+                          freq: "TDS",
+                          timing: "After meals",
+                          dur: "5 days",
+                          inst: "For fever or pain",
+                        },
+                        {
+                          name: "Cap Omeprazole 20mg",
+                          dose: "20 mg",
+                          freq: "BD",
+                          timing: "Before breakfast/dinner",
+                          dur: "7 days",
+                          inst: "For acidity / gastric cover",
+                        },
+                        {
+                          name: "Tab Flagyl 400mg",
+                          dose: "400 mg",
+                          freq: "TDS",
+                          timing: "After meals",
+                          dur: "5 days",
+                          inst: "Antibacterial / GI infection",
+                        },
+                        {
+                          name: "Tab Augmentin 625mg",
+                          dose: "625 mg",
+                          freq: "BD",
+                          timing: "With food",
+                          dur: "5 days",
+                          inst: "Antibiotic course",
+                        },
+                        {
+                          name: "Syp Gaviscon",
+                          dose: "10 ml (2 tsp)",
+                          freq: "TDS",
+                          timing: "After meals & bedtime",
+                          dur: "5 days",
+                          inst: "For reflux/heartburn",
+                        },
+                        {
+                          name: "Tab Brufen 400mg",
+                          dose: "400 mg",
+                          freq: "BD",
+                          timing: "After food",
+                          dur: "3 days",
+                          inst: "For inflammation/pain",
+                        },
+                        {
+                          name: "Tab Gravinate 50mg",
+                          dose: "50 mg",
+                          freq: "SOS / PRN",
+                          timing: "When needed",
+                          dur: "3 days",
+                          inst: "For nausea or vomiting",
+                        },
+                      ].map((preset, pIdx) => (
+                        <button
+                          key={pIdx}
+                          type="button"
+                          onClick={() =>
+                            addDischargeMedRow({
+                              medicineName: preset.name,
+                              dosage: preset.dose,
+                              frequency: preset.freq,
+                              timing: preset.timing,
+                              duration: preset.dur,
+                              instructions: preset.inst,
+                            })
+                          }
+                          className="px-2 py-1 bg-white hover:bg-rose-50 text-slate-700 hover:text-rose-700 border border-slate-200 rounded-md text-[11px] font-semibold transition"
+                        >
+                          + {preset.name} ({preset.freq})
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Medications Rows List */}
+                  <div className="space-y-2.5">
+                    {dischargeMedList.map((med, idx) => (
+                      <div
+                        key={med.id || idx}
+                        className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 relative"
+                      >
+                        <div className="flex items-center justify-between pb-1 border-b border-slate-200/70">
+                          <span className="text-xs font-bold text-slate-800">
+                            Medicine #{idx + 1}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => removeDischargeMedRow(idx)}
+                            className="text-slate-400 hover:text-rose-600 p-1 rounded"
+                            title="Remove this medicine"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                          {/* Medicine Name */}
+                          <div className="sm:col-span-5">
+                            <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                              Medicine Name *
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="e.g. Tab Panadol 500mg"
+                              value={med.medicineName}
+                              onChange={(e) => updateDischargeMedRow(idx, "medicineName", e.target.value)}
+                              className="w-full p-2 border border-slate-300 rounded-lg text-xs font-semibold bg-white"
+                              required
+                            />
+                          </div>
+
+                          {/* Dosage */}
+                          <div className="sm:col-span-2">
+                            <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Dosage</label>
+                            <input
+                              type="text"
+                              placeholder="500 mg / 1 Tab"
+                              value={med.dosage || ""}
+                              onChange={(e) => updateDischargeMedRow(idx, "dosage", e.target.value)}
+                              className="w-full p-2 border border-slate-300 rounded-lg text-xs bg-white"
+                            />
+                          </div>
+
+                          {/* Route */}
+                          <div className="sm:col-span-2">
+                            <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Route</label>
+                            <select
+                              value={med.route || "Oral"}
+                              onChange={(e) => updateDischargeMedRow(idx, "route", e.target.value)}
+                              className="w-full p-2 border border-slate-300 rounded-lg text-xs bg-white"
+                            >
+                              <option value="Oral">Oral</option>
+                              <option value="IV">IV</option>
+                              <option value="IM">IM</option>
+                              <option value="Inhalation">Inhalation</option>
+                              <option value="Sublingual">Sublingual</option>
+                              <option value="Topical">Topical</option>
+                              <option value="Drops">Drops</option>
+                            </select>
+                          </div>
+
+                          {/* Frequency */}
+                          <div className="sm:col-span-3">
+                            <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Frequency</label>
+                            <select
+                              value={med.frequency || "TDS"}
+                              onChange={(e) => updateDischargeMedRow(idx, "frequency", e.target.value)}
+                              className="w-full p-2 border border-slate-300 rounded-lg text-xs bg-white font-bold"
+                            >
+                              <option value="TDS">TDS (Thrice daily)</option>
+                              <option value="BD">BD (Twice daily)</option>
+                              <option value="OD">OD (Once daily)</option>
+                              <option value="QID">QID (4 times daily)</option>
+                              <option value="STAT">STAT (Immediately)</option>
+                              <option value="SOS / PRN">SOS / PRN (As needed)</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                          {/* Timing */}
+                          <div className="sm:col-span-4">
+                            <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Timing</label>
+                            <input
+                              type="text"
+                              placeholder="After meals / Before food"
+                              value={med.timing || ""}
+                              onChange={(e) => updateDischargeMedRow(idx, "timing", e.target.value)}
+                              className="w-full p-1.5 border border-slate-300 rounded-lg text-xs bg-white"
+                            />
+                          </div>
+
+                          {/* Duration */}
+                          <div className="sm:col-span-3">
+                            <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Duration</label>
+                            <input
+                              type="text"
+                              placeholder="e.g. 5 days, 1 week"
+                              value={med.duration || ""}
+                              onChange={(e) => updateDischargeMedRow(idx, "duration", e.target.value)}
+                              className="w-full p-1.5 border border-slate-300 rounded-lg text-xs bg-white font-semibold"
+                            />
+                          </div>
+
+                          {/* Special Notes */}
+                          <div className="sm:col-span-5">
+                            <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Instructions / Note</label>
+                            <input
+                              type="text"
+                              placeholder="e.g. For pain / with plenty of water"
+                              value={med.instructions || ""}
+                              onChange={(e) => updateDischargeMedRow(idx, "instructions", e.target.value)}
+                              className="w-full p-1.5 border border-slate-300 rounded-lg text-xs bg-white"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Discharge Advice & Instructions Box */}
+                  <div className="pt-2">
+                    <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
+                      Discharge Advice &amp; Special Patient Instructions
+                    </label>
+                    <textarea
+                      rows={2}
+                      placeholder="Take prescribed medications on time. Maintain bed rest and light diet. Return to Ghias Hospital Emergency immediately if fever > 101°F, bleeding, severe vomiting or acute pain recurs..."
+                      value={dischargeInstructions}
+                      onChange={(e) => setDischargeInstructions(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-rose-500 bg-white"
+                    />
+                  </div>
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
-                  Final Clinical Diagnosis
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Acute Gastritis, Resolved Vasovagal Syncope, Stable Angina"
-                  value={dischargeFinalDiagnosis}
-                  onChange={(e) => setDischargeFinalDiagnosis(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-rose-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
-                  Discharge Clinical Summary / Observations
-                </label>
-                <textarea
-                  rows={3}
-                  placeholder="Emergency treatment provided, clinical stability achieved, vitals stable..."
-                  value={dischargeSummary}
-                  onChange={(e) => setDischargeSummary(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-rose-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
-                  Discharge Advice &amp; Instructions
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="Take prescribed medications, rest, return if chest pain recurs..."
-                  value={dischargeInstructions}
-                  onChange={(e) => setDischargeInstructions(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-rose-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
-                  Take-Home / Discharge Medications
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="e.g. Tab Panadol 500mg TDS, Cap Omeprazole 20mg BD before meals..."
-                  value={dischargeMedications}
-                  onChange={(e) => setDischargeMedications(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-rose-500"
-                />
-              </div>
+              )}
 
               {/* Actions Footer */}
-              <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setDischargeModalOpen(false)}
-                  disabled={discharging}
-                  className="px-4 py-2 border border-slate-300 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={discharging}
-                  className="inline-flex items-center gap-2 bg-rose-600 hover:bg-rose-700 text-white px-5 py-2 rounded-xl text-sm font-bold transition shadow-xs disabled:opacity-50"
-                >
-                  {discharging ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      Discharging...
-                    </>
+              <div className="pt-4 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  {dischargeTab === "MEDICATIONS" ? (
+                    <button
+                      type="button"
+                      onClick={() => setDischargeTab("OUTCOME")}
+                      className="text-xs font-bold text-slate-600 hover:text-slate-900 flex items-center gap-1"
+                    >
+                      ← Back to Outcome Details
+                    </button>
                   ) : (
-                    <>
-                      <CheckCircle className="w-4 h-4" />
-                      Confirm Patient Discharge
-                    </>
+                    <button
+                      type="button"
+                      onClick={() => setDischargeTab("MEDICATIONS")}
+                      className="text-xs font-bold text-rose-700 hover:text-rose-900 flex items-center gap-1"
+                    >
+                      Enter Discharge Medications →
+                    </button>
                   )}
-                </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setDischargeModalOpen(false)}
+                    disabled={discharging}
+                    className="px-4 py-2 border border-slate-300 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 transition"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={discharging}
+                    className="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl text-sm font-bold transition shadow-xs disabled:opacity-50"
+                  >
+                    {discharging ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="w-4 h-4" />
+                        Confirm Discharge
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleConfirmDischarge(undefined, true)}
+                    disabled={discharging}
+                    className="inline-flex items-center gap-2 bg-rose-600 hover:bg-rose-700 text-white px-5 py-2 rounded-xl text-sm font-bold transition shadow-md hover:shadow-lg disabled:opacity-50"
+                  >
+                    <Printer className="w-4 h-4" />
+                    Save &amp; Print Discharge Form
+                  </button>
+                </div>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* OFFICIAL DISCHARGE FORM PRINT MODAL (Exact User Template)  */}
+      {/* ========================================================= */}
+      {dischargePrintModalOpen && recordToPrintDischarge && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs overflow-y-auto print:static print:overflow-visible print:p-0 print:bg-transparent">
+          <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-6 max-h-[96vh] flex flex-col print:border-none print:shadow-none print:max-h-none print:my-0 print:overflow-visible print:w-auto print:max-w-none">
+            {/* Modal Header Toolbar (hidden on print) */}
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-900 text-white print:hidden shrink-0">
+              <div className="flex items-center gap-2.5">
+                <FileText className="w-5 h-5 text-rose-400" />
+                <div>
+                  <h3 className="font-bold text-base">Official Discharge Form (A4 Print Preview)</h3>
+                  <p className="text-xs text-slate-300">
+                    Patient: {recordToPrintDischarge.patient.firstName} {recordToPrintDischarge.patient.lastName} • MR#{" "}
+                    {recordToPrintDischarge.patient.mrNumber || recordToPrintDischarge.patient.patientNumber}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleOpenDischarge(recordToPrintDischarge)}
+                  className="inline-flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-700 transition"
+                >
+                  Edit Meds / Advice
+                </button>
+                <a
+                  href={`/emergency/discharge/${recordToPrintDischarge.id}/print`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-700 transition"
+                  title="Direct print URL endpoint: /emergency/discharge/[id]/print"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Open Print URL</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={() => { window.location.href = `/emergency/discharge/${recordToPrintDischarge.id}/print?autoprint=true`; }}
+                  className="inline-flex items-center gap-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-4 py-2 rounded-lg shadow-md transition"
+                >
+                  <Printer className="w-4 h-4" />
+                  Print Discharge Form
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDischargePrintModalOpen(false)}
+                  className="p-1 rounded-md text-slate-300 hover:text-white"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Printable Discharge Document */}
+            <div className="overflow-y-auto print:overflow-visible flex-1 p-4 sm:p-8 bg-slate-100 print:bg-white print:p-0">
+              <EmergencyDischargeDocument data={getDischargePrintData(recordToPrintDischarge)} />
+            </div>
           </div>
         </div>
       )}

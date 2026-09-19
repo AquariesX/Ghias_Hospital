@@ -171,8 +171,8 @@ export default function AppointmentPrintSlip({
 
   if (isModal) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/75 backdrop-blur-xs overflow-y-auto">
-        <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full p-4 sm:p-5 space-y-3 my-4">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/75 backdrop-blur-xs overflow-y-auto print:static print:p-0 print:m-0 print:bg-transparent print:overflow-visible print:block">
+        <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full p-4 sm:p-5 space-y-3 my-4 print:p-0 print:m-0 print:my-0 print:border-none print:shadow-none print:max-w-none print:bg-transparent print:space-y-0">
           {/* Modal Header with Format Switcher */}
           <div className="flex items-center justify-between no-print pb-2.5 border-b border-slate-200">
             <div className="flex items-center gap-3">
@@ -230,7 +230,7 @@ export default function AppointmentPrintSlip({
           </div>
 
           {/* Slip Scrollable Container */}
-          <div className="overflow-y-auto max-h-[75vh] p-2 bg-slate-100 rounded-xl flex justify-center">
+          <div className="overflow-y-auto max-h-[75vh] p-2 bg-slate-100 rounded-xl flex justify-center print:overflow-visible print:max-h-none print:p-0 print:m-0 print:bg-transparent print:block">
             {layout === "A4" ? (
               <AppointmentA4PrescriptionSlip data={a4Data} />
             ) : (

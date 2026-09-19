@@ -75,6 +75,12 @@ export async function GET(request: NextRequest) {
             admissionTime: true,
             dischargeDate: true,
             dischargeTime: true,
+            dischargeCondition: true,
+            dischargeSummary: true,
+            dischargeInstructions: true,
+            dischargeMedications: true,
+            finalDiagnosis: true,
+            outcome: true,
           },
         },
         patient: {

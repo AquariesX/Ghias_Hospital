@@ -120,10 +120,68 @@ export default function DischargeDocumentView({
 
   return (
     <div className="w-full text-slate-900 bg-white font-sans text-xs">
+      <style jsx global>{`
+        @media print {
+          @page {
+            size: A4 portrait;
+            margin: 0 !important;
+          }
+          html,
+          body {
+            width: 210mm !important;
+            height: 297mm !important;
+            max-height: 297mm !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+            background: #ffffff !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          body * {
+            visibility: hidden !important;
+          }
+          #inpatient-discharge-document,
+          #inpatient-discharge-document * {
+            visibility: visible !important;
+          }
+          #inpatient-discharge-document {
+            position: fixed !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 210mm !important;
+            max-width: 210mm !important;
+            height: 297mm !important;
+            max-height: 297mm !important;
+            margin: 0 !important;
+            padding: 6mm 10mm 6mm 10mm !important;
+            border: 2px solid #0f172a !important;
+            box-shadow: none !important;
+            background: #ffffff !important;
+            color: #000000 !important;
+            box-sizing: border-box !important;
+            overflow: hidden !important;
+            page-break-after: avoid !important;
+            break-after: avoid !important;
+            page-break-before: avoid !important;
+            break-before: avoid !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: space-between !important;
+            z-index: 9999999 !important;
+          }
+          .no-print {
+            display: none !important;
+          }
+        }
+      `}</style>
       {/* Official A4 Sheet Container matching Paper Form Layout */}
       <div
-        className="relative bg-white border-2 border-slate-900 p-4 sm:p-5 print:p-4 mx-auto max-w-[210mm] flex flex-col justify-between"
-        style={{ boxSizing: "border-box", minHeight: "285mm" }}
+        id="inpatient-discharge-document"
+        className="relative bg-white border-2 border-slate-900 p-4 sm:p-5 print:p-3 mx-auto max-w-[210mm] flex flex-col justify-between"
+        style={{ boxSizing: "border-box", minHeight: "280mm" }}
       >
         {/* Optional Watermark if Draft */}
         {showWatermark && (

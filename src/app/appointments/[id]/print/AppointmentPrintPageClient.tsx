@@ -173,7 +173,7 @@ export default function AppointmentPrintPageClient({
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 py-6 px-3 print:bg-white print:p-0">
+    <div className="min-h-screen print:min-h-0 bg-slate-100 py-6 px-3 print:bg-white print:p-0 print:m-0">
       {/* Top Action Bar - Hidden in print */}
       <div className="max-w-[210mm] mx-auto mb-4 flex items-center justify-between no-print bg-white p-3 sm:p-4 rounded-xl border border-slate-200 shadow-xs">
         <Link

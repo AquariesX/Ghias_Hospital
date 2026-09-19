@@ -78,25 +78,43 @@ export default function GhiasThermalTokenSlip({
         @media print {
           @page {
             size: 80mm auto;
-            margin: 0;
+            margin: 0 !important;
+          }
+          html,
+          body {
+            width: 80mm !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #ffffff !important;
+            overflow: hidden !important;
           }
           body * {
-            visibility: hidden;
+            visibility: hidden !important;
           }
           #${id},
           #${id} * {
-            visibility: visible;
+            visibility: visible !important;
           }
           #${id} {
-            position: absolute;
-            left: 0;
-            top: 0;
+            position: fixed !important;
+            left: 0 !important;
+            top: 0 !important;
             width: 80mm !important;
             max-width: 80mm !important;
             margin: 0 !important;
-            padding: 4mm 5mm !important;
+            padding: 3mm 4mm !important;
             border: none !important;
             box-shadow: none !important;
+            box-sizing: border-box !important;
+            overflow: hidden !important;
+            page-break-after: avoid !important;
+            break-after: avoid !important;
+            page-break-before: avoid !important;
+            break-before: avoid !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           .no-print {
             display: none !important;

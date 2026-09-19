@@ -98,7 +98,27 @@ export default function AssessmentSheetPrintClient({
       : "";
 
   return (
-    <div className="min-h-screen bg-slate-100 py-6 px-4 font-sans text-slate-900 print:bg-white print:p-0">
+    <div className="min-h-screen print:min-h-0 bg-slate-100 py-6 px-4 font-sans text-slate-900 print:bg-white print:p-0">
+      <style jsx global>{`
+        @media print {
+          @page {
+            size: A4 portrait;
+            margin: 5mm 8mm;
+          }
+          html,
+          body {
+            width: 210mm !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #ffffff !important;
+          }
+          .no-print,
+          .print\\:hidden {
+            display: none !important;
+          }
+        }
+      `}</style>
+
       {/* Top Action Bar (Hidden in Print) */}
       <div className="max-w-4xl mx-auto mb-4 flex items-center justify-between print:hidden">
         <Link
@@ -128,7 +148,7 @@ export default function AssessmentSheetPrintClient({
       </div>
 
       {/* Official Clinical Assessment Chart Container (A4 Printable) */}
-      <div className="max-w-4xl mx-auto bg-white border border-slate-400 print:border-0 rounded-xl print:rounded-none shadow-sm print:shadow-none p-6 sm:p-8 text-black text-xs leading-relaxed print:p-0">
+      <div className="max-w-4xl mx-auto bg-white border border-slate-400 print:border-0 rounded-xl print:rounded-none shadow-sm print:shadow-none p-6 sm:p-8 text-black text-xs leading-relaxed print:p-0 print:m-0 print:max-w-none">
         <div className="border border-black p-4 space-y-3 font-serif">
           {/* Header */}
           <div className="relative border-b-2 border-black pb-2 text-center">

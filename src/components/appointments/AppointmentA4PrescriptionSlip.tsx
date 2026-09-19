@@ -142,7 +142,7 @@ export default function AppointmentA4PrescriptionSlip({
     <div
       ref={componentRef}
       id="a4-prescription-slip"
-      className="bg-white text-slate-950 w-full max-w-[210mm] min-h-[297mm] mx-auto p-[8mm_12mm_10mm_12mm] shadow-md print:shadow-none print:m-0 print:p-[6mm_10mm_8mm_10mm] font-sans flex flex-col justify-between box-border text-[13px] leading-normal"
+      className="bg-white text-slate-950 w-full max-w-[210mm] min-h-[297mm] print:min-h-0 print:h-[296mm] print:max-h-[296mm] mx-auto p-[8mm_12mm_10mm_12mm] shadow-md print:shadow-none print:m-0 print:p-[6mm_10mm_6mm_10mm] font-sans flex flex-col justify-between box-border text-[13px] leading-normal print:overflow-hidden"
       style={{
         boxSizing: "border-box",
       }}
@@ -151,7 +151,17 @@ export default function AppointmentA4PrescriptionSlip({
         @media print {
           @page {
             size: A4 portrait;
-            margin: 6mm 10mm;
+            margin: 0 !important;
+          }
+          html,
+          body {
+            width: 210mm !important;
+            height: 297mm !important;
+            max-height: 297mm !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+            background: #ffffff !important;
           }
           body * {
             visibility: hidden !important;
@@ -161,17 +171,28 @@ export default function AppointmentA4PrescriptionSlip({
             visibility: visible !important;
           }
           #a4-prescription-slip {
-            position: absolute !important;
+            position: fixed !important;
             left: 0 !important;
             top: 0 !important;
             width: 210mm !important;
-            min-height: 290mm !important;
+            max-width: 210mm !important;
+            height: 296mm !important;
+            max-height: 296mm !important;
+            min-height: 0 !important;
             margin: 0 !important;
-            padding: 6mm 10mm !important;
+            padding: 6mm 10mm 6mm 10mm !important;
             border: none !important;
             box-shadow: none !important;
             background: #ffffff !important;
             color: #000000 !important;
+            box-sizing: border-box !important;
+            overflow: hidden !important;
+            page-break-after: avoid !important;
+            break-after: avoid !important;
+            page-break-before: avoid !important;
+            break-before: avoid !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
@@ -486,10 +507,7 @@ export default function AppointmentA4PrescriptionSlip({
             </div>
           ) : (
             /* Open clean pad area matching the physical slip with subtle guide lines */
-            <div className="flex-1 space-y-7 pt-4 opacity-40">
-              <div className="border-b border-slate-200 w-full"></div>
-              <div className="border-b border-slate-200 w-full"></div>
-              <div className="border-b border-slate-200 w-full"></div>
+            <div className="flex-1 space-y-5 pt-2 opacity-35">
               <div className="border-b border-slate-200 w-full"></div>
               <div className="border-b border-slate-200 w-full"></div>
               <div className="border-b border-slate-200 w-full"></div>
@@ -503,7 +521,7 @@ export default function AppointmentA4PrescriptionSlip({
           )}
 
           {/* Doctor Signature Line at bottom right */}
-          <div className="pt-6 flex justify-end">
+          <div className="pt-3 flex justify-end">
             <div className="text-center min-w-[160px]">
               <div className="border-b border-slate-600 w-full mb-1"></div>
               <span className="text-[11px] font-semibold text-slate-700">

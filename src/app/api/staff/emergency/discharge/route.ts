@@ -87,6 +87,7 @@ export async function POST(request: NextRequest) {
             dischargeSummary: data.dischargeSummary,
             dischargeInstructions: data.dischargeInstructions,
             dischargeMedications: data.dischargeMedications,
+            outcome: data.dischargeCondition,
             finalDiagnosis: data.finalDiagnosis || undefined,
             isLama: data.dischargeCondition === "LAMA (Left Against Medical Advice)",
           },
