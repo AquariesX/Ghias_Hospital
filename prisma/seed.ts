@@ -14,7 +14,7 @@ async function main() {
 
   const seedUsers = [
     {
-      email: "admin@gias-hospital.com",
+      email: "admin@ghias-hospital.com",
       username: "admin_user",
       passwordHash: adminPasswordHash,
       firstName: "System",
